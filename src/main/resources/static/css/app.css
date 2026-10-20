@@ -144,6 +144,20 @@ body {
   font-size: .8rem;
 }
 
+/* Width helpers used instead of inline "style" attributes, which the
+   application's Content-Security-Policy (style-src 'self') blocks. */
+
+.w-max-9rem { max-width: 9rem; }
+.w-min-14rem { min-width: 14rem; }
+.col-min-10rem { min-width: 10rem; }
+
+/* Positioned popover of the "void payment" control on the fee accounts. */
+.void-popover {
+  position: absolute;
+  z-index: 10;
+  max-width: 20rem;
+}
+
 /* ----- login -------------------------------------------------------- */
 
 .login-shell {

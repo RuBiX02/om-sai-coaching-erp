@@ -39,10 +39,21 @@
       <div th:replace="~{layout/fragments :: navitem('batches', 'Batches', 'bi-collection', @{/batches})}"></div>
       <div th:replace="~{layout/fragments :: navitem('students', 'Students', 'bi-people', @{/students})}"></div>
       <div th:replace="~{layout/fragments :: navitem('teachers', 'Teachers', 'bi-person-video3', @{/teachers})}"></div>
-      <div th:if="${isAdmin}" th:replace="~{layout/fragments :: navitem('attendance', 'Attendance reports', 'bi-clipboard-data', @{/attendance/reports})}"></div>
-      <div th:if="${isAdmin}" th:replace="~{layout/fragments :: navitem('fees', 'Fees', 'bi-cash-coin', @{/fees})}"></div>
-      <div th:if="${isAdmin}" th:replace="~{layout/fragments :: navitem('payments', 'Payments', 'bi-receipt', @{/payments})}"></div>
-      <div th:if="${isAdmin}" th:replace="~{layout/fragments :: navitem('users', 'Accounts', 'bi-person-gear', @{/users})}"></div>
+      <!-- th:replace clears th:if on the same element (replace has higher
+           attribute precedence), so the administrator-only items are kept
+           inside a conditionally rendered wrapper element instead. -->
+      <div th:if="${isAdmin}">
+        <div th:replace="~{layout/fragments :: navitem('attendance', 'Attendance reports', 'bi-clipboard-data', @{/attendance/reports})}"></div>
+      </div>
+      <div th:if="${isAdmin}">
+        <div th:replace="~{layout/fragments :: navitem('fees', 'Fees', 'bi-cash-coin', @{/fees})}"></div>
+      </div>
+      <div th:if="${isAdmin}">
+        <div th:replace="~{layout/fragments :: navitem('payments', 'Payments', 'bi-receipt', @{/payments})}"></div>
+      </div>
+      <div th:if="${isAdmin}">
+        <div th:replace="~{layout/fragments :: navitem('users', 'Accounts', 'bi-person-gear', @{/users})}"></div>
+      </div>
     </nav>
   </div>
 </aside>

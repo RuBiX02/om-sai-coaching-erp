@@ -1,26 +1,36 @@
-# PROJECT STATUS — Om Sai Coaching ERP, Phases 1 and 2
+# PROJECT STATUS — Om Sai Coaching ERP, Phases 1–3
 
 Date: 2026-10-20
 Scope: everything in the Phase 1 and Phase 2 specifications that was
-actually built and verified, with an honest account of gaps, limitations
-and the defects found (and fixed) during development.
+actually built and verified, the Phase 3 real-browser verification and
+CI setup, and an honest account of gaps, limitations and the defects
+found (and fixed) during development.
 
 ---
 
 ## 1. Bottom line
 
-Phases 1 and 2 are implemented and work end to end:
+Phases 1–3 are implemented and work end to end:
 
 - **`mvn test`: 142 tests, 0 failures, 0 errors, 0 skipped** (green)
   against the `omsai_test` PostgreSQL database.
+- **Real-browser Playwright suite: 13 tests, all pass** — see §4. A
+  combined `mvn test -Pbrowser-tests` run executes **155 tests** (142 +
+  13) in one go, all green.
 - **E2E smoke suite: 127/127 checks passed** (`zsh scripts/e2e-smoke.sh`
-  against a locally running app), now including class sessions,
-  attendance, reports, fee agreements, payments and receipts.
-- Both reports above are from real runs on this machine, **not estimates
-  from CI**. The exact environment is described in §7 limits.
-- The dev database (`omsai`) was upgraded with Flyway migration
-  `V2__attendance_and_fees.sql`; `V1__init.sql` was never touched and no
-  database was reset, dropped or reseeded.
+  against a locally running app), re-verified after the Phase 3
+  template fixes.
+- **Browser-level print verification succeeded**: Chromium print-media
+  emulation and `page.pdf()` output parsed with PDFBox confirm receipts
+  hide page controls, render the VOIDED stamp on voided payments and
+  carry the correct receipt text (§4, §7).
+- All reports above are from real runs on this machine, **not estimates
+  from CI**. CI is configured in `.github/workflows/ci.yml` but has not
+  been executed (no remote configured — see §8 limits).
+- Phase 3 introduced a third, disposable database `omsai_browser` for
+  the browser suite. `omsai` and `omsai_test` were never touched by it;
+  no database was reset, dropped or reseeded (`scripts/reset-browser-db.sh`
+  exists for operators and refuses anything but `omsai_browser`).
 
 ---
 
@@ -160,12 +170,12 @@ enrollment — a test fix, not a behavior change.
 
 ### Not verified
 
-- **Visual/browser rendering**: this environment has no browser
-  automation tool, so the Phase 2 screens were verified over real HTTP
-  (curl flows with CSRF, session cookies and HTML assertions in the
-  smoke suite, plus MockMvc in tests) but not opened in a graphic
-  browser. In particular the browser's print dialog for receipts has
-  only been verified by markup inspection.
+- ~~**Visual/browser rendering**~~ — closed in **Phase 3**: the screens
+  are now exercised in real headless Chromium (Playwright for Java);
+  see §4 and §7. What *remains* unverified is WebKit/Firefox rendering
+  (single-engined Chromium only) and a physical printer's native print
+  dialog (the `@media print` code path *is* verified via emulation and
+  `page.pdf()`).
 - **Docker/Testcontainers**: still unavailable here; tests run against a
   real local PostgreSQL (see README §1).
 - **Multi-node behavior** of the in-memory rate limiter (documented
@@ -229,8 +239,33 @@ JUnit suite (`./mvnw test`, run against `omsai_test`):
 
 **Total: 142 tests, 0 failures, 0 errors, 0 skipped.**
 
+**Phase 3 real-browser suite (13 tests, all pass; `mvn test
+-Pbrowser-tests`, boots the app on a random port against the disposable
+`omsai_browser` database and drives headless Chromium via Playwright for
+Java 1.63.0):**
+
+| Suite                       | Tests | What it proves |
+|-----------------------------|-------|----------------|
+| AuthenticationBrowserTest   | 4     | valid login reaches the dashboard topbar; wrong password shows "Invalid email or password."; protected pages redirect anonymous users to /login; logout lands on /login?logout and the session is really invalidated |
+| CorePagesBrowserTest        | 3     | every sidebar link leads to the right management page with its topbar title; course form rejects an empty name and creates a valid course with the flash message; console stays free of errors |
+| AttendanceBrowserTest       | 3     | admin creates a session, records per-student attendance, completes it and reads the student report with the exact counts/percentage; completed sessions reject teacher attendance and show the lockout notice, cancelled sessions refuse attendance; a teacher works only on their own assigned sessions, is blocked (403) from fees/payments/reports/users and never sees those sidebar links |
+| FeesAndReceiptBrowserTest   | 3     | a partially paid agreement shows the recalculated "Outstanding balance"; the receipt shows amount, method and cheque reference and matches the sequence format `OMS-RCP-2026-######`; voiding marks ledger and receipt VOIDED with reason — verified on screen, under print emulation and via `page.pdf()` / PDFBox text extraction |
+
+Print verification detail (verified in the fees suite): under
+`page.emulateMedia({media: "print"})` the `.no-print` controls compute
+`display: none`, the receipt renders the clean sheet with its balance
+note; `page.pdf()` produces real PDFs (`receipt-printed.pdf`,
+`receipt-voided-printed.pdf` in `target/browser-artifacts/`) whose
+extracted text contains the receipt number, amount `4000.00`/`5000.00`
+and the `VOIDED` stamp for the voided payment. Screenshots of the screen
+and print renderings are saved next to the PDFs on every run.
+
+**Combined run: `mvn test -Pbrowser-tests` = 155 tests, 0 failures, 0
+errors, 0 skipped** (unit + service + browser in one Maven invoke).
+
 E2E smoke suite (`zsh scripts/e2e-smoke.sh`, final run **127 checks,
-0 failed**) — real HTTP flows against the running app with DB row
+0 failed**, re-run after the Phase 3 template changes) — real HTTP flows
+against the running app with DB row
 assertions through psql. Every Phase 2 flow over HTTP was exercised:
 fee agreement create + duplicate/over-discount/closed-enrollment/bad-year
 rejections; payment form rendering; recording with receipt format
@@ -313,35 +348,114 @@ for real exposed them). All are fixed.
 
 ---
 
-## 7. Environment & honest limitations
+## 7. Phase 3 defects — real-browser bugs found and fixed
+
+The smoke suite verifies HTTP semantics; only a real browser caught the
+following rendering defects. All are fixed, and all four browser test
+classes then pass.
+
+1. **Bootstrap Icons font 404** — `bootstrap-icons.min.css` referenced
+   its `fonts/` sibling relative to the CSS file's own directory, but
+   the project serves CSS under `/css/` and fonts under `/fonts/`, so
+   every page loaded `/css/fonts/bootstrap-icons.woff2` → 404 (icons
+   render as empty squares). Fixed the path to `../fonts/`; the font
+   now serves 200 and sidebar/topbar icons render.
+2. **Content-Security-Policy blocked all inline styles** — the app CSP
+   (`style-src 'self'`) correctly forbids inline styles, but five
+   templates used them: a void-popover positioner, two input widths and
+   a column width. The violations were caught by the suite's console
+   monitor as real CSP console errors. Fixed by moving each rule into
+   `static/css/app.css` (new classes `.void-popover`,
+   `.w-max-9rem`, `.w-min-14rem`, `.col-min-10rem`) and referencing the
+   classes from the templates.
+3. **Receipt print CSS never actually applied** — the receipt's entire
+   print stylesheet lived in an inline `<style>` block, which the same
+   CSP blocks, so in a real browser the print/PDF output kept the
+   on-screen buttons and background (the browser test failed with
+   `display: flex` where `none` was required). Fixed by moving the rules
+   into a served stylesheet `static/css/receipt.css`, linked from the
+   template. Print emulation and the PDFs now show the clean receipt,
+   and this is asserted in the tests (screen + print + PDF text).
+4. **Teacher sidebar leaked administrator-only links** — the layout put
+   `th:if="${isAdmin}"` and `th:replace` on the same element; Thymeleaf
+   processes `th:replace` (inclusion, precedence 100) *before* `th:if`
+   (precedence 400), so the guard never applied and teachers saw
+   "Attendance reports / Fees / Payments / Accounts" links that then
+   403'd. The server-side authorization was fine — this is a UI leak.
+   Fixed by wrapping the four admin-only items in a conditionally
+   rendered `<div>`; the browser test asserts a teacher's sidebar no
+   longer offers them (and the 403s on direct navigation remain).
+
+Also verified (and tolerated as harmless): Chromium logs a console
+*warning* "The specified value \"20/10/26\" does not conform to the
+required format, \"yyyy-MM-dd\"" when a date input is restored by the
+browser's own form restoration on `/sessions/new`; it is a browser-
+internal message (type warning, not error), the submitted value is
+verified ISO (`2026-10-20`), the session is created with the correct
+class date and the report counts match. The failure monitors count only
+console *errors*, and this warning does not affect any behaviour.
+
+---
+
+## 8. Environment & honest limitations
 
 - PostgreSQL 18.4 local cluster on port **5433** (databases `omsai` and
   `omsai_test`, user `tojo`/`omsai_dev` via `application.yml` defaults),
   Java **25**, Maven 3.9.16 (wrapper included). Local-development
   defaults only; change via environment variables.
-- **No container test story** — Docker unavailable; tests need the two
-  real disposable PostgreSQL databases documented in README §1.
-- **No browser-tool verification** — see §2 "Not verified".
+- **No container test story** — Docker unavailable; tests need the three
+  real disposable PostgreSQL databases documented in README §1/§7.
+- **Browser verification is real but local** — Playwright 1.63.0 drives
+  the bundled headless Chromium (build 1243; a system Chromium works too
+  via `PW_BROWSER_CHANNEL`/`PW_BROWSER_EXECUTABLE`). No cross-browser
+  matrix (WebKit/Firefox) was run: the application is plain
+  server-rendered Bootstrap, but claims are limited to Chromium.
 - **Rate limiter is single-node/in-memory** (Phase 1 limit; unchanged).
 - **Receipt printing is browser print** — no PDF engine; the printed
-  sheet was verified by markup/content assertions only.
+  sheet is verified at the browser level (print-media emulation +
+  Chromium's own `page.pdf()` pipeline + PDFBox text extraction), but
+  the *native* print dialog and physical paper output of a real printer
+  driver cannot be exercised by automated tests — correctness there is
+  the same code path (`@media print` CSS), which is verified.
 - **Money is `NUMERIC(12,2)` and BigDecimal end-to-end**; display
   formatting is the plain BigDecimal string (no currency formatter).
   This is intentional for honest arithmetic (no rounding surprises), but
   a locale-aware formatter would be nicer eventually.
 - **No production hardening checklist yet** (TLS/proxy, secure session
   cookie behind HTTPS, log aggregation, backups) — operator tasks.
+- **CI is configured but not executed** — `.github/workflows/ci.yml`
+  (JDK 25 + PostgreSQL 16 services, Playwright Chromium install,
+  `mvn test` and `mvn test -Pbrowser-tests`, artifacts on failure) is
+  committed, but this machine has no GitHub remote, so no real Actions
+  run exists to cite. The workflow mirrors the locally verified
+  commands.
 - **Test-created committed fixtures in the concurrency test** are the
   sanctioned exception to "never delete": `PaymentServiceConcurrencyTest`
   commits real data (to race threads), then deletes it in `@AfterEach`
-  in FK order.
+  in FK order. The browser tests follow the same principle: they delete
+  *only the rows the run itself created* (tracked IDs, FK order), never
+  the bootstrap admin or pre-existing data; if a run dies mid-flight,
+  `zsh scripts/reset-browser-db.sh` rebuilds the disposable
+  `omsai_browser` from scratch.
+- **Browser-test database isolation is enforced, not merely documented**:
+  `BrowserTestBase` queries `current_database()` on the live connection
+  before any test runs and aborts unless the name starts with
+  `omsai_browser`. Verified negatively by pointing the suite at a
+  scratch database — the run stops with *"Browser tests refuse to run
+  against database …"* before a single test executes, so
+  `omsai`/`omsai_test` cannot be modified even by a misconfigured
+  `BROWSER_TEST_DB_URL`.
 
-## 8. Suggested next steps (Phase 3+)
+## 9. Suggested next steps (Phase 4+)
 
 1. Attendance export (CSV) and a printable batch attendance sheet.
 2. Installment plans / payment schedules with automated overdue flags.
 3. Fine-grained per-teacher report access (if teachers ever need their
    own subject's report), with the same service-level enforcement.
-4. Browser-rendering verification (Playwright/screenshot) to close the
-   visual gap, plus a CI nightly run of `mvn test` + the smoke suite.
+4. Wire CI to a real remote (the workflow is ready in
+   `.github/workflows/ci.yml`) and optionally add a WebKit/Firefox
+   cross-browser matrix to the Playwright suite.
 5. Docker one-command environment (compose + Testcontainers).
+
+*(The former "browser-rendering verification" suggestion from Phase 2 is
+complete — that was Phase 3.)*

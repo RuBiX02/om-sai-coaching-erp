@@ -20,6 +20,7 @@
     <properties>
         <java.version>25</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <surefire.excludedGroups>browser</surefire.excludedGroups>
     </properties>
 
     <dependencies>
@@ -72,6 +73,22 @@
             <artifactId>spring-boot-starter-security-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Real-browser end-to-end tests (JUnit tag "browser", excluded by
+             default; run them with -Pbrowser-tests). -->
+        <dependency>
+            <groupId>com.microsoft.playwright</groupId>
+            <artifactId>playwright</artifactId>
+            <version>1.63.0</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- PDF text extraction used by the browser tests to inspect the
+             receipts printed through Chromium's print pipeline. Read-only. -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>3.0.5</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -80,6 +97,27 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- Browser-level Playwright tests are tagged "browser"
+                         and excluded by default so plain `mvn test` works on
+                         machines without browser binaries. Run them with
+                         `./mvnw test -Pbrowser-tests` (the profile clears the
+                         exclusion). -->
+                    <excludedGroups>${surefire.excludedGroups}</excludedGroups>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>browser-tests</id>
+            <properties>
+                <surefire.excludedGroups></surefire.excludedGroups>
+            </properties>
+        </profile>
+    </profiles>
 </project>

@@ -1,0 +1,147 @@
+# Continuous integration for Om Sai Coaching ERP.
+#
+# Two jobs:
+#   1. unit-tests      — the JUnit service/web tests against the dedicated
+#                        "omsai_test" database (plain `mvn test`; the
+#                        browser-tagged tests are excluded here by default).
+#   2. browser-tests   — the real-browser Playwright suite booting the
+#                        application with the "browser" profile against the
+#                        dedicated disposable "omsai_browser" database
+#                        (`mvn test -Pbrowser-tests`).
+#
+# Both databases are created empty by an explicit "CREATE DATABASE" step
+# against the PostgreSQL service container and migrated by Flyway inside
+# each Spring context. Only throwaway CI credentials are used; no
+# production secrets are committed anywhere and no repository secrets are
+# referenced.
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  unit-tests:
+    name: Unit & service tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: omsai_ci
+          POSTGRES_PASSWORD: omsai_ci_password
+          POSTGRES_DB: omsai
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U omsai_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      TEST_DB_URL: jdbc:postgresql://localhost:5432/omsai_test
+      TEST_DB_USERNAME: omsai_ci
+      TEST_DB_PASSWORD: omsai_ci_password
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - name: Create test database
+        run: |
+          PGPASSWORD=omsai_ci_password psql -h localhost -p 5432 -U omsai_ci -d omsai \
+            -c "CREATE DATABASE omsai_test OWNER omsai_ci;"
+
+      - name: Run unit and service tests
+        run: mvn -B test
+
+      - name: Publish test reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: surefire-reports-unit
+          path: target/surefire-reports/**
+          if-no-files-found: warn
+
+  browser-tests:
+    name: Real-browser Playwright suite (unit + browser)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: omsai_ci
+          POSTGRES_PASSWORD: omsai_ci_password
+          POSTGRES_DB: omsai
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U omsai_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      BROWSER_TEST_DB_URL: jdbc:postgresql://localhost:5432/omsai_browser
+      BROWSER_TEST_DB_USERNAME: omsai_ci
+      BROWSER_TEST_DB_PASSWORD: omsai_ci_password
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - name: Create disposable browser-test database
+        run: |
+          PGPASSWORD=omsai_ci_password psql -h localhost -p 5432 -U omsai_ci -d omsai \
+            -c "CREATE DATABASE omsai_browser OWNER omsai_ci;"
+
+      - name: Cache Maven repository
+        uses: actions/cache@v4
+        with:
+          key: maven-repo-${{ runner.os }}-${{ hashFiles('pom.xml') }}
+          path: |
+            ~/.m2/repository/**
+
+      - name: Cache Playwright browser
+        uses: actions/cache@v4
+        with:
+          key: playwright-chromium-${{ runner.os }}
+          path: |
+            ~/.cache/ms-playwright/**
+
+      # Official Playwright-for-Java installation path: the CLI bundled in
+      # the com.microsoft.playwright artifact downloads the Chromium build
+      # and its system dependencies.
+      - name: Install Playwright Chromium
+        run: >-
+          mvn -B -q -Pbrowser-tests -DskipTests
+          exec:java -e
+          -Dexec.mainClass=com.microsoft.playwright.CLI
+          -Dexec.args="install --with-deps chromium"
+
+      - name: Run browser suite (boots the app with the browser profile)
+        run: mvn -B test -Pbrowser-tests
+
+      - name: Upload failure diagnostics (screenshots, PDFs, logs)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-artifacts
+          path: target/browser-artifacts/**
+          if-no-files-found: warn
+
+      - name: Publish surefire reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: surefire-reports-browser
+          path: target/surefire-reports/**
+          if-no-files-found: warn

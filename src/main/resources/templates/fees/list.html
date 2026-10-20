@@ -41,7 +41,7 @@
         <option th:each="course : ${courses}" th:value="${course.id}" th:text="${course.name}"
                 th:selected="${courseId != null and courseId == course.id}">Course</option>
       </select>
-      <input type="text" class="form-control" style="max-width: 9rem;" placeholder="2026-27"
+      <input type="text" class="form-control w-max-9rem" placeholder="2026-27"
              name="academicYear" th:value="${academicYear}" aria-label="Academic year"/>
       <button type="submit" class="btn btn-outline-primary">
         <i class="bi bi-search me-1"></i>Search

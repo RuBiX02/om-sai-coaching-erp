@@ -1,0 +1,28 @@
+/*
+ * Om Sai Coaching ERP — payment receipt styling.
+ *
+ * Served as a static stylesheet instead of an inline <style> block: the
+ * application's Content-Security-Policy (style-src 'self') does not allow
+ * inline CSS, and the print rules here are essential for printing or
+ * saving receipts as PDFs from the browser.
+ */
+
+.receipt-sheet { max-width: 46rem; margin: 0 auto; background: #fff; }
+.receipt-brand { border-bottom: 3px double #34405b; }
+.receipt-brand h1 { font-family: Georgia, 'Times New Roman', serif; letter-spacing: .5px; }
+.receipt table dl, .receipt dl { margin: 0; }
+.receipt dt { color: #5b6472; font-weight: 600; }
+.receipt dd { margin-bottom: .35rem; }
+.receipt-total { border-top: 2px solid #34405b; }
+.stamp-voided { color: #b02a37; border: 3px solid #b02a37; font-weight: 800;
+                letter-spacing: .2em; transform: rotate(-8deg); padding: .25rem 1rem; }
+.receipt-rupee { font-size: 1.8rem; font-family: Georgia, serif; }
+
+/* Minimal print-specific CSS: keep the receipt useful on paper or as a
+   saved PDF. */
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff !important; }
+  .receipt-sheet { max-width: none; padding: 0; }
+  .card { border: none !important; box-shadow: none !important; }
+}

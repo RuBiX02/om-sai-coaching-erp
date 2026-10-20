@@ -1,0 +1,51 @@
+# Playwright browser-test profile.
+#
+# Browser tests boot the real application (real Tomcat on a local port,
+# real PostgreSQL, real Flyway migrations) against a dedicated, DISPOSABLE
+# database: "omsai_browser". They must never point at the "omsai"
+# development database or the "omsai_test" unit-test database. If those
+# defaults are wrong for your machine, override them with the
+# BROWSER_TEST_DB_* environment variables.
+#
+# The database is disposable but persistent between runs: tests create
+# uniquely-suffixed rows and delete exactly the rows they created in
+# @AfterEach (see com.omsai.coaching.browser.BrowserTestBase). To start
+# completely fresh, drop and re-create omsai_browser and Flyway will
+# re-apply all migrations (scripts/reset-browser-db.sh).
+spring:
+  datasource:
+    url: ${BROWSER_TEST_DB_URL:jdbc:postgresql://127.0.0.1:5433/omsai_browser}
+    username: ${BROWSER_TEST_DB_USERNAME:tojo}
+    password: ${BROWSER_TEST_DB_PASSWORD:omsai_dev}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  thymeleaf:
+    cache: true
+
+app:
+  security:
+    # Same low round count as the unit-test profile so logins stay fast.
+    bcrypt-strength: 4
+  login-rate-limit:
+    # The browser suite shares one source IP across several classes and
+    # repeated local runs; the production-style limit (5) would poison
+    # later tests with a lockout. Rate limiting itself is covered by
+    # unit/web tests, not here.
+    max-attempts: 100
+    window-minutes: 15
+  bootstrap:
+    # Temporary administrator used only by this profile's sessions,
+    # created by AdminBootstrapRunner at boot (idempotent).
+    admin:
+      enabled: true
+      name: Browser Test Administrator
+      email: browser-admin@omsai.test
+      password: BrowserAdmin#2026#Pass

@@ -10,7 +10,7 @@
     <div th:replace="~{layout/fragments :: alerts()}"></div>
 
     <form th:action="@{/payments}" method="get" class="d-flex gap-2 mb-3 flex-wrap">
-      <input type="search" class="form-control" style="min-width: 14rem;"
+      <input type="search" class="form-control w-min-14rem"
              placeholder="Receipt number, student name or code"
              name="q" th:value="${q}" aria-label="Search payments"/>
       <input type="date" class="form-control" name="from" th:value="${from}" aria-label="From date"/>
