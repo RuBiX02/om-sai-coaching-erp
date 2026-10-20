@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en"
+      th:with="pageTitle=${account != null ? 'Edit fee agreement' : 'New fee agreement'}">
+<head th:replace="~{layout/fragments :: head(${pageTitle})}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('fees')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar(${pageTitle}, true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <div th:if="${enrollment != null}" class="alert alert-light border small mb-3">
+      <i class="bi bi-people me-1"></i>
+      <span class="fw-semibold" th:text="${enrollment.student.fullName}">Student</span>
+      (<span th:text="${enrollment.student.studentCode}">code</span>)
+      &middot; <span th:text="${enrollment.batch.course.name}">Course</span> —
+      <span th:text="${enrollment.batch.name}">Batch</span> — enrollment started
+      <span th:text="${#temporals.format(enrollment.enrollmentDate, 'dd MMM yyyy')}">01 Jan 2026</span>
+      &middot; status <span class="badge text-bg-success" th:text="${enrollment.status}">ACTIVE</span>
+    </div>
+
+    <div class="row">
+      <div class="col-xl-7">
+        <form th:action="${account != null} ? @{/fees/{id}(id=${account.id})} : @{/fees}"
+              th:object="${form}" method="post" novalidate>
+          <div class="card">
+            <div class="card-header"><i class="bi bi-cash-coin me-2 table-thumb"></i>Fee agreement</div>
+            <div class="card-body">
+              <input type="hidden" th:field="*{enrollmentId}"/>
+              <div class="row">
+                <div class="col-sm-6 mb-3">
+                  <label for="grossFee" class="form-label required-label">Gross fee (₹)</label>
+                  <input type="number" step="0.01" min="0" id="grossFee" class="form-control"
+                         th:field="*{grossFee}" aria-describedby="grossFeeError"
+                         th:disabled="${hasPayments == true}"/>
+                  <div class="text-danger small mt-1" id="grossFeeError" th:if="${#fields.hasErrors('grossFee')}" th:errors="*{grossFee}">Error</div>
+                </div>
+                <div class="col-sm-6 mb-3">
+                  <label for="discountAmount" class="form-label">Discount (₹)</label>
+                  <input type="number" step="0.01" min="0" id="discountAmount" class="form-control"
+                         th:field="*{discountAmount}" aria-describedby="discountError"
+                         th:disabled="${hasPayments == true}"/>
+                  <div class="text-danger small mt-1" id="discountError" th:if="${#fields.hasErrors('discountAmount')}" th:errors="*{discountAmount}">Error</div>
+                </div>
+              </div>
+              <div class="alert alert-warning small py-2" th:if="${hasPayments == true}">
+                <i class="bi bi-lock me-1"></i>
+                Payments have been recorded against this agreement, so the fee amounts can no longer be changed.
+                Only the due date and notes remain editable.
+              </div>
+              <div class="row">
+                <div class="col-sm-6 mb-3">
+                  <label for="academicYear" class="form-label required-label">Academic year</label>
+                  <input type="text" id="academicYear" class="form-control" th:field="*{academicYear}"
+                         placeholder="2026-27" aria-describedby="academicYearError academicYearHelp"
+                         th:disabled="${account != null}"/>
+                  <input type="hidden" th:if="${account != null}" th:field="*{academicYear}"/>
+                  <div class="text-danger small mt-1" id="academicYearError" th:if="${#fields.hasErrors('academicYear')}" th:errors="*{academicYear}">Error</div>
+                  <div id="academicYearHelp" class="form-text">
+                    One agreement exists per student, course and academic year. A later batch transfer keeps this agreement.
+                  </div>
+                </div>
+                <div class="col-sm-6 mb-3">
+                  <label for="dueDate" class="form-label">Due date (optional)</label>
+                  <input type="date" id="dueDate" class="form-control" th:field="*{dueDate}"
+                         aria-describedby="dueDateError"/>
+                  <div class="text-danger small mt-1" id="dueDateError" th:if="${#fields.hasErrors('dueDate')}" th:errors="*{dueDate}">Error</div>
+                </div>
+              </div>
+              <div class="mb-3">
+                <label for="notes" class="form-label">Notes (optional)</label>
+                <textarea id="notes" class="form-control" rows="2" th:field="*{notes}"></textarea>
+              </div>
+            </div>
+            <div class="card-footer d-flex gap-2">
+              <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check-lg me-1"></i><span th:text="${account != null ? 'Save changes' : 'Create agreement'}">Save</span>
+              </button>
+              <a th:href="${account != null} ? @{/fees/{id}(id=${account.id})} : @{/students/{id}(id=${enrollment.student.id})}"
+                 class="btn btn-outline-secondary">Cancel</a>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

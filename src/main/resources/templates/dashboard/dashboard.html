@@ -69,6 +69,74 @@
       </div>
     </div>
 
+    <!-- Phase 2: today's classes, attendance, collections and outstanding -->
+    <div class="row g-3 mb-1 mt-1">
+      <div class="col-6 col-xl-3">
+        <div class="card stat-card h-100">
+          <div class="card-body d-flex align-items-center gap-3">
+            <i class="bi bi-calendar2-check stat-icon"></i>
+            <div>
+              <div class="stat-value" th:text="${phase2.sessionsToday}">0</div>
+              <div class="text-body-secondary small">Class sessions today</div>
+            </div>
+          </div>
+          <div class="card-footer bg-transparent border-top-0 small text-body-secondary">
+            <span th:text="${phase2.openToday}">0</span> open ·
+            <span th:text="${phase2.completedToday}">0</span> completed ·
+            <span th:text="${phase2.cancelledToday}">0</span> cancelled
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-xl-3">
+        <div class="card stat-card h-100">
+          <div class="card-body d-flex align-items-center gap-3">
+            <i class="bi bi-clipboard-check stat-icon"></i>
+            <div>
+              <div class="stat-value"
+                   th:text="${phase2.attendanceToday.present() + phase2.attendanceToday.late() + phase2.attendanceToday.absent() + phase2.attendanceToday.excused()}">0</div>
+              <div class="text-body-secondary small">Attendance marks today</div>
+            </div>
+          </div>
+          <div class="card-footer bg-transparent border-top-0 small text-body-secondary">
+            P <span th:text="${phase2.attendanceToday.present()}">0</span> ·
+            L <span th:text="${phase2.attendanceToday.late()}">0</span> ·
+            A <span th:text="${phase2.attendanceToday.absent()}">0</span> ·
+            E <span th:text="${phase2.attendanceToday.excused()}">0</span>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-xl-3">
+        <div class="card stat-card h-100">
+          <div class="card-body d-flex align-items-center gap-3">
+            <i class="bi bi-cash-stack stat-icon"></i>
+            <div>
+              <div class="stat-value">₹ <span th:text="${phase2.collectionsThisMonth}">0</span></div>
+              <div class="text-body-secondary small">Collections this month</div>
+            </div>
+          </div>
+          <div class="card-footer bg-transparent border-top-0">
+            <a th:href="@{/fees/collections}" class="small">Collection summary <i class="bi bi-arrow-right ms-1"></i></a>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-xl-3">
+        <div class="card stat-card h-100">
+          <div class="card-body d-flex align-items-center gap-3">
+            <i class="bi bi-wallet2 stat-icon"></i>
+            <div>
+              <div class="stat-value">₹ <span th:text="${phase2.outstandingTotal}">0</span></div>
+              <div class="text-body-secondary small">Total outstanding</div>
+            </div>
+          </div>
+          <div class="card-footer bg-transparent border-top-0">
+            <a th:href="@{/fees/overdue}" class="small">
+              <span th:text="${phase2.overdueAccounts}">0</span> overdue account(s) <i class="bi bi-arrow-right ms-1"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="row g-3">
       <div class="col-lg-8">
         <div class="card h-100">
@@ -150,6 +218,64 @@
               <li>Create a batch for the course and assign its subjects and teachers.</li>
               <li>Register students and enroll them in batches.</li>
             </ol>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3 mt-1">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-calendar2-check me-2 table-thumb"></i>Class sessions today</span>
+            <a th:href="@{/sessions}" class="small">All sessions</a>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0" th:if="${!#lists.isEmpty(sessionsToday)}">
+                <thead class="table-light">
+                <tr>
+                  <th>Time</th>
+                  <th>Batch</th>
+                  <th>Subject</th>
+                  <th>Teacher</th>
+                  <th class="text-center">Status</th>
+                  <th class="text-end">Session</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="cs : ${sessionsToday}">
+                  <td>
+                    <span th:if="${cs.startTime != null}" th:text="${#temporals.format(cs.startTime, 'HH:mm')}">10:00</span>
+                    <span th:if="${cs.startTime == null}" class="text-body-secondary">&ndash;</span>
+                  </td>
+                  <td th:text="${cs.batchSubject.batch.name}">Batch</td>
+                  <td th:text="${cs.batchSubject.courseSubject.subject.name}">Subject</td>
+                  <td>
+                    <span th:if="${cs.batchSubject.teacher != null}" th:text="${cs.batchSubject.teacher.fullName}">Teacher</span>
+                    <span th:if="${cs.batchSubject.teacher == null}" class="text-body-secondary">Unassigned</span>
+                  </td>
+                  <td class="text-center">
+                    <span th:switch="${cs.status.name()}" class="badge"
+                          th:classappend="${cs.isOpen} ? 'text-bg-success' : (${cs.isCompleted} ? 'text-bg-primary' : 'text-bg-secondary')">
+                      <span th:case="'OPEN'">Open</span>
+                      <span th:case="'COMPLETED'">Completed</span>
+                      <span th:case="'CANCELLED'">Cancelled</span>
+                    </span>
+                  </td>
+                  <td class="text-end">
+                    <a th:href="@{/sessions/{id}(id=${cs.id})}" class="btn btn-sm btn-outline-secondary" title="View session">
+                      <i class="bi bi-eye"></i><span class="visually-hidden">View</span>
+                    </a>
+                  </td>
+                </tr>
+                </tbody>
+              </table>
+              <div class="empty-state" th:if="${#lists.isEmpty(sessionsToday)}">
+                <i class="bi bi-calendar2 d-block mb-2"></i>
+                No class sessions recorded for today.
+              </div>
+            </div>
           </div>
         </div>
       </div>

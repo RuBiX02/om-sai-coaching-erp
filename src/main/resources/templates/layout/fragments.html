@@ -33,12 +33,16 @@
       </a>
 
       <div th:replace="~{layout/fragments :: navitem('dashboard', 'Dashboard', 'bi-speedometer2', @{/dashboard})}"></div>
+      <div th:replace="~{layout/fragments :: navitem('sessions', 'Class sessions', 'bi-calendar2-check', @{/sessions})}"></div>
       <div th:replace="~{layout/fragments :: navitem('courses', 'Courses', 'bi-journal-bookmark', @{/courses})}"></div>
       <div th:replace="~{layout/fragments :: navitem('subjects', 'Subjects', 'bi-book', @{/subjects})}"></div>
       <div th:replace="~{layout/fragments :: navitem('batches', 'Batches', 'bi-collection', @{/batches})}"></div>
       <div th:replace="~{layout/fragments :: navitem('students', 'Students', 'bi-people', @{/students})}"></div>
       <div th:replace="~{layout/fragments :: navitem('teachers', 'Teachers', 'bi-person-video3', @{/teachers})}"></div>
-      <div th:replace="~{layout/fragments :: navitem('users', 'Accounts', 'bi-person-gear', @{/users})}"></div>
+      <div th:if="${isAdmin}" th:replace="~{layout/fragments :: navitem('attendance', 'Attendance reports', 'bi-clipboard-data', @{/attendance/reports})}"></div>
+      <div th:if="${isAdmin}" th:replace="~{layout/fragments :: navitem('fees', 'Fees', 'bi-cash-coin', @{/fees})}"></div>
+      <div th:if="${isAdmin}" th:replace="~{layout/fragments :: navitem('payments', 'Payments', 'bi-receipt', @{/payments})}"></div>
+      <div th:if="${isAdmin}" th:replace="~{layout/fragments :: navitem('users', 'Accounts', 'bi-person-gear', @{/users})}"></div>
     </nav>
   </div>
 </aside>

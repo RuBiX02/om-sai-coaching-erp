@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title th:with="r=${payment.receiptNumber}" th:text="|Receipt ${r} · Om Sai Coaching ERP|">Receipt</title>
+  <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}"/>
+  <link rel="stylesheet" th:href="@{/css/bootstrap.min.css}"/>
+  <style>
+    /* Minimal print-specific CSS: keep the receipt useful on paper or as a saved PDF. */
+    .receipt-sheet { max-width: 46rem; margin: 0 auto; background: #fff; }
+    .receipt-brand { border-bottom: 3px double #34405b; }
+    .receipt-brand h1 { font-family: Georgia, 'Times New Roman', serif; letter-spacing: .5px; }
+    .receipt table dl, .receipt dl { margin: 0; }
+    .receipt dt { color: #5b6472; font-weight: 600; }
+    .receipt dd { margin-bottom: .35rem; }
+    .receipt-total { border-top: 2px solid #34405b; }
+    .stamp-voided { color: #b02a37; border: 3px solid #b02a37; font-weight: 800;
+                    letter-spacing: .2em; transform: rotate(-8deg); padding: .25rem 1rem; }
+    .receipt-rupee { font-size: 1.8rem; font-family: Georgia, serif; }
+    @media print {
+      .no-print { display: none !important; }
+      body { background: #fff !important; }
+      .receipt-sheet { max-width: none; padding: 0; }
+      .card { border: none !important; box-shadow: none !important; }
+    }
+  </style>
+</head>
+<body class="bg-body-tertiary">
+
+<div class="receipt-sheet p-3 p-md-4 my-3 my-md-4 receipt"
+     th:if="${!payment.isVoided}">
+  <div class="receipt-brand d-flex justify-content-between align-items-start pb-3 mb-3">
+    <div>
+      <h1 class="h3 mb-1">Om Sai Coaching</h1>
+      <div class="text-body-secondary">Payment receipt</div>
+    </div>
+    <div class="text-end">
+      <div class="fw-semibold" th:text="${payment.receiptNumber}">OMS-RCP-2026-000001</div>
+      <div class="text-body-secondary"
+           th:text="'Payment date: ' + ${#temporals.format(payment.paymentDate, 'dd MMMM yyyy')}">date</div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-md-6">
+      <dt>Received from</dt>
+      <dd class="fw-semibold" th:text="${payment.feeAccount.student.fullName}">Student</dd>
+      <dd class="text-body-secondary"
+          th:text="'Code ' + ${payment.feeAccount.student.studentCode}">code</dd>
+    </div>
+    <div class="col-md-6">
+      <dt>Course</dt>
+      <dd th:text="${payment.feeAccount.course.name}">Course</dd>
+      <dd class="text-body-secondary" th:text="'Academic year ' + ${payment.feeAccount.academicYear}">2026-27</dd>
+    </div>
+  </div>
+
+  <div class="row g-4 my-2">
+    <div class="col-md-6">
+      <dt>Amount received</dt>
+      <dd class="receipt-rupee fw-bold">₹ <span th:text="${payment.amount}">1000</span></dd>
+    </div>
+    <div class="col-md-6">
+      <dt>Payment method</dt>
+      <dd th:text="${payment.paymentMethod}">CASH</dd>
+      <dd class="text-body-secondary" th:if="${payment.referenceNumber != null}"
+          th:text="'Reference: ' + ${payment.referenceNumber}">ref</dd>
+    </div>
+  </div>
+
+  <div class="row g-4 mb-3">
+    <div class="col-md-6">
+      <dt>Towards</dt>
+      <dd class="text-body-secondary" th:text="${payment.feeAccount.course.name} + ' · academic year ' + ${payment.feeAccount.academicYear}">fee</dd>
+      <dd class="text-body-secondary" th:if="${payment.remarks != null and payment.remarks != ''}"
+          th:text="'Remarks: ' + ${payment.remarks}">remarks</dd>
+    </div>
+    <div class="col-md-6">
+      <dt>Balance note</dt>
+      <dd>
+        <span class="badge text-bg-light border">Current outstanding: ₹ <span th:text="${outstandingNow}">0</span></span>
+        <div class="text-body-secondary small mt-1">
+          The balance is today's server-computed figure (net fee minus valid payments) and may change after this receipt.
+        </div>
+      </dd>
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-between align-items-end receipt-total pt-3 mt-3">
+    <div>
+      <dt class="small">Received by</dt>
+      <dd th:text="${payment.receivedBy.fullName}">Administrator</dd>
+      <dd class="text-body-secondary small" th:text="'Recorded ' + ${#temporals.formatISO(payment.createdAt)}">when</dd>
+    </div>
+    <div class="text-end text-body-secondary small">
+      <div>Omsai Coaching coaching institute</div>
+      <div>Thank you for your payment</div>
+    </div>
+  </div>
+
+  <div class="d-flex gap-2 no-print mt-4">
+    <button type="button" class="btn btn-dark js-print">
+      <i class="bi bi-printer me-1"></i>Print Receipt
+    </button>
+    <a th:href="@{/fees/{id}(id=${payment.feeAccount.id})}" class="btn btn-outline-secondary">Back to fee account</a>
+  </div>
+</div>
+
+<!-- Voided payment: the sheet is repeated explicitly with a VOIDED stamp -->
+<div class="receipt-sheet p-3 p-md-4 my-3 my-md-4 receipt"
+     th:if="${payment.isVoided}">
+  <div class="d-flex justify-content-between align-items-start">
+    <div class="receipt-brand flex-grow-1 pe-4 pb-3 me-3">
+      <h1 class="h3 mb-1">Om Sai Coaching</h1>
+      <div class="text-body-secondary">Payment receipt (<strong class="text-danger">VOIDED</strong>)</div>
+    </div>
+    <div class="stamp-voided">VOIDED</div>
+  </div>
+
+  <div class="row g-4 my-2">
+    <div class="col-md-6">
+      <dt>Receipt number</dt>
+      <dd class="fw-semibold" th:text="${payment.receiptNumber}">OMS-RCP-2026-000001</dd>
+    </div>
+    <div class="col-md-6">
+      <dt>Original payment date</dt>
+      <dd th:text="${#temporals.format(payment.paymentDate, 'dd MMMM yyyy')}">date</dd>
+    </div>
+  </div>
+
+  <div class="row g-4 my-2">
+    <div class="col-md-6">
+      <dt>Received from (at the time)</dt>
+      <dd th:text="${payment.feeAccount.student.fullName}">Student</dd>
+    </div>
+    <div class="col-md-6">
+      <dt>Original amount</dt>
+      <dd class="text-decoration-line-through" th:text="'₹ ' + ${payment.amount}">1000</dd>
+    </div>
+  </div>
+
+  <div class="row g-4 mb-3">
+    <div class="col-md-6">
+      <dt>Voided</dt>
+      <dd th:text="${payment.voidedAt != null ? #temporals.formatISO(payment.voidedAt) : ''}">when</dd>
+      <dd class="text-body-secondary small" th:if="${payment.voidedBy != null}"
+          th:text="'by ' + ${payment.voidedBy.fullName}">who</dd>
+    </div>
+    <div class="col-md-6">
+      <dt>Void reason</dt>
+      <dd th:text="${payment.voidReason}">reason</dd>
+    </div>
+  </div>
+
+  <div class="alert alert-secondary small">
+    <i class="bi bi-slash-circle me-1"></i>
+    This receipt represents a payment that was recorded and later voided. Voided payments do not count
+    towards collections and are not part of the outstanding balance. Current outstanding:
+    ₹ <span th:text="${outstandingNow}">0</span> (current server-computed figure).
+  </div>
+
+  <div class="d-flex gap-2 no-print mt-3">
+    <button type="button" class="btn btn-outline-secondary js-print">Print</button>
+    <a th:href="@{/fees/{id}(id=${payment.feeAccount.id})}" class="btn btn-outline-secondary">Back to fee account</a>
+  </div>
+</div>
+
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

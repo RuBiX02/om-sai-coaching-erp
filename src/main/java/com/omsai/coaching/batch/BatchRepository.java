@@ -59,5 +59,14 @@ public interface BatchRepository extends JpaRepository<Batch, Long> {
             order by b.academicYear desc, b.name
             """)
     List<Batch> findForCourse(@Param("courseId") Long courseId);
+
+    /** Every batch (any status) with its course loaded, for report pickers. */
+    @Query("""
+            select b from Batch b
+            join fetch b.course c
+            order by b.academicYear desc, b.name
+            """)
+    List<Batch> findAllForSelection();
+
     long countByStatus(Batch.Status status);
 }

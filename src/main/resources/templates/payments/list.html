@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('Payments')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('payments')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('Payments', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <form th:action="@{/payments}" method="get" class="d-flex gap-2 mb-3 flex-wrap">
+      <input type="search" class="form-control" style="min-width: 14rem;"
+             placeholder="Receipt number, student name or code"
+             name="q" th:value="${q}" aria-label="Search payments"/>
+      <input type="date" class="form-control" name="from" th:value="${from}" aria-label="From date"/>
+      <input type="date" class="form-control" name="to" th:value="${to}" aria-label="To date"/>
+      <select class="form-select w-auto" name="method" aria-label="Payment method">
+        <option value="">All methods</option>
+        <option th:each="m : ${methods}" th:value="${m.name()}"
+                th:text="${m.name()}"
+                th:selected="${method == m.name()}">CASH</option>
+      </select>
+      <select class="form-select w-auto" name="status" aria-label="Payment status">
+        <option value="">All statuses</option>
+        <option value="RECEIVED" th:selected="${status == 'RECEIVED'}">Received</option>
+        <option value="VOIDED" th:selected="${status == 'VOIDED'}">Voided</option>
+      </select>
+      <button type="submit" class="btn btn-outline-primary">
+        <i class="bi bi-search me-1"></i>Search
+      </button>
+    </form>
+
+    <div class="card">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" th:if="${!#lists.isEmpty(payments.content)}">
+            <thead class="table-light">
+            <tr>
+              <th>Receipt</th>
+              <th>Date</th>
+              <th>Student</th>
+              <th>Course</th>
+              <th class="text-end">Amount</th>
+              <th>Method</th>
+              <th class="text-center">Status</th>
+              <th>Received by</th>
+              <th class="text-end">Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="p : ${payments.content}" th:with="voided=${p.status.name() == 'VOIDED'}">
+              <td th:text="${p.receiptNumber}">OMS-RCP-2026-000001</td>
+              <td th:text="${#temporals.format(p.paymentDate, 'dd MMM yyyy')}">01 Jan 2026</td>
+              <td>
+                <div th:text="${p.feeAccount.student.fullName}">Student</div>
+                <div class="small text-body-secondary" th:text="${p.feeAccount.student.studentCode}">code</div>
+              </td>
+              <td>
+                <span th:text="${p.feeAccount.course.name}">Course</span>
+                <div class="small text-body-secondary" th:text="${p.feeAccount.academicYear}">2026-27</div>
+              </td>
+              <td class="text-end" th:text="${p.amount}">1000</td>
+              <td th:text="${p.paymentMethod}">CASH</td>
+              <td class="text-center">
+                <span class="badge" th:classappend="${voided} ? 'text-bg-secondary' : 'text-bg-success'"
+                      th:text="${voided ? 'VOIDED' : 'RECEIVED'}">RECEIVED</span>
+              </td>
+              <td th:text="${p.receivedBy.fullName}">admin</td>
+              <td class="text-end">
+                <a th:href="@{/payments/{id}/receipt(id=${p.id})}" class="btn btn-sm btn-outline-secondary" title="Receipt">
+                  <i class="bi bi-printer"></i><span class="visually-hidden">Receipt</span>
+                </a>
+                <a th:href="@{/fees/{id}(id=${p.feeAccount.id})}" class="btn btn-sm btn-outline-secondary" title="Fee account">
+                  <i class="bi bi-cash-coin"></i><span class="visually-hidden">Fee account</span>
+                </a>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+          <div class="empty-state" th:if="${#lists.isEmpty(payments.content)}">
+            <i class="bi bi-receipt d-block mb-2"></i>
+            No payments found. Open a fee account and record the first payment there.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div th:replace="~{layout/fragments :: pager(${payments}, ${pagerUrl})}"></div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

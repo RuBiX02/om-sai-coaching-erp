@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface BatchSubjectRepository extends JpaRepository<BatchSubject, Long> {
 
@@ -35,8 +36,10 @@ public interface BatchSubjectRepository extends JpaRepository<BatchSubject, Long
     @Query("""
             select bs from BatchSubject bs
             join fetch bs.batch b
+            join fetch b.course c
             join fetch bs.courseSubject cs
             join fetch cs.subject s
+            left join fetch bs.teacher t
             where bs.teacher.linkedUser.id = :userId
             order by b.academicYear desc, s.name
             """)
@@ -46,4 +49,35 @@ public interface BatchSubjectRepository extends JpaRepository<BatchSubject, Long
     long countByCourseSubjectId(Long courseSubjectId);
 
     long countByTeacher(Teacher teacher);
+
+    /** One assignment with full context, for the subject-wise report. */
+    @Query("""
+            select bs from BatchSubject bs
+            join fetch bs.batch b
+            join fetch b.course c
+            join fetch bs.courseSubject cs
+            join fetch cs.subject s
+            left join fetch bs.teacher t
+            where bs.batch.id = :batchId
+              and bs.courseSubject.id = :courseSubjectId
+            """)
+    Optional<BatchSubject> findByBatchIdAndCourseSubjectId(@Param("batchId") Long batchId,
+                                                           @Param("courseSubjectId") Long courseSubjectId);
+
+    /**
+     * All assignments of active batches of active courses - the pool an
+     * administrator may pick from when scheduling a new class session.
+     */
+    @Query("""
+            select bs from BatchSubject bs
+            join fetch bs.batch b
+            join fetch b.course c
+            join fetch bs.courseSubject cs
+            join fetch cs.subject s
+            left join fetch bs.teacher t
+            where b.status = com.omsai.coaching.batch.Batch.Status.ACTIVE
+              and c.status = com.omsai.coaching.course.Course.Status.ACTIVE
+            order by b.academicYear desc, b.name, s.name
+            """)
+    List<BatchSubject> findForActiveBatches();
 }

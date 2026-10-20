@@ -2,6 +2,7 @@ package com.omsai.coaching.enrollment;
 
 import com.omsai.coaching.batch.Batch;
 import com.omsai.coaching.batch.BatchRepository;
+import com.omsai.coaching.common.BusinessClock;
 import com.omsai.coaching.common.BusinessRuleException;
 import com.omsai.coaching.course.Course;
 import com.omsai.coaching.student.Student;
@@ -15,7 +16,10 @@ import java.util.List;
 /**
  * Enrollment business rules. Enrollment records are never deleted:
  * transfers close the previous record and create a new one inside a
- * single transaction.
+ * single transaction. Closing an enrollment also records the date on
+ * which it ended (end_date), which is what makes historical attendance
+ * eligibility computable. Transfer observers (for example the fee
+ * module) are notified inside the same transaction.
  */
 @Service
 public class EnrollmentService {
@@ -23,13 +27,19 @@ public class EnrollmentService {
     private final EnrollmentRepository enrollmentRepository;
     private final StudentRepository studentRepository;
     private final BatchRepository batchRepository;
+    private final BusinessClock businessClock;
+    private final List<EnrollmentTransferObserver> transferObservers;
 
     public EnrollmentService(EnrollmentRepository enrollmentRepository,
                              StudentRepository studentRepository,
-                             BatchRepository batchRepository) {
+                             BatchRepository batchRepository,
+                             BusinessClock businessClock,
+                             List<EnrollmentTransferObserver> transferObservers) {
         this.enrollmentRepository = enrollmentRepository;
         this.studentRepository = studentRepository;
         this.batchRepository = batchRepository;
+        this.businessClock = businessClock;
+        this.transferObservers = transferObservers;
     }
 
     /**
@@ -77,18 +87,20 @@ public class EnrollmentService {
         return enrollmentRepository.save(enrollment);
     }
 
-    /** Marks an ACTIVE enrollment as COMPLETED. */
+    /** Marks an ACTIVE enrollment as COMPLETED, ending it today. */
     @Transactional
     public void complete(Long enrollmentId) {
         Enrollment enrollment = getActive(enrollmentId);
         enrollment.setStatus(Enrollment.Status.COMPLETED);
+        enrollment.setEndDate(businessClock.today());
     }
 
-    /** Marks an ACTIVE enrollment as WITHDRAWN. */
+    /** Marks an ACTIVE enrollment as WITHDRAWN, ending it today. */
     @Transactional
     public void withdraw(Long enrollmentId) {
         Enrollment enrollment = getActive(enrollmentId);
         enrollment.setStatus(Enrollment.Status.WITHDRAWN);
+        enrollment.setEndDate(businessClock.today());
     }
 
     private Enrollment getActive(Long enrollmentId) {
@@ -139,9 +151,18 @@ public class EnrollmentService {
         if (activeInTargetBatch) {
             throw new BusinessRuleException("The student is already active in that batch.");
         }
+        LocalDate previousStart = activeInCourse.stream()
+                .map(Enrollment::getEnrollmentDate)
+                .max(java.util.Comparator.naturalOrder())
+                .orElseThrow();
+        if (form.getTransferDate().isBefore(previousStart)) {
+            throw new BusinessRuleException(
+                    "Transfer date cannot be before the enrollment date of the current batch.");
+        }
 
         for (Enrollment previous : activeInCourse) {
             previous.setStatus(Enrollment.Status.COMPLETED);
+            previous.setEndDate(form.getTransferDate());
         }
         // Persist the closures BEFORE inserting the new active enrollment,
         // otherwise the insert would violate the database constraint
@@ -154,6 +175,14 @@ public class EnrollmentService {
         enrollment.setCourse(targetCourse);
         enrollment.setEnrollmentDate(form.getTransferDate());
         enrollment.setStatus(Enrollment.Status.ACTIVE);
-        return enrollmentRepository.save(enrollment);
+        Enrollment created = enrollmentRepository.save(enrollment);
+
+        // Notify observers inside the same transaction so that, for
+        // example, an existing fee agreement of this student+course stays
+        // attached to the new enrollment instead of being lost or doubled.
+        for (EnrollmentTransferObserver observer : transferObservers) {
+            observer.onTransfer(student, targetCourse, targetBatch, created);
+        }
+        return created;
     }
 }

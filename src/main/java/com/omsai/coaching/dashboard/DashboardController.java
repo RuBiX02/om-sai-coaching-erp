@@ -22,6 +22,8 @@ public class DashboardController {
     public String dashboard(Model model) {
         model.addAttribute("stats", dashboardService.stats());
         model.addAttribute("recentEnrollments", dashboardService.recentEnrollments());
+        model.addAttribute("phase2", dashboardService.phaseTwoStats());
+        model.addAttribute("sessionsToday", dashboardService.sessionsToday());
         return "dashboard/dashboard";
     }
 }

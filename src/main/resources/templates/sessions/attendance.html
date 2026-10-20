@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('Record attendance')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('sessions')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('Record attendance', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <div class="card mb-3">
+      <div class="card-body d-flex flex-wrap gap-3 align-items-center">
+        <div class="flex-grow-1">
+          <span class="fw-semibold" th:text="${cs.batchSubject.courseSubject.subject.name}">Subject</span>
+          <span class="text-body-secondary">
+            — <span th:text="${cs.batchSubject.batch.name}">Batch</span> ·
+            <span th:text="${#temporals.format(cs.sessionDate, 'dd MMM yyyy')}">01 Apr 2026</span>
+            <span th:if="${cs.startTime != null}"
+                  th:text="', ' + ${#temporals.format(cs.startTime, 'HH:mm')}">10:00</span>
+          </span>
+          <span th:if="${cs.topic != null}" class="d-block small text-body-secondary"
+                th:text="'Topic: ' + ${cs.topic}">Topic</span>
+        </div>
+        <span th:switch="${cs.status.name()}" class="badge"
+              th:classappend="${cs.isOpen} ? 'text-bg-success' : (${cs.isCompleted} ? 'text-bg-primary' : 'text-bg-secondary')">
+          <span th:case="'OPEN'">Open</span>
+          <span th:case="'COMPLETED'">Completed</span>
+          <span th:case="'CANCELLED'">Cancelled</span>
+        </span>
+      </div>
+    </div>
+
+    <div th:if="${cs.isCancelled}" class="alert alert-warning">
+      <i class="bi bi-exclamation-triangle me-1"></i>
+      This session was cancelled. Attendance records must not exist for a cancelled class.
+    </div>
+
+    <div th:if="${cs.isCompleted and !isAdmin}" class="alert alert-warning">
+      <i class="bi bi-lock me-1"></i>
+      This session is completed. Attendance can only be corrected by an administrator.
+    </div>
+
+    <form th:if="${!cs.isCancelled and (cs.isOpen or isAdmin)}"
+          th:action="@{/sessions/{id}/attendance(id=${cs.id})}" method="post">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <span><i class="bi bi-clipboard-check me-2 table-thumb"></i>Roster on the class date</span>
+          <span class="small text-body-secondary">
+            Unmarked students default to <span class="badge text-bg-success">PRESENT</span> when you save.
+          </span>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+              <tr>
+                <th>Student</th>
+                <th style="min-width: 10rem;">Status</th>
+                <th>Remarks</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr th:each="row : ${roster}">
+                <td>
+                  <span class="small text-body-secondary" th:text="${row.studentCode}">OMS-2026-00001</span>
+                  <div th:text="${row.studentName}">Student name</div>
+                </td>
+                <td>
+                  <select class="form-select" th:name="'status_' + ${row.enrollmentId}"
+                          th:aria-label="'Attendance status for ' + ${row.studentName}">
+                    <option th:each="status : ${allStatuses}"
+                            th:value="${status.name()}"
+                            th:text="${status}"
+                            th:selected="${(row.currentStatus != null and row.currentStatus.name() == status.name())
+                                    or (row.currentStatus == null and status.name() == 'PRESENT')}">PRESENT</option>
+                  </select>
+                </td>
+                <td>
+                  <input type="text" class="form-control" maxlength="300"
+                         th:name="'remark_' + ${row.enrollmentId}"
+                         th:value="${row.currentRemarks}"
+                         th:aria-label="'Remarks for ' + ${row.studentName}"/>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+            <div class="empty-state" th:if="${#lists.isEmpty(roster)}">
+              <i class="bi bi-people d-block mb-2"></i>
+              No students were enrolled in this batch on the class date, so there is no roster to mark.
+            </div>
+          </div>
+        </div>
+        <div class="card-footer d-flex gap-2" th:if="${!#lists.isEmpty(roster)}">
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-lg me-1"></i>Save attendance
+          </button>
+          <a th:href="@{/sessions/{id}(id=${cs.id})}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+      </div>
+    </form>
+
+    <div th:if="${#lists.isEmpty(roster)}" class="d-flex gap-2 mb-3">
+      <a th:href="@{/sessions/{id}(id=${cs.id})}" class="btn btn-outline-secondary">Back to session</a>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

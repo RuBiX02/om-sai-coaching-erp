@@ -161,13 +161,33 @@ public class Fixtures {
 
     /** Saves a direct ACTIVE enrollment row (bypassing the service layer). */
     public Enrollment activeEnrollment(Student student, Batch batch) {
+        return activeEnrollment(student, batch, DAY);
+    }
+
+    /** Saves a direct ACTIVE enrollment row starting on a specific date. */
+    public Enrollment activeEnrollment(Student student, Batch batch, LocalDate enrollmentDate) {
         Enrollment enrollment = new Enrollment();
         enrollment.setStudent(studentRepository.findById(student.getId()).orElseThrow());
         enrollment.setBatch(batchRepository.findById(batch.getId()).orElseThrow());
         enrollment.setCourse(courseRepository.findById(batch.getCourse().getId()).orElseThrow());
-        enrollment.setEnrollmentDate(DAY);
+        enrollment.setEnrollmentDate(enrollmentDate);
         enrollment.setStatus(Enrollment.Status.ACTIVE);
         return enrollmentRepository.save(enrollment);
+    }
+
+    /** Creates a teacher profile linked to a login account. */
+    public Teacher teacherLinkedTo(UserAccount user, String fullName) {
+        Teacher teacher = teacher(fullName);
+        Teacher managed = teacherRepository.findById(teacher.getId()).orElseThrow();
+        managed.setLinkedUser(userAccountRepository.findById(user.getId()).orElseThrow());
+        return teacherRepository.save(managed);
+    }
+
+    /** Assigns a teacher to a batch-subject assignment. */
+    public BatchSubject assignTeacher(BatchSubject batchSubject, Teacher teacher) {
+        BatchSubject managed = batchSubjectRepository.findById(batchSubject.getId()).orElseThrow();
+        managed.setTeacher(teacherRepository.findById(teacher.getId()).orElseThrow());
+        return batchSubjectRepository.save(managed);
     }
 
     /** A password accepted by the forms (at least 12 characters). */

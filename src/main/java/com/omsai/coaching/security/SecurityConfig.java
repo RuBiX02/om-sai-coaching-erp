@@ -15,9 +15,11 @@ import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWrite
 /**
  * Session-based security for the server-rendered application.
  *
- * <p>All management features require the ADMIN role. Teacher accounts may
- * only reach the read-only teacher home page. CSRF protection is enabled
- * (Thymeleaf forms automatically carry the CSRF token) and strict security
+ * <p>All management features require the ADMIN role. Teacher accounts
+ * may reach the read-only teacher home page and the class-session
+ * module limited to their own assigned subjects. Fee and payment
+ * pages are administrator-only. CSRF protection is enabled (Thymeleaf
+ * forms automatically carry the CSRF token) and strict security
  * headers are applied.</p>
  */
 @Configuration
@@ -39,6 +41,7 @@ public class SecurityConfig {
                         .requestMatchers("/css/**", "/js/**", "/fonts/**", "/images/**",
                                 "/favicon.ico", "/favicon.svg", "/login", "/error/**").permitAll()
                         .requestMatchers("/").authenticated()
+                        .requestMatchers("/sessions/**").hasAnyRole("ADMIN", "TEACHER")
                         .requestMatchers("/teacher/**").hasRole("TEACHER")
                         .anyRequest().hasRole("ADMIN")
                 )

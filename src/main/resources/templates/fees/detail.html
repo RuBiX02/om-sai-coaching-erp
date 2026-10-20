@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('Fee account')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('fees')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('Fee account', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <div class="row g-3 mb-3">
+      <div class="col-xl-8">
+        <div class="card h-100">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-cash-coin me-2 table-thumb"></i>Fee agreement</span>
+            <span>
+              <span class="badge"
+                    th:classappend="${feeStatus == 'PAID'} ? 'text-bg-success' : (${feeStatus == 'PARTIALLY_PAID'} ? 'text-bg-warning' : 'text-bg-secondary')"
+                    th:text="${feeStatus}">UNPAID</span>
+              <span class="badge text-bg-danger" th:if="${overdue}">OVERDUE</span>
+            </span>
+          </div>
+          <div class="card-body">
+            <dl class="row mb-0">
+              <dt class="col-sm-4">Student</dt>
+              <dd class="col-sm-8">
+                <a th:href="@{/students/{id}(id=${account.student.id})}" th:text="${account.student.fullName}">Student</a>
+                <span class="small text-body-secondary" th:text="' · ' + ${account.student.studentCode}">code</span>
+              </dd>
+              <dt class="col-sm-4">Course</dt>
+              <dd class="col-sm-8">
+                <span th:text="${account.course.name}">Course</span>
+                <span class="small text-body-secondary"
+                      th:text="' · batch ' + ${account.enrollment.batch.name} + ' (enrolled ' + ${#temporals.format(account.enrollment.enrollmentDate, 'dd MMM yyyy')} + ')'">batch</span>
+              </dd>
+              <dt class="col-sm-4">Academic year</dt>
+              <dd class="col-sm-8" th:text="${account.academicYear}">2026-27</dd>
+              <dt class="col-sm-4">Gross fee</dt>
+              <dd class="col-sm-8" th:text="${account.grossFee}">12000</dd>
+              <dt class="col-sm-4">Discount</dt>
+              <dd class="col-sm-8" th:text="${account.discountAmount}">0</dd>
+              <dt class="col-sm-4">Net fee</dt>
+              <dd class="col-sm-8 fw-semibold" th:text="${account.netFee}">12000</dd>
+              <dt class="col-sm-4">Total received</dt>
+              <dd class="col-sm-8" th:text="${received}">0</dd>
+              <dt class="col-sm-4">Outstanding balance</dt>
+              <dd class="col-sm-8 fw-bold" th:text="${outstanding}">12000</dd>
+              <dt class="col-sm-4">Due date</dt>
+              <dd class="col-sm-8">
+                <span th:if="${account.dueDate != null}" th:text="${#temporals.format(account.dueDate, 'dd MMM yyyy')}">01 Jan 2026</span>
+                <span th:if="${account.dueDate == null}" class="text-body-secondary">Not set</span>
+              </dd>
+              <dt class="col-sm-4">Notes</dt>
+              <dd class="col-sm-8">
+                <span th:if="${account.notes != null}" th:text="${account.notes}">notes</span>
+                <span th:if="${account.notes == null}" class="text-body-secondary">&ndash;</span>
+              </dd>
+              <dt class="col-sm-4">Created</dt>
+              <dd class="col-sm-8" th:text="${#temporals.formatISO(account.createdAt)}"></dd>
+            </dl>
+          </div>
+          <div class="card-footer d-flex gap-2 flex-wrap">
+            <a th:href="@{/payments/new(feeAccountId=${account.id})}" class="btn btn-primary">
+              <i class="bi bi-cash-coin me-1"></i>Record payment
+            </a>
+            <a th:href="@{/fees/{id}/edit(id=${account.id})}" class="btn btn-outline-secondary">
+              <i class="bi bi-pencil me-1"></i>Edit agreement
+            </a>
+            <a th:href="@{/payments}" class="btn btn-outline-secondary">All payments</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-receipt me-2 table-thumb"></i>Payment history</span>
+        <span class="small text-body-secondary">Received payments count towards collections; voided payments are listed but never counted.</span>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" th:if="${!#lists.isEmpty(payments)}">
+            <thead class="table-light">
+            <tr>
+              <th>Receipt</th>
+              <th>Date</th>
+              <th class="text-end">Amount</th>
+              <th>Method</th>
+              <th>Reference</th>
+              <th class="text-center">Status</th>
+              <th>Received by</th>
+              <th class="text-end">Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="p : ${payments}" th:with="voided=${p.status.name() == 'VOIDED'}">
+              <td><a th:href="@{/payments/{id}/receipt(id=${p.id})}" th:text="${p.receiptNumber}">OMS-RCP-2026-000001</a></td>
+              <td th:text="${#temporals.format(p.paymentDate, 'dd MMM yyyy')}">01 Jan 2026</td>
+              <td class="text-end" th:text="${p.amount}">1000</td>
+              <td th:text="${p.paymentMethod}">CASH</td>
+              <td>
+                <span th:if="${p.referenceNumber != null}" th:text="${p.referenceNumber}">UPI ref</span>
+                <span th:if="${p.referenceNumber == null}" class="text-body-secondary">&ndash;</span>
+              </td>
+              <td class="text-center">
+                <span class="badge" th:classappend="${voided} ? 'text-bg-secondary' : 'text-bg-success'"
+                      th:text="${voided ? 'VOIDED' : 'RECEIVED'}">RECEIVED</span>
+              </td>
+              <td th:text="${p.receivedBy.fullName}">admin</td>
+              <td class="text-end">
+                <a th:href="@{/payments/{id}/receipt(id=${p.id})}" class="btn btn-sm btn-outline-secondary" title="Receipt">
+                  <i class="bi bi-printer"></i><span class="visually-hidden">Receipt</span>
+                </a>
+                <details th:if="${!voided}" class="d-inline">
+                  <summary class="btn btn-sm btn-outline-danger d-inline-flex align-items-center" title="Void payment">
+                    <i class="bi bi-slash-circle"></i><span class="visually-hidden">Void</span>
+                  </summary>
+                  <form th:action="@{/payments/{id}/void(id=${p.id})}" method="post"
+                        class="card card-body small mt-2 shadow-sm" style="position:absolute; z-index:10; max-width: 20rem;">
+                    <label class="form-label">Void this payment — give a mandatory reason:</label>
+                    <textarea class="form-control form-control-sm" name="reason" rows="2"
+                              placeholder="Why is this payment being voided?" required></textarea>
+                    <button type="submit" class="btn btn-danger btn-sm mt-2 js-confirm"
+                            data-confirm="Void this payment? It will stop counting towards collections immediately.">
+                      Void payment
+                    </button>
+                  </form>
+                </details>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+          <div class="empty-state" th:if="${#lists.isEmpty(payments)}">
+            <i class="bi bi-inbox d-block mb-2"></i>
+            No payments recorded yet.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body small text-body-secondary">
+        <i class="bi bi-shield-lock me-1"></i>
+        Payments are never edited or deleted. An incorrectly recorded payment is corrected by voiding it;
+        the void records who, when and why, and the outstanding balance is recalculated immediately.
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

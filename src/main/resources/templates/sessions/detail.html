@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('Class session')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('sessions')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('Class session', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <div class="row g-3">
+      <div class="col-xl-7 col-lg-12">
+        <div class="card h-100">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-calendar2-check me-2 table-thumb"></i>
+              <span th:text="${cs.batchSubject.courseSubject.subject.name}">Subject</span>
+            </span>
+            <span th:switch="${cs.status.name()}" class="badge"
+                  th:classappend="${cs.isOpen} ? 'text-bg-success' : (${cs.isCompleted} ? 'text-bg-primary' : 'text-bg-secondary')">
+              <span th:case="'OPEN'">Open</span>
+              <span th:case="'COMPLETED'">Completed</span>
+              <span th:case="'CANCELLED'">Cancelled</span>
+            </span>
+          </div>
+          <div class="card-body">
+            <dl class="row mb-0">
+              <dt class="col-sm-4">Batch</dt>
+              <dd class="col-sm-8">
+                <a th:href="@{/batches/{id}(id=${cs.batchSubject.batch.id})}" th:text="${cs.batchSubject.batch.name}">Batch</a>
+                <span class="text-body-secondary small" th:text="' · ' + ${cs.batchSubject.batch.academicYear}">year</span>
+              </dd>
+              <dt class="col-sm-4">Course</dt>
+              <dd class="col-sm-8" th:text="${cs.batchSubject.batch.course.name}">Course</dd>
+              <dt class="col-sm-4">Teacher assigned</dt>
+              <dd class="col-sm-8">
+                <span th:if="${cs.batchSubject.teacher != null}" th:text="${cs.batchSubject.teacher.fullName}">Teacher</span>
+                <span th:if="${cs.batchSubject.teacher == null}" class="text-body-secondary">Unassigned</span>
+              </dd>
+              <dt class="col-sm-4">Class date</dt>
+              <dd class="col-sm-8" th:text="${#temporals.format(cs.sessionDate, 'EEEE, dd MMMM yyyy')}">Monday, 01 Apr 2026</dd>
+              <dt class="col-sm-4">Time</dt>
+              <dd class="col-sm-8">
+                <span th:if="${cs.startTime != null}"
+                      th:text="${#temporals.format(cs.startTime, 'HH:mm')} + (${cs.endTime != null} ? ' &ndash; ' + ${#temporals.format(cs.endTime, 'HH:mm')} : '')">10:00</span>
+                <span th:if="${cs.startTime == null}" class="text-body-secondary">Not specified</span>
+              </dd>
+              <dt class="col-sm-4">Topic</dt>
+              <dd class="col-sm-8">
+                <span th:if="${cs.topic != null}" th:text="${cs.topic}">Topic</span>
+                <span th:if="${cs.topic == null}" class="text-body-secondary">&ndash;</span>
+              </dd>
+              <dt class="col-sm-4">Notes</dt>
+              <dd class="col-sm-8">
+                <span th:if="${cs.notes != null}" th:text="${cs.notes}">Notes</span>
+                <span th:if="${cs.notes == null}" class="text-body-secondary">&ndash;</span>
+              </dd>
+              <dt class="col-sm-4">Created by</dt>
+              <dd class="col-sm-8" th:text="${cs.createdBy.fullName}">Administrator</dd>
+            </dl>
+          </div>
+          <div class="card-footer d-flex gap-2 flex-wrap">
+            <a th:href="@{/sessions/{id}/attendance(id=${cs.id})}" class="btn btn-primary"
+               th:if="${!cs.isCancelled}">
+              <i class="bi bi-clipboard-check me-1"></i>Record attendance
+            </a>
+            <a th:href="@{/sessions/{id}/edit(id=${cs.id})}" class="btn btn-outline-secondary"
+               th:if="${cs.isOpen}">
+              <i class="bi bi-pencil me-1"></i>Edit
+            </a>
+            <form th:action="@{/sessions/{id}/complete(id=${cs.id})}" method="post" class="m-0"
+                  th:if="${cs.isOpen}">
+              <button type="submit" class="btn btn-outline-success js-confirm"
+                      data-confirm="Complete this session? Teachers will no longer be able to change its attendance.">
+                <i class="bi bi-check2-circle me-1"></i>Complete
+              </button>
+            </form>
+            <form th:action="@{/sessions/{id}/cancel(id=${cs.id})}" method="post" class="m-0"
+                  th:if="${cs.isOpen}">
+              <button type="submit" class="btn btn-outline-danger js-confirm"
+                      data-confirm="Cancel this session? Sessions that already have attendance cannot be cancelled. Its record will be preserved as CANCELLED.">
+                <i class="bi bi-x-circle me-1"></i>Cancel session
+              </button>
+            </form>
+            <a th:href="@{/sessions}" class="btn btn-outline-secondary">Back to sessions</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-xl-5 col-lg-12">
+        <div class="card h-100">
+          <div class="card-header"><i class="bi bi-clipboard-data me-2 table-thumb"></i>Attendance records</div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0" th:if="${!#lists.isEmpty(attendance)}">
+                <thead class="table-light">
+                <tr>
+                  <th>Student</th>
+                  <th>Status</th>
+                  <th>Marked by</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="a : ${attendance}">
+                  <td>
+                    <a th:href="@{/students/{id}(id=${a.enrollment.student.id})}" th:text="${a.enrollment.student.fullName}">Student</a>
+                    <div class="small text-body-secondary" th:text="${a.enrollment.student.studentCode}">code</div>
+                  </td>
+                  <td>
+                    <span class="badge"
+                          th:classappend="${a.status.name() == 'PRESENT'} ? 'text-bg-success'
+                            : (${a.status.name() == 'ABSENT'} ? 'text-bg-danger'
+                            : (${a.status.name() == 'LATE'} ? 'text-bg-warning' : 'text-bg-info'))"
+                          th:text="${a.status}">PRESENT</span>
+                    <div class="small text-body-secondary" th:if="${a.remarks != null and a.remarks != ''}"
+                         th:text="${a.remarks}">remarks</div>
+                  </td>
+                  <td>
+                    <span class="small" th:text="${a.markedBy.fullName}">admin</span>
+                    <div class="small text-body-secondary" th:text="${a.updatedAt != null ? #temporals.formatISO(a.updatedAt) : ''}">time</div>
+                  </td>
+                </tr>
+                </tbody>
+              </table>
+              <div class="empty-state" th:if="${#lists.isEmpty(attendance)}">
+                <i class="bi bi-clipboard d-block mb-2"></i>
+                No attendance recorded yet for this session.
+              </div>
+            </div>
+          </div>
+          <div class="card-footer small text-body-secondary"
+               th:if="${cs.isCompleted}">
+            <i class="bi bi-lock me-1"></i>
+            This session is completed. Teachers can no longer change its attendance; administrators may still record corrections.
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

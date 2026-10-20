@@ -9,6 +9,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -49,6 +51,7 @@ class DashboardServiceTest {
         // enroll three times (with withdrawals) to create history rows
         Enrollment enrollment = fixtures.activeEnrollment(student, batch);
         enrollment.setStatus(Enrollment.Status.WITHDRAWN);
+        enrollment.setEndDate(LocalDate.of(2026, 9, 5));
         fixtures.activeEnrollment(fixtures.student("Recent Student 2"), batch);
         fixtures.activeEnrollment(fixtures.student("Recent Student 3"), batch);
 

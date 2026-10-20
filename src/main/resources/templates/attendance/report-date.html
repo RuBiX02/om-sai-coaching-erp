@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('Date-wise attendance')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('attendance')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('Date-wise attendance report', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <form th:action="@{/attendance/reports/date}" method="get" class="d-flex gap-2 mb-3" aria-label="Date filter">
+      <input type="date" class="form-control" name="date" th:value="${date}" aria-label="Date"/>
+      <button type="submit" class="btn btn-primary"><i class="bi bi-search me-1"></i>Show</button>
+    </form>
+
+    <div class="card" th:if="${report != null}">
+      <div class="card-header">
+        <i class="bi bi-calendar-week me-2 table-thumb"></i>Sessions on
+        <span th:text="${#temporals.format(date, 'EEEE, dd MMMM yyyy')}">date</span>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" th:if="${!#lists.isEmpty(report.rows)}">
+            <thead class="table-light">
+            <tr>
+              <th>Date</th>
+              <th>Batch</th>
+              <th>Subject</th>
+              <th>Teacher</th>
+              <th class="text-center">Present</th>
+              <th class="text-center">Absent</th>
+              <th class="text-center">Late</th>
+              <th class="text-center">Excused</th>
+              <th class="text-center">Status</th>
+              <th class="text-end">Session</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="row : ${report.rows}">
+              <td th:text="${#temporals.format(row.session.sessionDate, 'dd MMM yyyy')}">01 Apr 2026</td>
+              <td th:text="${row.session.batchSubject.batch.name}">Batch</td>
+              <td th:text="${row.session.batchSubject.courseSubject.subject.name}">Subject</td>
+              <td>
+                <span th:if="${row.session.batchSubject.teacher != null}"
+                      th:text="${row.session.batchSubject.teacher.fullName}">Teacher</span>
+                <span th:if="${row.session.batchSubject.teacher == null}" class="text-body-secondary">Unassigned</span>
+              </td>
+              <td class="text-center" th:text="${row.present}">5</td>
+              <td class="text-center" th:text="${row.absent}">1</td>
+              <td class="text-center" th:text="${row.late}">0</td>
+              <td class="text-center" th:text="${row.excused}">0</td>
+              <td class="text-center">
+                <span th:switch="${row.session.status.name()}" class="badge"
+                      th:classappend="${row.session.isOpen} ? 'text-bg-success'
+                        : (${row.session.isCompleted} ? 'text-bg-primary' : 'text-bg-secondary')">
+                  <span th:case="'OPEN'">Open</span>
+                  <span th:case="'COMPLETED'">Completed</span>
+                  <span th:case="'CANCELLED'">Cancelled</span>
+                </span>
+              </td>
+              <td class="text-end">
+                <a th:href="@{/sessions/{id}(id=${row.session.id})}" class="btn btn-sm btn-outline-secondary" title="View session">
+                  <i class="bi bi-eye"></i><span class="visually-hidden">View</span>
+                </a>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="empty-state" th:if="${#lists.isEmpty(report.rows)}">
+          <i class="bi bi-calendar-x d-block mb-2"></i>
+          No class sessions were recorded on this date.
+        </div>
+      </div>
+      <div class="card-footer small text-body-secondary">
+        Cancelled sessions are listed so they remain visible, but they never count in any percentage.
+      </div>
+    </div>
+
+    <div th:if="${report == null}" class="text-body-secondary">
+      <i class="bi bi-info-circle me-1"></i>Choose a date to see every session of that day.
+    </div>
+
+    <div class="mt-3">
+      <a th:href="@{/attendance/reports}" class="btn btn-outline-secondary">Back to reports</a>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

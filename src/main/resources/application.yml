@@ -42,6 +42,7 @@ server:
         secure: ${SESSION_COOKIE_SECURE:false}
 
 app:
+  business-timezone: ${BUSINESS_TIMEZONE:Asia/Kolkata}
   security:
     bcrypt-strength: 12
   login-rate-limit:

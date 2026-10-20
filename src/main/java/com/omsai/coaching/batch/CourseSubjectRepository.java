@@ -34,6 +34,15 @@ public interface CourseSubjectRepository extends JpaRepository<CourseSubject, Lo
             """)
     List<CourseSubject> findForCourse(@Param("courseId") Long courseId);
 
+    /** Every course-subject pair with course and subject loaded, for report pickers. */
+    @Query("""
+            select cs from CourseSubject cs
+            join fetch cs.course c
+            join fetch cs.subject s
+            order by lower(c.name), lower(s.name)
+            """)
+    List<CourseSubject> findAllWithSubjectSorted();
+
     @Query("""
             select cs from CourseSubject cs
             join fetch cs.course c

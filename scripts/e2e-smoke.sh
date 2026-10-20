@@ -1,5 +1,5 @@
 #!/bin/zsh
-# End-to-end smoke test for Om Sai Coaching ERP (Phase 1).
+# End-to-end smoke test for Om Sai Coaching ERP (Phases 1 and 2).
 #
 # Prerequisites:
 #   - Application running on :8080 with the dev admin bootstrapped
@@ -379,6 +379,232 @@ tcode=$(curl -s -b tjar -o tpage.html -w '%{http_code}' "$BASE/users")
 ck "teacher blocked from /users (403)" "$([ "$tcode" = 403 ] && echo 1 || echo 0)"
 tcode=$(curl -s -b tjar -o tpage.html -w '%{http_code}' -d "name=hack" "$BASE/courses")
 ck "teacher blocked from POST /courses (403)" "$([ "$tcode" = 403 ] && echo 1 || echo 0)"
+
+# ================================================================ K2: fee agreements
+say "fee agreements"
+E2=$(dbq "select id from enrollments where student_id=$S2 and batch_id=$B1 and status='ACTIVE'")
+ck "smoke student has an active enrollment for fees" "$([ -n "$E2" ] && echo 1 || echo 0)"
+
+post_url=$(go -d "_csrf=$T" -d "enrollmentId=$E2" -d "grossFee=24000" -d "discountAmount=4000" \
+  --data-urlencode "academicYear=2026-27" --data-urlencode "dueDate=2026-12-15" \
+  --data-urlencode "notes=E2E fee agreement $TS" "$BASE/fees") || true
+FA_URL=${post_url#*|}
+ck "fee agreement created for the enrollment" "$(has "$FA_URL" "/fees/" && echo 1 || echo 0)"
+FA=$(dbq "select id from fee_accounts where enrollment_id=$E2")
+ck "fee agreement persisted in database" "$([ -n "$FA" ] && echo 1 || echo 0)"
+
+fcode=$(page "/fees/$FA")
+ck "fee agreement page shows outstanding 20000.00" \
+  "$([ "$fcode" = 200 ] && has "$(cat page.html)" "20000.00" && echo 1 || echo 0)"
+
+goflash -d "_csrf=$T" -d "enrollmentId=$E2" -d "grossFee=25000" "$BASE/fees" >/dev/null
+ck "duplicate fee agreement rejected" "$(has "$(cat post.html)" "already has a fee agreement for" && echo 1 || echo 0)"
+
+goflash -d "_csrf=$T" -d "enrollmentId=$E2" -d "grossFee=24000" \
+  --data-urlencode "discountAmount=30000" --data-urlencode "academicYear=2027-28" "$BASE/fees" >/dev/null
+ck "discount above gross fee rejected" "$(has "$(cat post.html)" "Discount cannot exceed the gross fee" && echo 1 || echo 0)"
+
+goflash -d "_csrf=$T" -d "enrollmentId=$E2" -d "grossFee=24000" \
+  --data-urlencode "academicYear=2026/27" "$BASE/fees" >/dev/null
+ck "invalid academic year rejected" "$(has "$(cat post.html)" "Academic year must use the format" && echo 1 || echo 0)"
+
+goflash -d "_csrf=$T" -d "enrollmentId=$EID" -d "grossFee=24000" "$BASE/fees" >/dev/null
+ck "fee agreement for a closed enrollment rejected" \
+  "$(has "$(cat post.html)" "can only be created for an ACTIVE enrollment" && echo 1 || echo 0)"
+
+# ================================================================ K3: payments
+say "payments"
+pcode=$(page "/payments/new?feeAccountId=$FA")
+ck "record payment form renders for the agreement" "$([ "$pcode" = 200 ] && echo 1 || echo 0)"
+
+post_url=$(go -d "_csrf=$T" -d "feeAccountId=$FA" -d "amount=8000" \
+  --data-urlencode "paymentDate=2026-09-20" -d "paymentMethod=CASH" \
+  --data-urlencode "remarks=E2E first installment" "$BASE/payments") || true
+PID_URL=${post_url#*|}
+ck "payment recorded, receipt page opens" "$(has "$PID_URL" "/receipt" && echo 1 || echo 0)"
+PID=$(dbq "select id from payments where fee_account_id=$FA order by id desc limit 1")
+RECEIPT=$(dbq "select receipt_number from payments where id=$PID")
+ck "receipt number uses the OMS-RCP-2026-###### sequence" \
+  "$(printf '%s' "$RECEIPT" | grep -qE '^OMS-RCP-2026-[0-9]{6}$' && echo 1 || echo 0)"
+PSTATUS=$(dbq "select status from payments where id=$PID")
+ck "payment stored as RECEIVED" "$([ "$PSTATUS" = "RECEIVED" ] && echo 1 || echo 0)"
+
+rcode=$(page "/payments/$PID/receipt")
+ck "receipt page shows the receipt number" \
+  "$([ "$rcode" = 200 ] && has "$(cat page.html)" "$RECEIPT" && echo 1 || echo 0)"
+
+fcode=$(page "/fees/$FA")
+ck "outstanding recalculated after payment (12000.00)" \
+  "$([ "$fcode" = 200 ] && has "$(cat page.html)" "12000.00" && echo 1 || echo 0)"
+
+goflash -d "_csrf=$T" -d "feeAccountId=$FA" -d "amount=999999" \
+  --data-urlencode "paymentDate=2026-09-21" -d "paymentMethod=CASH" "$BASE/payments" >/dev/null
+ck "overpayment rejected with the computed balance" \
+  "$(has "$(cat post.html)" "Payment exceeds the outstanding balance" && echo 1 || echo 0)"
+
+goflash -d "_csrf=$T" -d "grossFee=30000" -d "discountAmount=4000" "$BASE/fees/$FA" >/dev/null
+ck "fee amounts locked once payments exist" "$(has "$(cat post.html)" "can no longer be changed" && echo 1 || echo 0)"
+
+# voiding needs a reason
+goflash -d "_csrf=$T" --data-urlencode "reason= " "$BASE/payments/$PID/void" >/dev/null
+VSTATUS0=$(dbq "select status from payments where id=$PID")
+ck "voiding without a reason rejected" \
+  "$(has "$(cat post.html)" "A reason is required to void a payment." && echo 1 || echo 0)"
+ck "void without reason left the payment RECEIVED" "$([ "$VSTATUS0" = "RECEIVED" ] && echo 1 || echo 0)"
+
+goflash -d "_csrf=$T" --data-urlencode "reason=E2E void test $TS" "$BASE/payments/$PID/void" >/dev/null
+ck "voided with recorded reason" "$(has "$(cat post.html)" "voided. The outstanding balance has been recalculated." && echo 1 || echo 0)"
+VSTATUS=$(dbq "select status from payments where id=$PID")
+ck "payment stored as VOIDED" "$([ "$VSTATUS" = "VOIDED" ] && echo 1 || echo 0)"
+
+rcode=$(page "/payments/$PID/receipt")
+ck "receipt page shows the VOIDED stamp" "$([ "$rcode" = 200 ] && has "$(cat page.html)" "VOIDED" && echo 1 || echo 0)"
+
+goflash -d "_csrf=$T" --data-urlencode "reason=second void attempt" "$BASE/payments/$PID/void" >/dev/null
+ck "duplicate void rejected" "$(has "$(cat post.html)" "This payment has already been voided" && echo 1 || echo 0)"
+
+fcode=$(page "/fees/$FA")
+ck "outstanding restored after void (20000.00)" \
+  "$([ "$fcode" = 200 ] && has "$(cat page.html)" "20000.00" && echo 1 || echo 0)"
+
+# a fresh receipt after the void must still be strictly ahead of the first one
+post_url=$(go -d "_csrf=$T" -d "feeAccountId=$FA" -d "amount=5000" \
+  --data-urlencode "paymentDate=2026-09-25" -d "paymentMethod=UPI" "$BASE/payments") || true
+PID2=$(dbq "select id from payments where fee_account_id=$FA order by id desc limit 1")
+RECEIPT2=$(dbq "select receipt_number from payments where id=$PID2")
+ck "second receipt number strictly increases (sequence, not row count)" \
+  "$(printf '%s\n' "$RECEIPT" "$RECEIPT2" | sort -c 2>/dev/null && [ "$RECEIPT2" != "$RECEIPT" ] && echo 1 || echo 0)"
+
+# ================================================================ M2: class sessions and attendance
+say "class sessions and attendance"
+post_url=$(go -d "_csrf=$T" -d "batchSubjectId=$BSID" --data-urlencode "sessionDate=2026-09-18" \
+  -d "startTime=10:00" -d "endTime=11:00" --data-urlencode "topic=E2E session topic" "$BASE/sessions") || true
+SID_URL=${post_url#*|}
+ck "class session created" "$(has "$SID_URL" "/sessions/" && echo 1 || echo 0)"
+SID=${SID_URL##*/}
+SSTATUS=$(dbq "select status from class_sessions where id=$SID")
+ck "new session stored as OPEN" "$([ "$SSTATUS" = "OPEN" ] && echo 1 || echo 0)"
+
+acode=$(page "/sessions/$SID/attendance")
+S2CODE=$(dbq "select student_code from students where id=$S2")
+ck "attendance roster shows the enrolled student" \
+  "$([ "$acode" = 200 ] && has "$(cat page.html)" "$S2CODE" && echo 1 || echo 0)"
+
+goflash -d "_csrf=$T" -d "status_$E2=PRESENT" --data-urlencode "remark_$E2=On time" \
+  "$BASE/sessions/$SID/attendance" >/dev/null
+ck "attendance saved for 1 student" "$(has "$(cat post.html)" "Attendance saved for 1 student(s)." && echo 1 || echo 0)"
+ASTAT=$(dbq "select status from attendance where class_session_id=$SID and enrollment_id=$E2")
+ck "attendance row stored as PRESENT" "$([ "$ASTAT" = "PRESENT" ] && echo 1 || echo 0)"
+
+goflash -d "_csrf=$T" "$BASE/sessions/$SID/cancel" >/dev/null
+ck "session with attendance cannot be cancelled" \
+  "$(has "$(cat post.html)" "cannot be cancelled. Complete it instead." && echo 1 || echo 0)"
+
+goflash -d "_csrf=$T" "$BASE/sessions/$SID/complete" >/dev/null
+ck "session completed" "$(has "$(cat post.html)" "Session completed." && echo 1 || echo 0)"
+SSTATUS=$(dbq "select status from class_sessions where id=$SID")
+ck "session stored as COMPLETED" "$([ "$SSTATUS" = "COMPLETED" ] && echo 1 || echo 0)"
+CROWS=$(dbq "select count(*) from class_sessions where id=$SID")
+ck "completed session row still exists (never deleted)" "$([ "$CROWS" = 1 ] && echo 1 || echo 0)"
+
+# edit of a completed session is rejected
+goflash -d "_csrf=$T" -d "batchSubjectId=$BSID" --data-urlencode "sessionDate=2026-09-19" \
+  -d "startTime=10:00" -d "endTime=11:00" "$BASE/sessions/$SID" >/dev/null
+ck "completed session cannot be edited" "$(has "$(cat post.html)" "Only OPEN sessions can be edited" && echo 1 || echo 0)"
+
+# end time before start time rejected on create (validation renders the form again)
+ecode=$(go -d "_csrf=$T" -d "batchSubjectId=$BSID" --data-urlencode "sessionDate=2026-09-20" \
+  -d "startTime=11:00" -d "endTime=10:00" "$BASE/sessions")
+ck "end time before start time rejected" \
+  "$(has "${ecode%%|*}" "200" && has "$(cat post.html)" "End time must be after the start time" && echo 1 || echo 0)"
+
+# a clean session can be cancelled, and then rejects attendance
+post_url=$(go -d "_csrf=$T" -d "batchSubjectId=$BSID" --data-urlencode "sessionDate=2026-09-21" \
+  -d "startTime=11:00" -d "endTime=12:00" "$BASE/sessions") || true
+SID2=${post_url##*/}
+goflash -d "_csrf=$T" "$BASE/sessions/$SID2/cancel" >/dev/null
+ck "open session cancelled with record preserved" "$(has "$(cat post.html)" "Session cancelled." && echo 1 || echo 0)"
+SSTATUS2=$(dbq "select status from class_sessions where id=$SID2")
+ck "cancelled session stored as CANCELLED" "$([ "$SSTATUS2" = "CANCELLED" ] && echo 1 || echo 0)"
+
+goflash -d "_csrf=$T" -d "status_$E2=PRESENT" "$BASE/sessions/$SID2/attendance" >/dev/null
+ck "attendance rejected for a cancelled session" \
+  "$(has "$(cat post.html)" "cancelled session" && echo 1 || echo 0)"
+
+# ================================================================ M3: attendance reports
+say "attendance reports"
+rcode=$(page "/attendance/reports/batch?batchId=$B1&from=2026-09-01&to=2026-10-31")
+ck "batch report renders (200)" "$([ "$rcode" = 200 ] && echo 1 || echo 0)"
+ck "batch report lists the student with attendance" "$(has "$(cat page.html)" "E2E Student Two" && echo 1 || echo 0)"
+ck "batch report shows the recorded percentage" "$(has "$(cat page.html)" "100" && echo 1 || echo 0)"
+
+dcode=$(page "/attendance/reports/date?date=2026-09-18")
+ck "date report lists the held session" \
+  "$([ "$dcode" = 200 ] && has "$(cat page.html)" "E2E Batch A1" && echo 1 || echo 0)"
+ck "date report marks the completed session" \
+  "$([ "$dcode" = 200 ] && has "$(cat page.html)" "Completed" && echo 1 || echo 0)"
+
+scode=$(page "/attendance/reports/student/$S2")
+ck "student report shows the enrollment with counts" \
+  "$([ "$scode" = 200 ] && has "$(cat page.html)" "E2E Student Two" && echo 1 || echo 0)"
+
+htcode=$(page "/attendance/reports")
+ck "report hub renders" "$([ "$htcode" = 200 ] && echo 1 || echo 0)"
+
+# ================================================================ K4: teacher session ownership
+say "teacher session ownership"
+TH2ID=$(dbq "select id from teachers where user_id=$USERID")
+goflash -d "_csrf=$T" -d "batchId=$B1" -d "teacherId=$TH2ID" "$BASE/batches/subjects/$BSID/teacher" >/dev/null
+ck "linked teacher assigned to the batch subject" "$(has "$(cat post.html)" "Teacher assigned." && echo 1 || echo 0)"
+
+ttcode=$(curl -s -b tjar -o tpage.html -w '%{http_code}' "$BASE/sessions")
+ck "teacher can open the sessions list (200)" "$([ "$ttcode" = 200 ] && echo 1 || echo 0)"
+
+tcode=$(curl -s -b tjar -o tpage.html -w '%{http_code}' "$BASE/fees")
+ck "teacher blocked from /fees (403)" "$([ "$tcode" = 403 ] && echo 1 || echo 0)"
+tcode=$(curl -s -b tjar -o tpage.html -w '%{http_code}' "$BASE/payments")
+ck "teacher blocked from /payments (403)" "$([ "$tcode" = 403 ] && echo 1 || echo 0)"
+tcode=$(curl -s -b tjar -o tpage.html -w '%{http_code}' "$BASE/attendance/reports")
+ck "teacher blocked from /attendance/reports (403)" "$([ "$tcode" = 403 ] && echo 1 || echo 0)"
+
+tcsrf=$(curl -s -b tjar -o tpage.html "$BASE/sessions/new"
+  grep -o 'name="_csrf" value="[^"]*"' tpage.html | head -1 | sed 's/.*value="//;s/"$//')
+out=$(curl -s -b tjar -c tjar -o tpost.html -w '%{http_code}|%{redirect_url}' \
+  -d "batchSubjectId=$BSID" --data-urlencode "sessionDate=2026-09-22" \
+  -d "startTime=14:00" -d "endTime=15:00" \
+  --data-urlencode "_csrf=$tcsrf" "$BASE/sessions")
+ck "teacher creates a session for their own subject" "$(has "$out" "/sessions/" && echo 1 || echo 0)"
+TSID=${out#*|}; TSID=${TSID##*/}
+TSSTATUS=$(dbq "select status from class_sessions where id=$TSID")
+ck "teacher session stored as OPEN" "$([ "$TSSTATUS" = "OPEN" ] && echo 1 || echo 0)"
+
+out=$(curl -s -b tjar -c tjar -o tpost.html -w '%{http_code}|%{redirect_url}' \
+  -d "status_$E2=PRESENT" --data-urlencode "remark_$E2=Via teacher" \
+  --data-urlencode "_csrf=$tcsrf" "$BASE/sessions/$TSID/attendance")
+ck "teacher records attendance on own session" "$(has "${out#*|}" "/sessions/$TSID" && echo 1 || echo 0)"
+TB=$(dbq "select status from attendance where class_session_id=$TSID and enrollment_id=$E2")
+ck "teacher attendance stored" "$([ "$TB" = "PRESENT" ] && echo 1 || echo 0)"
+
+# teacher cannot correct attendance of a COMPLETED session
+out=$(curl -s -b tjar -c tjar -o tpost.html -w '%{http_code}|%{redirect_url}' \
+  -d "status_$E2=ABSENT" --data-urlencode "_csrf=$tcsrf" "$BASE/sessions/$SID/attendance")
+curl -s -b tjar -o tpage.html "${out#*|}"
+ck "teacher blocked from correcting a completed session" \
+  "$(has "$(cat tpage.html)" "can only be corrected by an administrator" && echo 1 || echo 0)"
+
+# teacher cannot create a session for ANOTHER teacher's subject
+CS2=$(dbq "select id from course_subjects where course_id=$C2 and subject_id=$SUBJ2ID")
+BS3=$(dbq "select id from batch_subjects where batch_id=$B3 and course_subject_id=$CS2 limit 1")
+if [ -z "$BS3" ]; then
+  curl -s -b jar -o /dev/null "$BASE/batches/$B3/subjects"
+  go -d "_csrf=$T" -d "batchId=$B3" -d "courseSubjectId=$CS2ID" "$BASE/batches/$B3/subjects" >/dev/null
+  BS3=$(dbq "select id from batch_subjects where batch_id=$B3 and course_subject_id=$CS2 limit 1")
+fi
+out=$(curl -s -b tjar -c tjar -o tpost.html -w '%{http_code}' \
+  -d "batchSubjectId=$BS3" --data-urlencode "sessionDate=2026-09-23" \
+  -d "startTime=10:00" -d "endTime=11:00" \
+  --data-urlencode "_csrf=$tcsrf" "$BASE/sessions")
+ck "teacher blocked from another teacher's subject (403)" "$([ "$out" = 403 ] && echo 1 || echo 0)"
 
 # ---------------------------------------------------------------- L: rate limiting
 say "login rate limiting"

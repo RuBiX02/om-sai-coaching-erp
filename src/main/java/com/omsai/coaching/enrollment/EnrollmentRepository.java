@@ -6,9 +6,21 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
+
+    /** Enrollment with student, batch and course context (fee-account pages). */
+    @Query("""
+            select e from Enrollment e
+            join fetch e.student s
+            join fetch e.batch b
+            join fetch e.course c
+            where e.id = :id
+            """)
+    Optional<Enrollment> findWithDetails(@Param("id") Long id);
 
     boolean existsByStudentIdAndBatchIdAndStatus(Long studentId, Long batchId, Enrollment.Status status);
 
@@ -83,6 +95,22 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
             order by e.createdAt desc
             """)
     List<Enrollment> findRecent(Pageable limit);
+
+    /**
+     * Attendance roster for a batch on a date: every enrollment of the
+     * batch whose effective period covers that date, regardless of
+     * current status. Uses end_date (null = still active), so students
+     * who joined after the date or left before it are not eligible.
+     */
+    @Query("""
+            select e from Enrollment e
+            join fetch e.student s
+            where e.batch.id = :batchId
+              and e.enrollmentDate <= :date
+              and (e.endDate is null or e.endDate >= :date)
+            order by s.fullName, s.id
+            """)
+    List<Enrollment> findRosterForBatchOnDate(@Param("batchId") Long batchId, @Param("date") LocalDate date);
 
     long countByBatchId(Long batchId);
 

@@ -17,6 +17,13 @@
       });
     });
 
+    // Print buttons on the receipt page.
+    document.querySelectorAll('button.js-print').forEach(function (el) {
+      el.addEventListener('click', function () {
+        window.print();
+      });
+    });
+
     // Auto-dismiss success alerts after a few seconds.
     document.querySelectorAll('.alert-dismissible').forEach(function (el) {
       if (!el.classList.contains('alert-danger')) {

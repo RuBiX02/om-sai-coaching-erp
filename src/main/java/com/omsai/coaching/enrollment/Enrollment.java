@@ -58,6 +58,15 @@ public class Enrollment extends Auditable {
     @Column(name = "enrollment_date", nullable = false)
     private LocalDate enrollmentDate;
 
+    /**
+     * The date on which this enrollment ended (completed or withdrawn).
+     * Null while ACTIVE. Together with enrollmentDate it defines the
+     * effective period during which the student was on the batch
+     * roster, which is what attendance eligibility is computed from.
+     */
+    @Column(name = "end_date")
+    private LocalDate endDate;
+
     @NotNull
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -97,6 +106,14 @@ public class Enrollment extends Auditable {
 
     public void setEnrollmentDate(LocalDate enrollmentDate) {
         this.enrollmentDate = enrollmentDate;
+    }
+
+    public LocalDate getEndDate() {
+        return endDate;
+    }
+
+    public void setEndDate(LocalDate endDate) {
+        this.endDate = endDate;
     }
 
     public Status getStatus() {

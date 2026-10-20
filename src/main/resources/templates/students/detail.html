@@ -52,6 +52,9 @@
             <a th:href="@{/students/{id}/edit(id=${student.id})}" class="btn btn-sm btn-outline-primary">
               <i class="bi bi-pencil me-1"></i>Edit details
             </a>
+            <a th:href="@{/attendance/reports/student/{id}(id=${student.id})}" class="btn btn-sm btn-outline-secondary">
+              <i class="bi bi-clipboard-data me-1"></i>Attendance report
+            </a>
             <form th:action="@{/students/{id}/status(id=${student.id})}" method="post">
               <input type="hidden" name="active" th:value="${student.active ? 'false' : 'true'}"/>
               <button type="submit" class="btn btn-sm btn-outline-secondary">
@@ -165,6 +168,10 @@
                     </span>
                   </td>
                   <td class="text-end" th:if="${enrollment.status.name() == 'ACTIVE'}">
+                    <a th:href="@{/fees/new(enrollmentId=${enrollment.id})}" class="btn btn-sm btn-outline-success"
+                       title="Create fee agreement for this enrollment">
+                      <i class="bi bi-cash-coin"></i><span class="visually-hidden">Fee agreement</span>
+                    </a>
                     <form th:action="@{/students/enrollments/{id}/status(id=${enrollment.id}, studentId=${student.id})}" method="post" class="d-inline">
                       <input type="hidden" name="action" value="complete"/>
                       <button type="submit" class="btn btn-sm btn-outline-primary" title="Mark completed">

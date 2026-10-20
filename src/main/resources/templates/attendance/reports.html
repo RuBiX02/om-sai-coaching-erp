@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('Attendance reports')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('attendance')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('Attendance reports', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <p class="text-body-secondary">
+      Percentages use (present + late) ÷ (present + late + absent) × 100.
+      Excused records are excluded. Only completed sessions count; cancelled
+      and open sessions never enter a denominator.
+    </p>
+
+    <div class="row g-3">
+      <div class="col-lg-6">
+        <div class="card h-100">
+          <div class="card-header"><i class="bi bi-person me-2 table-thumb"></i>Individual student report</div>
+          <div class="card-body">
+            <p class="text-body-secondary small">Search for a student, then open her report with the full enrollment history.</p>
+            <form th:action="@{/attendance/reports}" method="get" class="d-flex gap-2">
+              <input type="search" class="form-control" name="q" th:value="${q}"
+                     placeholder="Student name, code or phone" aria-label="Search students"/>
+              <button type="submit" class="btn btn-primary">
+                <i class="bi bi-search me-1"></i>Search
+              </button>
+            </form>
+            <div class="table-responsive mt-3" th:if="${students != null}">
+              <table class="table table-sm mb-0" th:if="${!#lists.isEmpty(students.content)}">
+                <tbody>
+                <tr th:each="s : ${students.content}">
+                  <td>
+                    <span class="small text-body-secondary" th:text="${s.studentCode}">code</span>
+                  </td>
+                  <td th:text="${s.fullName}">Name</td>
+                  <td class="text-end">
+                    <a th:href="@{/attendance/reports/student/{id}(id=${s.id})}" class="btn btn-sm btn-outline-primary">
+                      Report <i class="bi bi-arrow-right ms-1"></i>
+                    </a>
+                  </td>
+                </tr>
+                </tbody>
+              </table>
+              <div class="small text-body-secondary" th:if="${#lists.isEmpty(students.content)}">
+                <i class="bi bi-inbox me-1"></i>No students match that search.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="card h-100">
+          <div class="card-header"><i class="bi bi-calendar-week me-2 table-thumb"></i>Date-wise report</div>
+          <div class="card-body">
+            <p class="text-body-secondary small">All class sessions of one date with what was recorded.</p>
+            <form th:action="@{/attendance/reports/date}" method="get" class="d-flex gap-2">
+              <input type="date" class="form-control" name="date" th:value="${defaultDate}" aria-label="Date"/>
+              <button type="submit" class="btn btn-primary">
+                <i class="bi bi-search me-1"></i>Show
+              </button>
+            </form>
+          </div>
+          <div class="card-footer small text-body-secondary">
+            Sessions with no attendance rows are still listed so that gaps are visible.
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="card h-100">
+          <div class="card-header"><i class="bi bi-collection me-2 table-thumb"></i>Batch report</div>
+          <div class="card-body d-grid gap-2">
+            <p class="text-body-secondary small mb-0">Attendance for every student of a batch over a date range.</p>
+            <a th:href="@{/attendance/reports/batch}" class="btn btn-outline-primary">
+              Open batch report <i class="bi bi-arrow-right ms-1"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="card h-100">
+          <div class="card-header"><i class="bi bi-book me-2 table-thumb"></i>Subject-wise report</div>
+          <div class="card-body d-grid gap-2">
+            <p class="text-body-secondary small mb-0">Attendance for one subject within a specific batch.</p>
+            <a th:href="@{/attendance/reports/subject}" class="btn btn-outline-primary">
+              Open subject report <i class="bi bi-arrow-right ms-1"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

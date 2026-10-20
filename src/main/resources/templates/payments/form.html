@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('Record a payment')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('payments')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('Record a payment', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <div class="row">
+      <div class="col-xl-7">
+        <form th:action="@{/payments}" th:object="${form}" method="post" novalidate>
+          <input type="hidden" th:field="*{feeAccountId}"/>
+          <div class="card mb-3">
+            <div class="card-header"><i class="bi bi-cash-coin me-2 table-thumb"></i>Fee account</div>
+            <div class="card-body">
+              <dl class="row mb-0 small">
+                <dt class="col-sm-4">Student</dt>
+                <dd class="col-sm-8" th:text="${account.student.fullName} + ' (' + ${account.student.studentCode} + ')'">Student</dd>
+                <dt class="col-sm-4">Course</dt>
+                <dd class="col-sm-8" th:text="${account.course.name}">Course</dd>
+                <dt class="col-sm-4">Academic year</dt>
+                <dd class="col-sm-8" th:text="${account.academicYear}">2026-27</dd>
+                <dt class="col-sm-4">Net fee</dt>
+                <dd class="col-sm-8" th:text="${account.netFee}">12000</dd>
+                <dt class="col-sm-4">Outstanding right now</dt>
+                <dd class="col-sm-8 fw-bold" th:text="${outstanding}">12000</dd>
+              </dl>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><i class="bi bi-plus-lg me-2 table-thumb"></i>Payment details</div>
+            <div class="card-body">
+              <div th:if="${outstanding.signum() <= 0}" class="alert alert-success small">
+                <i class="bi bi-check-circle me-1"></i>This account is fully paid; no further payments should be recorded.
+              </div>
+              <div class="row">
+                <div class="col-sm-6 mb-3">
+                  <label for="amount" class="form-label required-label">Amount received (₹)</label>
+                  <input type="number" step="0.01" min="0.01" id="amount" class="form-control"
+                         th:field="*{amount}" aria-describedby="amountError"/>
+                  <div class="text-danger small mt-1" id="amountError" th:if="${#fields.hasErrors('amount')}" th:errors="*{amount}">Error</div>
+                  <div class="form-text">Partial payments are allowed; the balance is checked on the server.</div>
+                </div>
+                <div class="col-sm-6 mb-3">
+                  <label for="paymentDate" class="form-label required-label">Payment date</label>
+                  <input type="date" id="paymentDate" class="form-control" th:field="*{paymentDate}"
+                         aria-describedby="paymentDateError"/>
+                  <div class="text-danger small mt-1" id="paymentDateError" th:if="${#fields.hasErrors('paymentDate')}" th:errors="*{paymentDate}">Error</div>
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-sm-6 mb-3">
+                  <label for="paymentMethod" class="form-label required-label">Payment method</label>
+                  <select id="paymentMethod" class="form-select" th:field="*{paymentMethod}"
+                          aria-describedby="paymentMethodError">
+                    <option th:each="m : ${T(com.omsai.coaching.fees.Payment$Method).values()}"
+                            th:value="${m.name()}" th:text="${m}">CASH</option>
+                  </select>
+                  <div class="text-danger small mt-1" id="paymentMethodError" th:if="${#fields.hasErrors('paymentMethod')}" th:errors="*{paymentMethod}">Error</div>
+                </div>
+                <div class="col-sm-6 mb-3">
+                  <label for="referenceNumber" class="form-label">Reference number (optional)</label>
+                  <input type="text" id="referenceNumber" class="form-control" maxlength="80"
+                         th:field="*{referenceNumber}" aria-describedby="referenceNumberError"/>
+                  <div class="text-danger small mt-1" id="referenceNumberError" th:if="${#fields.hasErrors('referenceNumber')}" th:errors="*{referenceNumber}">Error</div>
+                  <div class="form-text">UPI or bank transaction reference, cheque number, etc.</div>
+                </div>
+              </div>
+              <div class="mb-3">
+                <label for="remarks" class="form-label">Remarks (optional)</label>
+                <textarea id="remarks" class="form-control" rows="2" th:field="*{remarks}"></textarea>
+              </div>
+              <div class="alert alert-light small text-body-secondary">
+                <i class="bi bi-shield-lock me-1"></i>
+                The receipt number is generated from a database sequence. The outstanding balance is computed
+                from the server's records — an amount larger than the outstanding balance is rejected.
+              </div>
+            </div>
+            <div class="card-footer d-flex gap-2">
+              <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check-lg me-1"></i>Record payment &amp; open receipt
+              </button>
+              <a th:href="@{/fees/{id}(id=${account.id})}" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

@@ -1,192 +1,202 @@
-# PROJECT STATUS — Om Sai Coaching ERP, Phase 1
+# PROJECT STATUS — Om Sai Coaching ERP, Phases 1 and 2
 
 Date: 2026-10-20
-Scope: everything listed in the Phase 1 specification that was actually
-built and verified, with an honest account of gaps, limitations and the
-defects found (and fixed) during development.
+Scope: everything in the Phase 1 and Phase 2 specifications that was
+actually built and verified, with an honest account of gaps, limitations
+and the defects found (and fixed) during development.
 
 ---
 
 ## 1. Bottom line
 
-The Phase 1 scope is implemented and works end to end:
+Phases 1 and 2 are implemented and work end to end:
 
-- **`mvn test`: 98 tests, 0 failures, 0 errors, 0 skipped** (green).
-- **E2E smoke suite: 71/71 checks passed** (`zsh scripts/e2e-smoke.sh`
-  against a locally running app).
+- **`mvn test`: 142 tests, 0 failures, 0 errors, 0 skipped** (green)
+  against the `omsai_test` PostgreSQL database.
+- **E2E smoke suite: 127/127 checks passed** (`zsh scripts/e2e-smoke.sh`
+  against a locally running app), now including class sessions,
+  attendance, reports, fee agreements, payments and receipts.
 - Both reports above are from real runs on this machine, **not estimates
-  from CI**. The exact environment is described in §6 limits.
-
-Everything the app presents to the user is verified by automated checks
-or by direct HTTP/DB inspection. What is *not* verified is clearly split
-out and listed in §4.
+  from CI**. The exact environment is described in §7 limits.
+- The dev database (`omsai`) was upgraded with Flyway migration
+  `V2__attendance_and_fees.sql`; `V1__init.sql` was never touched and no
+  database was reset, dropped or reseeded.
 
 ---
 
 ## 2. Feature status
 
-### Fully working (verified)
+### Phase 1 (all verified, unchanged by Phase 2)
 
-- **Authentication & accounts**: session login by email, BCrypt password
-  hashing, CSRF-protected forms, role `ADMIN`, deactivated accounts
-  cannot sign in. Verified by JUnit tests and the smoke script.
-- **Access control matrix**: anonymous → login redirect; `TEACHER` role →
-  read-only `/teacher` home only (every other URL is 403, including POSTs);
-  `ADMIN` → all management screens. Verified by JUnit tests and smoke.
-- **Server-side security defaults**: no hardcoded credentials; bootstrap
-  admin creation is opt-in through environment variables and idempotent
-  (JVM-start runner was verified skip-on-existing over real restarts).
-- **Courses**: create/edit/deactivate/reactivate, unique (case-insensitive)
-  names; listing with search and status filters; per-course subject list.
-- **Subjects**: create/edit, unique names; course assignment managed from
-  the course page (not the subject page).
-- **Batches**: create/edit with course, academic year and dates; unique
-  (course, year, name) triple; end date cannot precede start date
-  (both `@AssertTrue` in the form and a service-level guard);
-  deactivate/reactivate; batch course is immutable after creation.
-- **Batch subjects**: only subjects of the batch's course can be attached;
-  duplicates rejected (service + DB unique index); a batch subject can be
-  removed; its teacher assignment cleared/reassigned.
-- **Teacher assignments**: assign/clear an active teacher per batch
-  subject; inactive teachers cannot receive new assignments (verified);
-  reactivating a teacher restores eligibility.
-- **Referential safety**: a course subject that is currently taught in a
-  batch cannot be removed from the course; the DB uses ON DELETE RESTRICT
-  everywhere so removing referenced rows fails cleanly.
-- **Students**: register with a generated unique code `OMS-2026-#####`
-  (PostgreSQL sequence; case-insensitive uniqueness enforced twice),
-  edit, activate/deactivate, search by name/code/phone.
-- **Enrollments**: enroll an active student into an active batch; block
-  duplicates (per student+batch and per student+course), block inactive
-  students/batches/courses, suggest transfer on same-course conflicts —
-  all both in the service and enforced by partial unique indexes at the
-  database level (verified directly in tests).
-- **Transfers**: batch change inside one course only; the previous ACTIVE
-  record is closed COMPLETED and a new ACTIVE row is created for the
-  target batch in one transaction (`saveAll` + `flush()` ordering chosen
-  deliberately to respect the partial unique constraints during the
-  transition). Transfer history is preserved: both rows remain in the
-  table (verified by tests and DB assertions).
-- **Withdraw / complete**: only from ACTIVE status; both free the
-  student so re-enrollment becomes possible.
-- **Instructor accounts**: admin creates ADMIN/TEACHER login accounts
-  (validation on role, email format, password length), can
-  deactivate/reactivate them (the last active admin cannot be
-  deactivated) and reset passwords (min 12 chars).
-- **Teacher profiles ↔ login accounts**: a TEACHER-role account can be
-  linked to a teacher profile (1-to-1, uniqueness enforced); ADMIN-role
-  accounts are rejected for linking; already-linked accounts cannot be
-  linked twice; unlinking/change works via the edit form.
-- **Dashboard (ADMIN)**: live counts (active students, active courses,
-  active batches, active teachers) and the 5 most recent enrollments —
-  all computed from DB queries, nothing hardcoded.
-- **UI**: 24 Thymeleaf templates, server-rendered, Bootstrap 5.3 +
-  Bootstrap Icons vendored locally (works without internet access),
-  no inline styles/scripts (strict CSP), small progressive-enhancement
-  JS for filtering/navigation niceties.
-- **Validation feedback**: invalid form posts re-render the form with
-  exact field errors (all form cases verified in JUnit + smoke).
-- **Error pages**: friendly 403 / 404 / 500 pages instead of whitelabel
-  noise; access-denied pages work for both real content and CSRF-denied
-  POSTs.
+Authentication and accounts; the anonymous/TEACHER/ADMIN access matrix;
+courses, subjects, batches, batch subjects, teacher assignments;
+referential-safety of removals; students with generated `OMS-2026-#####`
+codes; append-only enrollment history with same-course transfers,
+withdraw/complete and DB-enforced uniqueness; admin/teacher user
+management with teacher-profile linking; dashboard with live counts;
+login rate limiting (single-node, in-memory); validation feedback on
+every form; friendly error pages; strict CSP security headers.
+
+Phase 2 deliberately did not alter these flows. The only Phase 1 test
+adjustment required was `DashboardServiceTest`: the Phase 2 schema now
+enforces `ck_enrollments_closed_has_end` (a closed enrollment must have
+an end date), so the test fixture stamps `end_date` when closing an
+enrollment — a test fix, not a behavior change.
+
+### Phase 2 — fully working (verified)
+
+**Class sessions** (`attendance` package + `class_sessions` table)
+
+- A session is one class on one date for one batch-subject assignment;
+  there is no recurring timetable, and the batch/course/subject context
+  always derives from the assignment so records cannot drift.
+- Times are optional; `session_date` + times carry a DB CHECK
+  (`ck_class_sessions_time_range`) and a service guard: end time must be
+  after start time.
+- Lifecycle OPEN → COMPLETED or OPEN → CANCELLED. Records are never
+  deleted: the session page and categories remain, only buttons clamp.
+- A completed session rejects edits; a session that already has
+  attendance rows cannot be cancelled (attendance is never deleted and
+  must stay attached to a class that actually took place). Both rules
+  verified by tests and over HTTP.
+- Only administrators and the assigned teacher may manage a session.
+  Teacher scope is enforced in the **service**
+  (`AccessDeniedException` → 403 page), not by hiding links.
+
+**Attendance** (`attendance` table)
+
+- Ties to an enrollment, not to the student: `UNIQUE (class_session,
+  enrollment)` in the DB; corrections update in place.
+- Recording rules: the enrollment must belong to the session's batch and
+  its effective period must cover the session date (`enrollment_date ≤
+  session_date` and `end_date ≥ session_date`); therefore a batch
+  transfer cannot attach attendance to the wrong batch's history.
+- Statuses PRESENT/LATE/ABSENT/EXCUSED with per-row remarks.
+- A session with attendance cannot be cancelled. Marking requires an
+  OPEN session from a teacher; administrators can still correct
+  attendance on completed sessions (teacher lockout verified).
+- The attendance page pre-fills the roster with existing rows for
+  corrections and shows who has not been marked.
+
+**Reports** (`AttendanceReportService` + native SQL)
+
+- **Per student**: one row per historical enrollment (transfer history
+  stays visible), with per-enrollment counts and an overall percentage
+  across all rows.
+- **Per batch** and **per subject (within a batch)**: rows per student
+  with eligible-session denominators recorded at report time.
+- **Per date**: every session with recorded counts and status badges.
+- Percentage = (present + late) / (present + late + absent) × 100;
+  EXCUSED is excluded; a null percentage is shown (never a fake 0%) when
+  nothing has been evaluated for that student.
+- Denominators count only COMPLETED sessions whose date falls inside the
+  enrollment's period (cancelled and still-open sessions never count).
+
+**Fee agreements** (`fee_accounts` table)
+
+- Agreement per (student, course, academic year), money as
+  `NUMERIC(12,2)` via `BigDecimal`; `net = gross − discount` with the
+  discount capped by a service rule and a DB CHECK; the academic year
+  must use the `2026-27` format; the enrollment must be ACTIVE.
+- Same-course batch transfers reuse the existing agreement
+  transactionally through an `EnrollmentTransferObserver` (no duplicate
+  agreements, no data loss).
+- Once a payment is recorded, the gross fee and discount can no longer
+  be changed (only the due date and notes); verified over HTTP.
+
+**Payments** (`payments` table, append-only)
+
+- Append-only history; voiding sets who/when/why and the void flow has
+  its own printable, re-stamped receipt. Voiding requires a non-blank
+  reason (validated server-side).
+- Receipt numbers come from the DB sequence `payment_receipt_seq` in the
+  form `OMS-RCP-2026-000001` — never from counting rows: duplicate voids
+  and void-outs never change the counter, and receipt numbers strictly
+  increase even after voids.
+- Overpayments are rejected with the exact outstanding balance;
+  outstanding is computed server-side; concurrent recording of two
+  payments against the same account is serialized by a pessimistic lock
+  on the fee account (real-thread test: of two 800.00 payments against a
+  1000.00 outstanding, exactly one is accepted).
+- Printable receipt page in the browser (print-to-PDF; no PDF library).
+
+**Teacher carve-out** (new in Phase 2)
+
+- Teachers **can** create and manage class sessions and attendance for
+  subjects assigned to their linked active teacher profile (enforced in
+  the service: `AccessDeniedException` → 403 page, not just hidden
+  links).
+- Teachers are **barred from all fee, payment and report pages**. Every
+  URL is enforced server-side: the URL-level role rule plus service
+  rules for session management. Verified by 403 checks in JUnit and the
+  smoke suite.
+
+**UI integration**
+
+- `students/{id}` detail page links to the attendance report (profile
+  card) and fee-agreement pages (per ACTIVE enrollment row).
+- Dashboard now has Phase 2 stat cards (sessions today, month-to-date
+  collections, outstanding dues, receipt totals) and a "Class sessions
+  today" table — all from DB queries.
+- Sidebar adds Sessions, Fees, Payments and Reports entries (admin and
+  teacher scoping respected); the payment-receipt page exposes a print
+  button through a small progressive-enhancement hook.
 
 ### Working but with documented limits
 
-- **Login rate limiting**: works and verified (5 failures/15 min per
-  username+IP, 6th attempt → `/login?locked`, correct-password attempt is
-  also blocked once locked, success clears the counter). Limitation: it
-  is an in-memory map, so it (a) resets on restart and (b) protects only
-  one process — see §4.
-- **Teacher read-only home page**: verified working for a teacher with
-  and without teaching assignments and without a linked profile; content
-  limited to what the spec allows.
+- **Login rate limiting**: unchanged from Phase 1 (in-memory, one node).
+- **Reports date ranges**: the batch/subject/student dashboards compute
+  against report time; each render mirrors live data — there is no
+  snapshot/audit history of previously generated reports.
 
-### Not implemented (deliberately out of Phase 1 scope)
+### Not implemented (deliberately out of scope across Phases 1–2)
 
-- No REST API endpoints (Phase 1 is purely server-rendered pages).
-- No multiple-branch or multi-campus support, no invoices/payments,
-  no attendance tracking, no reports/PDF export.
-- No email/SMS notifications, no password "forgot" flow (password resets
-  are admin-driven), no user-invite emails.
-- No file uploads (photos, documents).
-- No bulk import/export (CSV/Excel) yet.
-- No dark mode/tailwind-style theming beyond the single Bootstrap theme.
+- No REST API endpoints; no React/SPA; no timetable or recurring
+  schedule of classes; no examinations/grades; no student/parent
+  portals; no payroll; no multi-branch support.
+- No email/SMS notifications; no file uploads; no CSV/Excel import or
+  export; no PDF-generation library (receipts are browser-print).
+- No invoices or partial-refund workflows beyond voiding.
 
 ### Not verified
 
-- **Visual/browser rendering**: the development environment here had no
-  browser automation tool available, so pixel-level layout was not
-  exercised by a real browser. All pages were fetched, parsed and checked
-  by automated means (curl over HTTP including CSRF flows, HTML content
-  assertions in the smoke script and MockMvc tests), so markup, status
-  codes, flash messages, validation messages and role behaviour are
-  verified to render correctly — but nothing was confirmed in a graphic
-  browser session.
-- **Docker/Testcontainers**: unavailable on this machine, so there is no
-  "spin up the whole stack in Docker" story yet. Tests run against a
-  locally installed PostgreSQL, which requires the two databases from
-  README §1 to exist.
+- **Visual/browser rendering**: this environment has no browser
+  automation tool, so the Phase 2 screens were verified over real HTTP
+  (curl flows with CSRF, session cookies and HTML assertions in the
+  smoke suite, plus MockMvc in tests) but not opened in a graphic
+  browser. In particular the browser's print dialog for receipts has
+  only been verified by markup inspection.
+- **Docker/Testcontainers**: still unavailable here; tests run against a
+  real local PostgreSQL (see README §1).
+- **Multi-node behavior** of the in-memory rate limiter (documented
+  Phase 1 limit).
 
 ---
 
 ## 3. Database migrations
 
-- `V1__init.sql` is the single Flyway migration. It creates all tables,
-  enforced CHECK constraints, identifier sequences and the partial unique
-  indexes that back the business rules (one ACTIVE enrollment per batch
-  and per course, unique course/name/email/code, batch-subject uniqueness,
-  user-account/teacher profile link uniqueness).
-- Hibernate is `ddl-auto: validate`: the schema is Flyway-owned, verified
-  at boot. Successful migrations are committed in the same transaction
-  as the described schema state — no data mutations were performed by
-  migrations, so there is no data-backfill concern in Phase 1.
-- Applied against: `omsai` (dev) and `omsai_test` (tests). Verified
-  fresh-database startup (empty `omsai_test` at creation of this log).
+- `V1__init.sql` — unchanged Phase 1 schema (never edited).
+- `V2__attendance_and_fees.sql` — Phase 2 schema: `class_sessions`,
+  `attendance`, `fee_accounts`, `payments` tables; `payment_receipt_seq`
+  sequence; CHECK constraints (time range, non-negative money, net
+  equals gross minus discount, discount ≤ gross, closed enrollments have
+  end dates); unique indexes (`ux_attendance_session_enrollment`,
+  `ux_fee_accounts_student_course_year`, `ux_payments_receipt_number`);
+  extra index `ix_enrollments_batch_start_end` for roster queries;
+  `ON DELETE RESTRICT` everywhere in the new foreign keys.
+- No data backfill was needed: Phase 1 data has no attendance/fees.
+- Applied to `omsai` (dev) and `omsai_test`; Flyway validate passes at
+  boot against both, and the fresh-database path was re-verified on
+  `omsai_test`.
 
 ---
 
-## 4. Defects found during this phase — and fixed
-
-These were real bugs discovered by the smoke suite and tests, not
-stylistic complaints. All are fixed in the committed code:
-
-1. **Rate limiter off-by-one** — the very first failed login within a
-  fresh window was not counted, giving attackers one extra try per
-  window (max attempts + 1). Fixed to count the first failure; covered
-  by deterministic unit tests and by the live `6th attempt locked`
-  smoke check.
-2. **Teacher login could not redirect** — `/` was matched after
-  `/teacher/**` and forced the ADMIN requirement, so a teacher arriving
-  at `/` received 403 and the role-based `HomeController` branch was
-  dead code. Fixed the request-matcher order in `SecurityConfig`;
-  verified in MockMvc and smoke tests.
-3. **Teacher detail page crashed (500)** — reading
-  `teacher.linkedUser.email` hit a Hibernate proxy with
-  `LazyInitializationException` after the transaction ended (visible
-  only when the profile had a linked account). Fixed with an explicit
-  `left join fetch` query (`findWithLinkedUser`) used by
-  `TeacherService.get()`.
-4. **Batch detail page crashed (500)** — same disease on
-  `batch.course` after enrollment/navigation. Fixed with a
-  `findWithCourse` join-fetch used by `BatchService.get()`.
-5. **Invisible validation error** — the batch form's
-  `@AssertTrue isEndDateAfterStart` bound its error to property
-  `endDateAfterStart`, which the template did not render, so an invalid
-  date range appeared to do nothing. The template now displays it, and
-  a web-layer test asserts the changed property is populated.
-6. **Thymeleaf "new" word restriction** — Thymeleaf 3.1.5's restricted
-  expression evaluator rejects *any* fragment-argument expression that
-  contains the standalone word `new` (even inside string literals like
-  `'New batch'`), which broke several form pages with
-  `TemplateInputException`. Fixed by computing page titles with
-  `th:with` and passing plain `${pageTitle}` variables into fragments
-  (documented here because it surprises everyone the first time).
-
----
-
-## 5. Tests actually executed
+## 4. Tests actually executed
 
 JUnit suite (`./mvnw test`, run against `omsai_test`):
+
+**Phase 1 suites (98 tests, all pass — unchanged except
+`DashboardServiceTest`, see §2):**
 
 | Suite                        | Tests | Result |
 |------------------------------|-------|--------|
@@ -204,70 +214,134 @@ JUnit suite (`./mvnw test`, run against `omsai_test`):
 | SubjectServiceTest           | 5     | pass   |
 | DashboardServiceTest         | 2     | pass   |
 | CoachingErpApplicationTests  | 1     | pass   |
-| **Total**                    | **98**| **0 failures, 0 errors** |
 
-Highlights of what the tests prove:
+**Phase 2 suites (44 tests, all pass):**
 
-- Enrollment rule set (duplicate batch/course enrollments, inactive
-  student/batch/course, unknown ids, transfer same-course, transfer to
-  same batch, cross-course transfer, withdraw/complete, history
-  preservation) — EnrollmentServiceTest.
-- The DB-level partial unique indexes cannot be bypassed
-  (EnrollmentConstraintTest writes invalid rows directly and expects
-  `DataIntegrityViolationException`).
-- Login, bad-password, unknown-user and lockout behaviors over HTTP,
-  including that a correct password is still blocked when locked
-  (LoginWebTest).
-- Role matrix (anonymous/teacher/admin) over MockMvc with CSRF
-  (RoleAccessWebTest).
-- Every management form's validation errors re-render with the proper
-  field/model errors (ValidationWebTest).
-- All service-side business rules (courses, subjects, batches, students,
-  teachers, users, dashboard); Spring context boot on a real PostgreSQL.
+| Suite                        | Tests | What it proves |
+|------------------------------|-------|----------------|
+| ClassSessionServiceTest      | 11    | session create/edit rules, time validation, batch/course active checks, teacher ownership (403s), no-profile teacher denied, roster period filtering |
+| AttendanceServiceTest        | 7     | upsert of one row per (session, enrollment), roster eligibility windows, teacher correction lockout on completed sessions, percentage formula incl. EXCUSED exclusion and null-on-empty |
+| AttendanceReportServiceTest  | 4     | denominators count only completed sessions inside each enrollment period, EXCUSED does not lower the percentage (and produces no fake 0), transfer history appears as separate rows with correct periods, date report |
+| FeeAccountServiceTest        | 9     | agreement creation rules (ACTIVE enrollment, duplicate per student+course+year, year format, discount ≤ gross), edit lock once payments exist, same-course transfer repoints the agreement into one transaction, outstanding math |
+| PaymentServiceTest           | 5     | recording (balance, overpay rejection, validation), receipt sequence behavior, void with who/when/why, already-voided rejection, outstanding recalculation |
+| PaymentServiceConcurrencyTest| 1     | real threads racing two payments against one balance with a pessimistic lock — exactly one accepted, outstanding correct; tests clean up their committed fixtures in FK order |
+| PhaseTwoAccessWebTest        | 7     | anonymous redirects; CSRF enforcement on POST /sessions; teacher allowed on session pages but 403 on every fee/payment/report URL; teacher 403 creating sessions for an unassigned subject + 302 for an owned one; admin reaches every Phase 2 page |
 
-E2E smoke suite (`zsh scripts/e2e-smoke.sh`, ~71 checks against the truly
-running app): real HTTP flows — CSRF token fetches, session cookies,
-redirect/flash-message following, DB row assertions through psql —
-covering login, role enforcement incl. 403s, every form's happy and
-rejection paths, enrollment + transfer + withdraw history invariants,
-removal protections, teacher linking, rate-limit lockout, logout session
-invalidation and dashboard rendering. Final run: **71 checks, 0 failed.**
+**Total: 142 tests, 0 failures, 0 errors, 0 skipped.**
+
+E2E smoke suite (`zsh scripts/e2e-smoke.sh`, final run **127 checks,
+0 failed**) — real HTTP flows against the running app with DB row
+assertions through psql. Every Phase 2 flow over HTTP was exercised:
+fee agreement create + duplicate/over-discount/closed-enrollment/bad-year
+rejections; payment form rendering; recording with receipt format
+`OMS-RCP-2026-######` from the sequence; outstanding recalculated after
+payment, after void; overpay rejection; fee amounts locked once payments
+exist; void-without-reason rejected, void with reason persisted, receipt
+shows the VOIDED stamp; receipt numbers strictly increase; session
+create → attendance row → cancel blocked → complete → edit blocked;
+cancelled session rejects attendance; batch/date/student reports render
+with the recorded data; teacher can create sessions and record
+attendance for an owned subject, is 403'd on fee/payment/report URLs,
+403'd recording another teacher's subject and blocked from correcting a
+completed session; administrators reach every Phase 2 page; dashboard
+renders the Phase 2 blocks.
+
+Smoke-test artifacts: `/tmp/opencode/e2e-phase2.log`, `test-phase2.log`.
 
 ---
 
-## 6. Environment & honest limitations
+## 5. Defects found during Phase 2 — and fixed
 
-- **Machine specifics used for the runs above**: PostgreSQL 18.4 local
-  cluster on port **5433** (databases `omsai` and `omsai_test`, user
-  `tojo`/`omsai_dev` in `application.yml` defaults), Java **25**
-  (`/usr/lib/jvm/java-25-openjdk-amd64`), Maven 3.9.16 (also embedded in
-  the wrapper). These defaults are local-development choices, not
-  production recommendations: change them through environment variables
-  and keep real passwords in a secret manager.
-- **No container test story** — Docker is not available here, so
-  Testcontainers-based tests were not used. The tests therefore need a
-  real (disposable) PostgreSQL database, as documented in README §1/§5.
-- **Rate limiter is single-node/in-memory** — fine for a single app
-  instance; a multi-node deployment needs a shared store (e.g. Redis).
-  Restarting the app also resets counters.
+All of the following are real bugs discovered by the smoke suite (the
+MockMvc-in-a-transaction tests masked several of them; running the app
+for real exposed them). All are fixed.
+
+1. **`LazyInitializationException` in `SessionAuthority.currentUser()`**
+   — the method returned a Hibernate *proxy* via `getReferenceById`, and
+   page controllers read the role outside any transaction → 500 on
+   `/sessions` (for both roles). Fixed by loading the real entity with
+   `findById`. The same treatment was applied to the `admin()` helpers
+   of both fee controllers for consistency.
+2. **Model attribute named `session` collided with Thymeleaf's web
+   implicit variables** — in a real servlet request the HTTP session
+   (present after login) shadows the model attribute, so
+   `${session.batchSubject…}` evaluated against the session → 500 on
+   every session detail/attendance/form page after login. Fixed by
+   renaming the model attribute to `cs` in `SessionController` and every
+   affected template expression (including bare `session.` forms).
+3. **Native report queries failed with non-null date filters** —
+   `(:from is null or cs.session_date >= :from)` defeated Postgres
+   parameter typing ("could not determine data type of parameter $2")
+   during prepare. Fixed by `cast(:from as date)` in the six affected
+   native queries; HQL searches keep Hibernate's typed binding and are
+   unaffected.
+4. **Batch picker crashed on the report pages** — `course.name` on lazy
+   detached batches → 500. Fixed with a fetch-joined
+   `findAllForSelection()` used by both report pages.
+5. **Teacher's assignment dropdown crashed the session form** —
+   `findForUser` did not fetch the teacher; rendering `a.teacher…` on a
+   detached proxy → 500. Fixed with `left join fetch bs.teacher` (and
+   the batch's course fetch, which its active-course filter needed).
+6. **Flash error messages were overwritten by the attendance page** —
+   `attendancePage` unconditionally wrote its own `errorMessage`, which
+   clobbers the flash message the service redirect had queued (flash
+   attributes merge before the handler runs), so a rejection like
+   "Attendance cannot be recorded for a cancelled session." was hidden
+   behind a generic notice. Removed the redundant model write; the page
+   keeps its inline cancelled-session warning.
+7. **Missing request parameter produced a 500** — `GET
+   /payments/new` requires `feeAccountId`; opening the URL bare returned
+   an unhandled `MissingServletRequestParameterException`. Added a
+   dedicated handler returning **400** with a friendly page.
+8. **Two template defects**: the payment form's nested enum reference
+   `T(com.omsai.coaching.fees.Payment).Method.values()` failed in SpEL
+   (needs `Payment$Method`, the Java inner-class syntax); and a
+   DashboardServiceTest fixture violated the enrollment constraint added
+   in Phase 2 (§2).
+
+---
+
+## 6. Phase 1 defects (for completeness)
+
+1. Rate limiter off-by-one (fixed in Phase 1).
+2. Teacher `/` redirect could not work (fixed in Phase 1).
+3. Teacher detail page crash on `linkedUser` proxy (fixed in Phase 1).
+4. Batch detail page crash on `course` proxy (fixed in Phase 1).
+5. Invisible `endDateAfterStart` validation error (fixed in Phase 1).
+6. Thymeleaf 3.1.5's restricted `new`-word fragment parsing (worked
+   around in Phase 1).
+
+---
+
+## 7. Environment & honest limitations
+
+- PostgreSQL 18.4 local cluster on port **5433** (databases `omsai` and
+  `omsai_test`, user `tojo`/`omsai_dev` via `application.yml` defaults),
+  Java **25**, Maven 3.9.16 (wrapper included). Local-development
+  defaults only; change via environment variables.
+- **No container test story** — Docker unavailable; tests need the two
+  real disposable PostgreSQL databases documented in README §1.
 - **No browser-tool verification** — see §2 "Not verified".
-- **No production hardening checklist yet**: TLS termination/proxy
-  configuration, session `secure` cookie behind HTTPS
-  (`SESSION_COOKIE_SECURE=true` exists), log aggregation, and DB backup
-  procedures are operator tasks that are not exercised in this repo.
-- **Bootstrap admin password** — the first admin password lives only in
-  the launching environment. Anyone deploying must change it after first
-  sign-in (the app logs a reminder).
+- **Rate limiter is single-node/in-memory** (Phase 1 limit; unchanged).
+- **Receipt printing is browser print** — no PDF engine; the printed
+  sheet was verified by markup/content assertions only.
+- **Money is `NUMERIC(12,2)` and BigDecimal end-to-end**; display
+  formatting is the plain BigDecimal string (no currency formatter).
+  This is intentional for honest arithmetic (no rounding surprises), but
+  a locale-aware formatter would be nicer eventually.
+- **No production hardening checklist yet** (TLS/proxy, secure session
+  cookie behind HTTPS, log aggregation, backups) — operator tasks.
+- **Test-created committed fixtures in the concurrency test** are the
+  sanctioned exception to "never delete": `PaymentServiceConcurrencyTest`
+  commits real data (to race threads), then deletes it in `@AfterEach`
+  in FK order.
 
-## 7. Suggested next steps (Phase 2+)
+## 8. Suggested next steps (Phase 3+)
 
-1. Admin UI for enrollment history browsing/CSV export; batch rotation
-   reports (active/completed/withdrawn over time).
-2. Attendance and fee collection modules (schema + screens + tests in
-   the same style).
-3. A Docker-based "one command" developer environment
-   (`docker-compose.yml` + Testcontainers for tests once Docker exists).
-4. Optional multi-node rate limiting via Redis (or DB-backed counters).
-5. Automated nightly full-app smoke in CI, plus an image of the login
-   pages rendered by a real browser to close the visual-verification
-   gap above.
+1. Attendance export (CSV) and a printable batch attendance sheet.
+2. Installment plans / payment schedules with automated overdue flags.
+3. Fine-grained per-teacher report access (if teachers ever need their
+   own subject's report), with the same service-level enforcement.
+4. Browser-rendering verification (Playwright/screenshot) to close the
+   visual gap, plus a CI nightly run of `mvn test` + the smoke suite.
+5. Docker one-command environment (compose + Testcontainers).

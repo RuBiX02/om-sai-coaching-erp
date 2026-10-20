@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('Collections')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('fees')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('Collection summary', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <form th:action="@{/fees/collections}" method="get" class="d-flex gap-2 mb-3 flex-wrap align-items-end"
+          aria-label="Collection range">
+      <div>
+        <label for="from" class="form-label mb-0 small">From (payment date)</label>
+        <input type="date" id="from" class="form-control" name="from" th:value="${from}"/>
+      </div>
+      <div>
+        <label for="to" class="form-label mb-0 small">To (payment date)</label>
+        <input type="date" id="to" class="form-control" name="to" th:value="${to}"/>
+      </div>
+      <button type="submit" class="btn btn-primary"><i class="bi bi-search me-1"></i>Update</button>
+    </form>
+
+    <div class="row g-3 mb-3">
+      <div class="col-md-6 col-xl-4">
+        <div class="card stat-card h-100">
+          <div class="card-body d-flex align-items-center gap-3">
+            <i class="bi bi-cash-stack stat-icon"></i>
+            <div>
+              <div class="stat-value" th:text="${totalReceived}">0</div>
+              <div class="text-body-secondary small">Total valid payments received in this range (voided excluded)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-xl-4">
+        <div class="card h-100">
+          <div class="card-body">
+            <h2 class="h6 text-body-secondary mb-3">Received by method</h2>
+            <table class="table table-sm mb-0" th:if="${!#lists.isEmpty(methodTotals)}">
+              <thead class="table-light">
+              <tr>
+                <th>Method</th>
+                <th class="text-center">Payments</th>
+                <th class="text-end">Total</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr th:each="row : ${methodTotals}">
+                <td th:text="${row.method}">CASH</td>
+                <td class="text-center" th:text="${row.paymentCount}">3</td>
+                <td class="text-end" th:text="${row.total}">4500</td>
+              </tr>
+              </tbody>
+            </table>
+            <div class="small text-body-secondary" th:if="${#lists.isEmpty(methodTotals)}">
+              <i class="bi bi-inbox me-1"></i>No valid payments in this range.
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-xl-4">
+        <div class="card h-100">
+          <div class="card-body">
+            <h2 class="h6 text-body-secondary mb-3">Voided payments (excluded above)</h2>
+            <div class="h4 mb-0" th:text="${voidedTotal}">0</div>
+            <div class="small text-body-secondary mt-1">
+              These were received, then voided with a recorded reason; they never count as collections.
+            </div>
+          </div>
+          <div class="card-footer small text-body-secondary">
+            Historical collections shown here answer "how much came in". For what is still owed,
+            use <a th:href="@{/fees/outstanding}">Outstanding fees</a>.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body small text-body-secondary">
+        <i class="bi bi-info-circle me-1"></i>
+        Filtering by payment date applies to the payment's own payment_date. This screen deliberately separates
+        historical collections from current outstanding balances.
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>
