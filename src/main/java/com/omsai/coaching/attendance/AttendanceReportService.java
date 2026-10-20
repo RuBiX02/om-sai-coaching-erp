@@ -6,11 +6,13 @@ import com.omsai.coaching.enrollment.Enrollment;
 import com.omsai.coaching.enrollment.EnrollmentRepository;
 import com.omsai.coaching.student.Student;
 import com.omsai.coaching.student.StudentRepository;
+import com.omsai.coaching.teacher.Teacher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -78,6 +80,37 @@ public class AttendanceReportService {
                         counts.get(enrollment.getId())))
                 .toList();
         return new StudentReport(student, rows);
+    }
+
+    /**
+     * Every recorded attendance entry of one date, one row per
+     * attendance row (so the date-wise export lists students and their
+     * marks, not only session totals). Sessions without recorded
+     * attendance contribute no rows - nothing is invented for them.
+     */
+    @Transactional(readOnly = true)
+    public List<DateAttendanceRow> attendanceRowsForDate(LocalDate date) {
+        List<DateAttendanceRow> rows = new ArrayList<>();
+        for (ClassSession session : sessionRepository.findForDate(date)) {
+            var batchSubject = session.getBatchSubject();
+            String batchName = batchSubject.getBatch().getName();
+            String subjectName = batchSubject.getCourseSubject().getSubject().getName();
+            Teacher teacher = batchSubject.getTeacher();
+            String teacherName = teacher == null ? null : teacher.getFullName();
+            for (Attendance attendance : attendanceRepository.findForSession(session.getId())) {
+                Student student = attendance.getEnrollment().getStudent();
+                rows.add(new DateAttendanceRow(
+                        session.getSessionDate(),
+                        batchName,
+                        subjectName,
+                        teacherName,
+                        student.getStudentCode(),
+                        student.getFullName(),
+                        attendance.getStatus(),
+                        attendance.getRemarks()));
+            }
+        }
+        return rows;
     }
 
     /** One date: every session of that date with recorded statuses. */
@@ -155,6 +188,17 @@ public class AttendanceReportService {
     }
 
     public record DateReport(List<SessionDayRow> rows) {
+    }
+
+    /** One recorded attendance entry of a date, as used by the date-wise export. */
+    public record DateAttendanceRow(LocalDate sessionDate,
+                                    String batchName,
+                                    String subjectName,
+                                    String teacherName,
+                                    String studentCode,
+                                    String studentName,
+                                    Attendance.Status status,
+                                    String remarks) {
     }
 
     /**

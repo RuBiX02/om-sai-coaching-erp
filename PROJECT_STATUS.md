@@ -1,10 +1,11 @@
-# PROJECT STATUS — Om Sai Coaching ERP, Phases 1–3
+# PROJECT STATUS — Om Sai Coaching ERP, Phases 1–3 + attendance export/print
 
-Date: 2026-10-20
+Date: 2026-10-21
 Scope: everything in the Phase 1 and Phase 2 specifications that was
 actually built and verified, the Phase 3 real-browser verification and
-CI setup, and an honest account of gaps, limitations and the defects
-found (and fixed) during development.
+CI setup, the attendance CSV export and printable attendance sheets
+added afterwards, and an honest account of gaps, limitations and the
+defects found (and fixed) during development.
 
 ---
 
@@ -12,21 +13,31 @@ found (and fixed) during development.
 
 Phases 1–3 are implemented and work end to end:
 
-- **`mvn test`: 142 tests, 0 failures, 0 errors, 0 skipped** (green)
-  against the `omsai_test` PostgreSQL database.
-- **Real-browser Playwright suite: 13 tests, all pass** — see §4. A
-  combined `mvn test -Pbrowser-tests` run executes **155 tests** (142 +
-  13) in one go, all green.
-- **E2E smoke suite: 127/127 checks passed** (`zsh scripts/e2e-smoke.sh`
-  against a locally running app), re-verified after the Phase 3
-  template fixes.
+- **`mvn test`: 171 tests, 0 failures, 0 errors, 0 skipped** (green)
+  against the `omsai_test` PostgreSQL database — the 142 tests of
+  Phases 1–3 plus 29 new ones for the CSV exports and the printable
+  sheet.
+- **Real-browser Playwright suite: 17 tests, all pass** — see §4. A
+  combined `mvn test -Pbrowser-tests` run executes **188 tests** (171 +
+  17) in one go, all green.
+- **E2E smoke suite: 154/154 checks passed** (`zsh scripts/e2e-smoke.sh`
+  against a locally running app) — the 127 checks of Phases 1–3 plus 27
+  new ones that download the CSV exports and open the printable sheet
+  over real HTTP.
+- **Attendance CSV export and printable attendance sheets work end to
+  end** (implemented and verified in this round — see §5): all four
+  report types download a real CSV with the report's own filters, the
+  numbers are the report service's, an undefined percentage stays empty
+  instead of becoming a fake 0, and the printable sheet shows the
+  eligible roster of the class date, prints without navigation and
+  keeps the recorded marks.
 - **Browser-level print verification succeeded**: Chromium print-media
   emulation and `page.pdf()` output parsed with PDFBox confirm receipts
   hide page controls, render the VOIDED stamp on voided payments and
-  carry the correct receipt text (§4, §7).
+  carry the correct receipt text (§4, §8).
 - All reports above are from real runs on this machine, **not estimates
   from CI**. CI is configured in `.github/workflows/ci.yml` but has not
-  been executed (no remote configured — see §8 limits).
+  been executed (no remote configured — see §9 limits).
 - Phase 3 introduced a third, disposable database `omsai_browser` for
   the browser suite. `omsai` and `omsai_test` were never touched by it;
   no database was reset, dropped or reseeded (`scripts/reset-browser-db.sh`
@@ -52,6 +63,15 @@ adjustment required was `DashboardServiceTest`: the Phase 2 schema now
 enforces `ck_enrollments_closed_has_end` (a closed enrollment must have
 an end date), so the test fixture stamps `end_date` when closing an
 enrollment — a test fix, not a behavior change.
+
+### Attendance export and printing — fully working (verified)
+
+- **CSV export** of all four attendance reports (student, batch,
+  subject, date), administrator-only, with the report's own filters,
+  the report service's own numbers and safe file names — see §5.
+- **Printable attendance sheet** per class session, following the
+  class-session ownership rules, with the eligible roster of that class
+  date and print rules in a served stylesheet — see §5.
 
 ### Phase 2 — fully working (verified)
 
@@ -172,7 +192,7 @@ enrollment — a test fix, not a behavior change.
 
 - ~~**Visual/browser rendering**~~ — closed in **Phase 3**: the screens
   are now exercised in real headless Chromium (Playwright for Java);
-  see §4 and §7. What *remains* unverified is WebKit/Firefox rendering
+  see §4 and §8. What *remains* unverified is WebKit/Firefox rendering
   (single-engined Chromium only) and a physical printer's native print
   dialog (the `@media print` code path *is* verified via emulation and
   `page.pdf()`).
@@ -237,9 +257,18 @@ JUnit suite (`./mvnw test`, run against `omsai_test`):
 | PaymentServiceConcurrencyTest| 1     | real threads racing two payments against one balance with a pessimistic lock — exactly one accepted, outstanding correct; tests clean up their committed fixtures in FK order |
 | PhaseTwoAccessWebTest        | 7     | anonymous redirects; CSRF enforcement on POST /sessions; teacher allowed on session pages but 403 on every fee/payment/report URL; teacher 403 creating sessions for an unassigned subject + 302 for an owned one; admin reaches every Phase 2 page |
 
-**Total: 142 tests, 0 failures, 0 errors, 0 skipped.**
+**Phase 3/4 suites (29 tests, all pass — CSV export and printable
+attendance sheet):**
 
-**Phase 3 real-browser suite (13 tests, all pass; `mvn test
+| Suite                        | Tests | What it proves |
+|------------------------------|-------|----------------|
+| CsvWriterTest                | 8     | the CSV writer: header row, quoting of separators/quotes/line breaks, doubled embedded quotes, formula neutralisation (`=`, `+`, `-`, `@`), ordinary values untouched, `null` becomes an empty field |
+| AttendanceExportWebTest      | 13    | every report type downloads a real CSV with a safe file name and the right header; the report filters are the download's filters; the numbers are the report service's (formula preserved); an undefined percentage is an empty cell and never 0; values with commas, quotes and line breaks are escaped; formula-like names are neutralised; an empty report still produces a valid header-only CSV; teachers and anonymous visitors get no export at all |
+| AttendanceSheetWebTest       | 8     | an administrator and the assigned teacher can open the printable sheet, another teacher is denied (403); the sheet names course, batch, subject, date and teacher; only the eligible roster of that date is listed; recorded marks and remarks are visible; the print stylesheet is linked; the sheet carries no fee or payment information |
+
+**Total: 171 tests, 0 failures, 0 errors, 0 skipped.**
+
+**Real-browser suite (17 tests, all pass; `mvn test
 -Pbrowser-tests`, boots the app on a random port against the disposable
 `omsai_browser` database and drives headless Chromium via Playwright for
 Java 1.63.0):**
@@ -250,6 +279,7 @@ Java 1.63.0):**
 | CorePagesBrowserTest        | 3     | every sidebar link leads to the right management page with its topbar title; course form rejects an empty name and creates a valid course with the flash message; console stays free of errors |
 | AttendanceBrowserTest       | 3     | admin creates a session, records per-student attendance, completes it and reads the student report with the exact counts/percentage; completed sessions reject teacher attendance and show the lockout notice, cancelled sessions refuse attendance; a teacher works only on their own assigned sessions, is blocked (403) from fees/payments/reports/users and never sees those sidebar links |
 | FeesAndReceiptBrowserTest   | 3     | a partially paid agreement shows the recalculated "Outstanding balance"; the receipt shows amount, method and cheque reference and matches the sequence format `OMS-RCP-2026-######`; voiding marks ledger and receipt VOIDED with reason — verified on screen, under print emulation and via `page.pdf()` / PDFBox text extraction |
+| AttendanceExportBrowserTest  | 4     | the administrator sees the "Download CSV" link; the downloaded file carries the expected header, the student's record and the report's own numbers, and its name reflects the selected range; the printable sheet shows course, batch, subject, teacher, the roster and the recorded mark, hides its controls in print media and prints (via `page.pdf()` + PDFBox) the heading, the student name and the batch; a teacher is denied every export and another teacher's sheet |
 
 Print verification detail (verified in the fees suite): under
 `page.emulateMedia({media: "print"})` the `.no-print` controls compute
@@ -260,11 +290,15 @@ extracted text contains the receipt number, amount `4000.00`/`5000.00`
 and the `VOIDED` stamp for the voided payment. Screenshots of the screen
 and print renderings are saved next to the PDFs on every run.
 
-**Combined run: `mvn test -Pbrowser-tests` = 155 tests, 0 failures, 0
+**Combined run: `mvn test -Pbrowser-tests` = 188 tests, 0 failures, 0
 errors, 0 skipped** (unit + service + browser in one Maven invoke).
 
-E2E smoke suite (`zsh scripts/e2e-smoke.sh`, final run **127 checks,
-0 failed**, re-run after the Phase 3 template changes) — real HTTP flows
+E2E smoke suite (`zsh scripts/e2e-smoke.sh`, final run **154 checks,
+0 failed** — the 127 of Phases 1–3 plus 27 new checks that download the
+batch, date, student and subject CSVs over real HTTP, verify the
+content type, the attachment file name and the header row, open the
+printable sheet of a held class and confirm that a teacher is refused
+both the exports and a foreign teacher's sheet) — real HTTP flows
 against the running app with DB row
 assertions through psql. Every Phase 2 flow over HTTP was exercised:
 fee agreement create + duplicate/over-discount/closed-enrollment/bad-year
@@ -285,7 +319,92 @@ Smoke-test artifacts: `/tmp/opencode/e2e-phase2.log`, `test-phase2.log`.
 
 ---
 
-## 5. Defects found during Phase 2 — and fixed
+## 5. Attendance CSV export and printable attendance sheets
+
+### What was built
+
+**CSV export** of the four existing attendance reports, behind the
+administrator-only report pages:
+
+| Report | Endpoint | Content |
+|--------|----------|---------|
+| Individual student | `/attendance/reports/export/student/{id}?from=&to=` | one line per enrollment period (transfers keep their history) |
+| Batch | `/attendance/reports/export/batch?batchId=&from=&to=` | one line per student of the batch |
+| Subject-wise | `/attendance/reports/export/subject?batchId=&courseSubjectId=&from=&to=` | one line per student of that subject in that batch |
+| Date-wise | `/attendance/reports/export/date?date=` | one line per recorded attendance mark of that date |
+
+- **No duplicated business logic**: `AttendanceExportService` asks
+  `AttendanceReportService` for the very same rows the pages render;
+  the export service only chooses columns and the file name. The
+  percentage rule is untouched: (present + late) ÷ (present + late +
+  absent) × 100, excused excluded, cancelled and open sessions never
+  in a denominator.
+- **Filters carry over**: the download uses the filters currently
+  selected on the page; a filtered download contains no record outside
+  the selection.
+- **Honest values**: an undefined percentage (no evaluated attendance)
+  is an **empty cell**, never `0`; `0.0` only appears when the formula
+  really yields zero.
+- **CSV correctness**: UTF-8 (`text/csv;charset=UTF-8`), a header row,
+  RFC 4180 quoting (fields with a comma, a quote or a line break are
+  quoted, embedded quotes are doubled), and spreadsheet-formula
+  neutralisation: a value starting with `=`, `+`, `-` or `@` is
+  prefixed with an apostrophe so it is imported as text. Ordinary
+  names, numbers and dates are written unchanged. The file name is
+  built from the report type and the selected dates only
+  (`attendance-batch-2026-10-01-to-2026-10-31.csv`) — no user-entered
+  text reaches a file name. No internal ids, account data or fee
+  information is exported.
+- A small reusable writer (`common/CsvWriter`) does the escaping; **no
+  CSV library was added**.
+
+**Printable attendance sheet** at `/sessions/{id}/print`, opened from
+the class session page ("Print attendance sheet"):
+
+- institute heading, course, batch, academic year, subject, class date,
+  time, teacher, topic and session status;
+- the **eligible roster of that class date** (enrolment period must
+  cover the date — a later enrollee or an earlier leaver is not
+  listed, and a transferred student keeps the class they were on);
+- a box per status (Present, Absent, Late, Excused) and a remarks
+  column, with the already recorded status ticked;
+- signature and date lines;
+- print rules in a served stylesheet
+  (`static/css/attendance-sheet.css`, because the CSP forbids inline
+  CSS): the controls disappear, backgrounds are dropped, the table
+  header repeats on every page and a student row is never cut in half.
+  Printing and "save as PDF" remain the browser's job — no PDF
+  generation dependency was added.
+
+### Authorization (unchanged model, enforced server-side)
+
+- CSV exports are **administrator-only** (class-level
+  `@PreAuthorize("hasRole('ADMIN')")` plus the URL rule): a teacher
+  gets the 403 page for every export, verified in the web test, in the
+  smoke suite and in the browser suite.
+- The printable sheet follows the class-session ownership rules:
+  `ClassSessionService.getAuthorized` decides, so an administrator may
+  print any session and a teacher only the sessions of their own
+  assigned subjects. Another teacher's sheet is 403 — verified the same
+  three ways.
+- The new endpoints are GET-only, so no state changes and no new CSRF
+  surface; the existing CSRF protection of the forms is untouched, and
+  no fee, payment or account rule was weakened.
+
+### What was verified
+
+- **29 new JUnit tests** (CSV writer, export endpoints, printable
+  sheet) — all pass; see §4 for the breakdown.
+- **4 new browser tests** (`AttendanceExportBrowserTest`) — the
+  download link, the downloaded file's header, record, numbers and file
+  name, the filter effect, the printable sheet on screen, in print
+  media and as a PDF parsed with PDFBox, and the teacher walls.
+- **27 new smoke checks** in `scripts/e2e-smoke.sh` — the exports
+  downloaded over real HTTP against the running application, the
+  content type, the attachment name, the header row, the sheet and the
+  teacher walls.
+
+## 6. Defects found during Phase 2 — and fixed
 
 All of the following are real bugs discovered by the smoke suite (the
 MockMvc-in-a-transaction tests masked several of them; running the app
@@ -336,7 +455,7 @@ for real exposed them). All are fixed.
 
 ---
 
-## 6. Phase 1 defects (for completeness)
+## 7. Phase 1 defects (for completeness)
 
 1. Rate limiter off-by-one (fixed in Phase 1).
 2. Teacher `/` redirect could not work (fixed in Phase 1).
@@ -348,7 +467,7 @@ for real exposed them). All are fixed.
 
 ---
 
-## 7. Phase 3 defects — real-browser bugs found and fixed
+## 8. Phase 3 defects — real-browser bugs found and fixed
 
 The smoke suite verifies HTTP semantics; only a real browser caught the
 following rendering defects. All are fixed, and all four browser test
@@ -397,7 +516,7 @@ console *errors*, and this warning does not affect any behaviour.
 
 ---
 
-## 8. Environment & honest limitations
+## 9. Environment & honest limitations
 
 - PostgreSQL 18.4 local cluster on port **5433** (databases `omsai` and
   `omsai_test`, user `tojo`/`omsai_dev` via `application.yml` defaults),
@@ -417,6 +536,23 @@ console *errors*, and this warning does not affect any behaviour.
   the *native* print dialog and physical paper output of a real printer
   driver cannot be exercised by automated tests — correctness there is
   the same code path (`@media print` CSS), which is verified.
+- **CSV exports are UTF-8 without a byte-order mark.** Modern Excel,
+  LibreOffice, Google Sheets and Numbers read them correctly; a legacy
+  Windows Excel with a non-ASCII student name may show mojibake unless
+  the file is imported with the UTF-8 codepage. A BOM was deliberately
+  not added, because it would end up inside the first header cell for
+  every programmatic reader.
+- **Formula neutralisation is visible in a raw text editor**: a value
+  that starts with `=`, `+`, `-` or `@` is prefixed with an apostrophe
+  so a spreadsheet imports it as text. The apostrophe is not shown by
+  spreadsheet applications, but it is part of the downloaded bytes.
+- **The date-wise export lists recorded marks only** — a session of that
+  date without recorded attendance contributes no line. Nothing is
+  invented for it, and the file stays one line per student mark.
+- **The printable sheet is verified through Chromium's print pipeline**
+  (print-media emulation plus `page.pdf()`), not through a physical
+  printer driver; the `@media print` rules that decide the paper
+  layout are the ones under test.
 - **Money is `NUMERIC(12,2)` and BigDecimal end-to-end**; display
   formatting is the plain BigDecimal string (no currency formatter).
   This is intentional for honest arithmetic (no rounding surprises), but
@@ -446,7 +582,7 @@ console *errors*, and this warning does not affect any behaviour.
   `omsai`/`omsai_test` cannot be modified even by a misconfigured
   `BROWSER_TEST_DB_URL`.
 
-## 9. Suggested next steps (Phase 4+)
+## 10. Suggested next steps (Phase 4+)
 
 1. Attendance export (CSV) and a printable batch attendance sheet.
 2. Installment plans / payment schedules with automated overdue flags.
@@ -456,6 +592,9 @@ console *errors*, and this warning does not affect any behaviour.
    `.github/workflows/ci.yml`) and optionally add a WebKit/Firefox
    cross-browser matrix to the Playwright suite.
 5. Docker one-command environment (compose + Testcontainers).
+6. Attendance CSV **import** (upload a marked sheet back into the
+   session) — the export side of the same idea is done.
+7. An optional "CSV with BOM" export variant for legacy Excel users.
 
 *(The former "browser-rendering verification" suggestion from Phase 2 is
 complete — that was Phase 3.)*

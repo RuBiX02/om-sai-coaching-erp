@@ -164,7 +164,8 @@ public abstract class BrowserTestBase {
             }
         });
         page.onRequestFailed(request ->
-                requestFailures.add(request.method() + " " + request.url()));
+                requestFailures.add(request.method() + " " + request.url()
+                        + " (" + request.failure() + ")"));
         // The app uses window.confirm() for destructive actions; tests
         // always proceed with the dialogue.
         page.onDialog(dialog -> {

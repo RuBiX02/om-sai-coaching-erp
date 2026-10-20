@@ -82,6 +82,9 @@
                 <i class="bi bi-x-circle me-1"></i>Cancel session
               </button>
             </form>
+            <a th:href="@{/sessions/{id}/print(id=${cs.id})}" class="btn btn-outline-secondary">
+              <i class="bi bi-printer me-1"></i>Print attendance sheet
+            </a>
             <a th:href="@{/sessions}" class="btn btn-outline-secondary">Back to sessions</a>
           </div>
         </div>

@@ -40,6 +40,10 @@
         <input type="date" class="form-control" name="to" th:value="${to}" aria-label="To"/>
         <button type="submit" class="btn btn-outline-primary"><i class="bi bi-funnel me-1"></i>Apply range</button>
         <a th:href="@{/attendance/reports/student/{id}(id=${report.student.id})}" class="btn btn-outline-secondary">Clear</a>
+        <a class="btn btn-outline-secondary"
+           th:href="@{/attendance/reports/export/student/{id}(id=${report.student.id}, from=${from}, to=${to})}">
+          <i class="bi bi-download me-1"></i>Download CSV
+        </a>
       </form>
 
       <div class="card">

@@ -9,9 +9,13 @@
 
     <div th:replace="~{layout/fragments :: alerts()}"></div>
 
-    <form th:action="@{/attendance/reports/date}" method="get" class="d-flex gap-2 mb-3" aria-label="Date filter">
+    <form th:action="@{/attendance/reports/date}" method="get" class="d-flex gap-2 mb-3 flex-wrap" aria-label="Date filter">
       <input type="date" class="form-control" name="date" th:value="${date}" aria-label="Date"/>
       <button type="submit" class="btn btn-primary"><i class="bi bi-search me-1"></i>Show</button>
+      <a class="btn btn-outline-secondary" th:if="${report != null}"
+         th:href="@{/attendance/reports/export/date(date=${date})}">
+        <i class="bi bi-download me-1"></i>Download CSV
+      </a>
     </form>
 
     <div class="card" th:if="${report != null}">

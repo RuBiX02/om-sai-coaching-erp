@@ -551,6 +551,66 @@ ck "student report shows the enrollment with counts" \
 htcode=$(page "/attendance/reports")
 ck "report hub renders" "$([ "$htcode" = 200 ] && echo 1 || echo 0)"
 
+# ================================================================ M4: CSV exports and printable sheets
+say "attendance CSV exports and printable attendance sheet"
+BSCSID=$(dbq "select course_subject_id from batch_subjects where id=$BSID")
+
+page "/attendance/reports/batch?batchId=$B1&from=2026-09-01&to=2026-10-31" >/dev/null
+ck "batch report offers the CSV download" "$(has "$(cat page.html)" "Download CSV" && echo 1 || echo 0)"
+
+# the batch report download: real file, safe name, real columns
+dcode=$(curl -s -b jar -c jar -D hdr.txt -o export.csv -w '%{http_code}|%{content_type}' \
+  "$BASE/attendance/reports/export/batch?batchId=$B1&from=2026-09-01&to=2026-10-31")
+ck "batch report CSV downloads (200)" "$([ "${dcode%%|*}" = 200 ] && echo 1 || echo 0)"
+ck "the download is served as UTF-8 CSV" \
+  "$(has "${dcode#*|}" "text/csv" && has "${dcode#*|}" "UTF-8" && echo 1 || echo 0)"
+ck "the download is an attachment with a safe file name" \
+  "$(has "$(cat hdr.txt)" 'attachment; filename="attendance-batch-2026-09-01-to-2026-10-31.csv"' && echo 1 || echo 0)"
+ck "the CSV starts with the report header" \
+  "$(head -1 export.csv | grep -q '^Student code,Student name,Course,Batch,Subject,Academic year,' && echo 1 || echo 0)"
+ck "the CSV contains the student's record" "$(has "$(cat export.csv)" "$S2CODE" && echo 1 || echo 0)"
+ck "the CSV carries no fee information" \
+  "$(has "$(cat export.csv)" "Outstanding balance" && echo 0 || echo 1)"
+
+# the date report download: one line per recorded mark
+dcode=$(curl -s -b jar -c jar -D hdr.txt -o export.csv -w '%{http_code}|%{content_type}' \
+  "$BASE/attendance/reports/export/date?date=2026-09-18")
+ck "date report CSV downloads (200)" "$([ "${dcode%%|*}" = 200 ] && echo 1 || echo 0)"
+ck "the date CSV has the per-student header" \
+  "$(head -1 export.csv | grep -q '^Class date,Batch,Subject,Teacher,Student code,Student name,Attendance status,Remarks' && echo 1 || echo 0)"
+ck "the date CSV lists the recorded mark" \
+  "$(has "$(cat export.csv)" "PRESENT" && has "$(cat export.csv)" "$S2CODE" && echo 1 || echo 0)"
+
+# the student report download
+dcode=$(curl -s -b jar -c jar -D hdr.txt -o export.csv -w '%{http_code}|%{content_type}' \
+  "$BASE/attendance/reports/export/student/$S2")
+ck "student report CSV downloads (200)" "$([ "${dcode%%|*}" = 200 ] && echo 1 || echo 0)"
+ck "the student CSV has the enrollment history header" \
+  "$(head -1 export.csv | grep -q '^Student code,Student name,Course,Batch,Enrolled from,Enrolled to,' && echo 1 || echo 0)"
+
+# the subject report download
+dcode=$(curl -s -b jar -c jar -D hdr.txt -o export.csv -w '%{http_code}|%{content_type}' \
+  "$BASE/attendance/reports/export/subject?batchId=$B1&courseSubjectId=$BSCSID")
+ck "subject report CSV downloads (200)" "$([ "${dcode%%|*}" = 200 ] && echo 1 || echo 0)"
+ck "the subject CSV names the subject" \
+  "$(head -1 export.csv | grep -q '^Student code,Student name,Course,Batch,Subject,Academic year,' && echo 1 || echo 0)"
+
+# a download without its filter is refused
+dcode=$(curl -s -b jar -c jar -o export.txt -w '%{http_code}' "$BASE/attendance/reports/export/batch")
+ck "a download without a batch is refused (400)" "$([ "$dcode" = 400 ] && echo 1 || echo 0)"
+
+# the printable sheet of a class
+pcode=$(page "/sessions/$SID/print")
+ck "printable attendance sheet renders (200)" "$([ "$pcode" = 200 ] && echo 1 || echo 0)"
+ck "the sheet carries the institute heading" "$(has "$(cat page.html)" "Om Sai Coaching" && echo 1 || echo 0)"
+ck "the sheet lists the roster student" "$(has "$(cat page.html)" "$S2CODE" && echo 1 || echo 0)"
+ck "the sheet links the print stylesheet" "$(has "$(cat page.html)" "/css/attendance-sheet.css" && echo 1 || echo 0)"
+ck "the sheet carries no fee information" \
+  "$(has "$(cat page.html)" "Outstanding balance" && echo 0 || echo 1)"
+pcode=$(page "/sessions/$SID")
+ck "the session page offers the printable sheet" \
+  "$(has "$(cat page.html)" "Print attendance sheet" && echo 1 || echo 0)"
+
 # ================================================================ K4: teacher session ownership
 say "teacher session ownership"
 TH2ID=$(dbq "select id from teachers where user_id=$USERID")
@@ -566,6 +626,12 @@ tcode=$(curl -s -b tjar -o tpage.html -w '%{http_code}' "$BASE/payments")
 ck "teacher blocked from /payments (403)" "$([ "$tcode" = 403 ] && echo 1 || echo 0)"
 tcode=$(curl -s -b tjar -o tpage.html -w '%{http_code}' "$BASE/attendance/reports")
 ck "teacher blocked from /attendance/reports (403)" "$([ "$tcode" = 403 ] && echo 1 || echo 0)"
+tcode=$(curl -s -b tjar -o tpage.html -w '%{http_code}' "$BASE/attendance/reports/export/batch?batchId=$B1")
+ck "teacher blocked from the batch report CSV (403)" "$([ "$tcode" = 403 ] && echo 1 || echo 0)"
+tcode=$(curl -s -b tjar -o tpage.html -w '%{http_code}' "$BASE/attendance/reports/export/date?date=2026-09-18")
+ck "teacher blocked from the date report CSV (403)" "$([ "$tcode" = 403 ] && echo 1 || echo 0)"
+tcode=$(curl -s -b tjar -o tpage.html -w '%{http_code}' "$BASE/attendance/reports/export/student/$S2")
+ck "teacher blocked from the student report CSV (403)" "$([ "$tcode" = 403 ] && echo 1 || echo 0)"
 
 tcsrf=$(curl -s -b tjar -o tpage.html "$BASE/sessions/new"
   grep -o 'name="_csrf" value="[^"]*"' tpage.html | head -1 | sed 's/.*value="//;s/"$//')
@@ -605,6 +671,18 @@ out=$(curl -s -b tjar -c tjar -o tpost.html -w '%{http_code}' \
   -d "startTime=10:00" -d "endTime=11:00" \
   --data-urlencode "_csrf=$tcsrf" "$BASE/sessions")
 ck "teacher blocked from another teacher's subject (403)" "$([ "$out" = 403 ] && echo 1 || echo 0)"
+
+# an administrator creates a class on a subject this teacher does not own
+out=$(curl -s -b jar -c jar -o post.html -w '%{http_code}|%{redirect_url}' \
+  -d "_csrf=$T" -d "batchSubjectId=$BS3" --data-urlencode "sessionDate=2026-09-24" \
+  -d "startTime=10:00" -d "endTime=11:00" "$BASE/sessions")
+ASID=${out#*|}; ASID=${ASID##*/}
+ck "administrator creates a class on the other teacher's subject" \
+  "$(has "${out#*|}" "/sessions/" && echo 1 || echo 0)"
+tcode=$(curl -s -b tjar -o tpage.html -w '%{http_code}' "$BASE/sessions/$ASID/print")
+ck "teacher blocked from another teacher's printable sheet (403)" "$([ "$tcode" = 403 ] && echo 1 || echo 0)"
+tcode=$(curl -s -b tjar -o tpage.html -w '%{http_code}' "$BASE/sessions/$SID/print")
+ck "teacher may print the sheet of their own subject (200)" "$([ "$tcode" = 200 ] && echo 1 || echo 0)"
 
 # ---------------------------------------------------------------- L: rate limiting
 say "login rate limiting"

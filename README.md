@@ -145,7 +145,7 @@ zsh scripts/e2e-smoke.sh
 ```
 
 The script creates only `E2E …`-prefixed temporary data (timestamped, so
-re-runs are safe), exercises 127 checks (login, CSRF, validation errors,
+re-runs are safe), exercises 154 checks (login, CSRF, validation errors,
 enrollment rules, transfers, withdraw/complete, teacher access, rate
 limiting, logout, plus the whole Phase 2 surface: fee agreements,
 payments and receipts down to the VOIDED stamp, class sessions,
@@ -157,7 +157,7 @@ session-ownership carve-out) and finishes with a summary line.
 `scripts/e2e-smoke.sh` verifies HTTP behaviour, but only a real browser
 can verify what users actually see: rendering, JavaScript behaviour,
 console errors, print output. Those are covered by a Playwright for Java
-suite (13 tests in `src/test/java/com/omsai/coaching/browser/`) that
+suite (17 tests in `src/test/java/com/omsai/coaching/browser/`) that
 boots the whole Spring application on a random HTTP port, drives a real
 headless Chromium, and asserts on the live DOM.
 
@@ -182,7 +182,7 @@ Run them:
 
 ```bash
 ./mvnw test                     # unit/service tests only (browser excluded)
-./mvnw test -Pbrowser-tests     # unit + real-browser suite (155 tests total)
+./mvnw test -Pbrowser-tests     # unit + real-browser suite (188 tests total)
 ```
 
 Run a single browser class: `./mvnw test -Pbrowser-tests -Dtest=AttendanceBrowserTest`.
@@ -214,6 +214,81 @@ database it is connected to is named `omsai_browser*` (checked against
 the live connection, not the configured URL), so an accidental
 `BROWSER_TEST_DB_URL` override cannot point it at `omsai` or
 `omsai_test`.
+
+## 8. Attendance CSV export and printable attendance sheets
+
+### CSV export of the attendance reports
+
+Every attendance report can be downloaded as CSV. The **Download CSV**
+button sits next to the report filters and uses exactly the filters
+that are currently selected — a download never contains a record
+outside the selection.
+
+| Report | Download | Columns |
+|--------|----------|---------|
+| Individual student | `/attendance/reports/export/student/{id}?from=&to=` | student code, student name, course, batch, enrolled from, enrolled to, eligible completed sessions, present, absent, late, excused, attendance percentage |
+| Batch | `/attendance/reports/export/batch?batchId=&from=&to=` | student code, student name, course, batch, subject, academic year, enrolled from, enrolled to, eligible completed sessions, present, absent, late, excused, attendance percentage |
+| Subject-wise | `/attendance/reports/export/subject?batchId=&courseSubjectId=&from=&to=` | the same columns as the batch report, with the subject filled in |
+| Date-wise | `/attendance/reports/export/date?date=` | class date, batch, subject, teacher, student code, student name, attendance status, remarks (one line per recorded mark) |
+
+- The numbers come from the same service the pages use, so a download
+  can never disagree with the report it was taken from. Only completed
+  sessions enter a denominator, and excused records stay out of it:
+  **percentage = (present + late) ÷ (present + late + absent) × 100**.
+- An **undefined percentage** (no evaluated attendance at all) is
+  written as an **empty cell** — never as `0`. `0.0` only appears when
+  the formula really yields zero.
+- Files are UTF-8, served as `text/csv;charset=UTF-8` as an
+  attachment. The name is built from the report type and the selected
+  dates only (`attendance-batch-2026-10-01-to-2026-10-31.csv`), so no
+  user-entered text ever reaches a file name.
+- Fields containing a comma, a quote or a line break are quoted and
+  embedded quotes are doubled (RFC 4180). A value that starts with
+  `=`, `+`, `-` or `@` is prefixed with an apostrophe so a spreadsheet
+  imports it as text instead of evaluating it as a formula. Ordinary
+  names, numbers and dates are written unchanged.
+- No internal ids, account data, fee or payment information is
+  exported.
+
+### Printable attendance sheets
+
+The class session page has a **Print attendance sheet** action; the
+sheet itself is at `/sessions/{id}/print`. It is a plain server-rendered
+page (no navigation, no buttons on the paper) with the institute
+heading, course, batch, academic year, subject, class date, time,
+teacher, topic and session status, followed by the roster of that class
+date: student code, student name, a box for each status (Present,
+Absent, Late, Excused) and a remarks column, ending with signature and
+date lines.
+
+- The roster is the **eligible roster of that class date**: students
+  who enrolled after the class, or whose enrollment had already ended,
+  are not listed, and a student who transferred between batches keeps
+  the history of the class they were actually on.
+- Attendance already recorded is shown as a tick in the matching box;
+  an empty box means "not marked" and is meant to be ticked by hand.
+- Printing and "save as PDF" stay the browser's job — no PDF library
+  is involved. The print rules live in
+  `src/main/resources/static/css/attendance-sheet.css` (a served
+  stylesheet, because the CSP does not allow inline CSS): they hide
+  the controls, drop the backgrounds, repeat the table header on every
+  page and never cut a student row in half.
+
+### Permissions
+
+- CSV exports are **administrator-only**, exactly like the report
+  pages they mirror; a teacher gets the 403 page for every export.
+- A printable sheet follows the class-session ownership rules: an
+  administrator may print any session, a teacher only the sessions of
+  the subjects assigned to them (another teacher's session is 403).
+
+### Tests for these features
+
+```bash
+./mvnw test -Dtest='CsvWriterTest,AttendanceExportWebTest,AttendanceSheetWebTest'
+./mvnw test -Pbrowser-tests -Dtest=AttendanceExportBrowserTest
+zsh scripts/e2e-smoke.sh      # includes the export and sheet checks
+```
 
 ## Domain rules implemented (Phases 1 and 2)
 
@@ -299,9 +374,9 @@ src/main/java/com/omsai/coaching/…             feature packages:
     attendance/ (class sessions, attendance, reports)
     fees/       (fee agreements, payments, receipts)
 src/main/resources/templates/…                 40 Thymeleaf templates
-src/test/java/com/omsai/coaching/…             JUnit 5 test suite (142 tests)
+src/test/java/com/omsai/coaching/…             JUnit 5 test suite (171 tests)
 src/test/resources/application-test.yml        test profile → omsai_test
-scripts/e2e-smoke.sh                           end-to-end smoke checks (127)
+scripts/e2e-smoke.sh                           end-to-end smoke checks (154)
 ```
 
 ## Known limitations

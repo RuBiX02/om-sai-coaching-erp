@@ -219,6 +219,29 @@ public class SessionController {
         return "sessions/attendance";
     }
 
+    /**
+     * The printable attendance sheet of one session: the eligible
+     * roster of that class date with the marks recorded so far, ready
+     * to be printed (or saved as PDF) and marked by hand. The same
+     * ownership rules apply as for the session page itself, so a
+     * teacher can only print their own sessions; an administrator may
+     * print any session.
+     */
+    @GetMapping("/{id}/print")
+    public String printSheet(@PathVariable Long id, Model model) {
+        UserAccount user = authority.currentUser();
+        ClassSession session = sessionService.getAuthorized(id, user);
+        model.addAttribute("cs", session);
+        model.addAttribute("roster", sessionService.rosterFor(session));
+        model.addAttribute("markColumns", List.of(
+                new MarkColumn("PRESENT", "Present"),
+                new MarkColumn("ABSENT", "Absent"),
+                new MarkColumn("LATE", "Late"),
+                new MarkColumn("EXCUSED", "Excused")));
+        model.addAttribute("printedOn", businessClock.today());
+        return "sessions/attendance-sheet";
+    }
+
     @PostMapping("/{id}/attendance")
     public String saveAttendance(@PathVariable Long id,
                                  HttpServletRequest request,
@@ -265,6 +288,10 @@ public class SessionController {
     }
 
     // ----- helpers ----------------------------------------------------------
+
+    /** One marking column of the printable sheet: the status name and its label. */
+    public record MarkColumn(String name, String label) {
+    }
 
     private void commonFormModel(Model model, ClassSession session, List<?> assignments, UserAccount user) {
         model.addAttribute("cs", session);

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title th:text="|Attendance sheet · ${cs.batchSubject.courseSubject.subject.name} · ${#temporals.format(cs.sessionDate, 'dd MMM yyyy')} · Om Sai Coaching ERP|">Attendance sheet</title>
+  <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}"/>
+  <link rel="stylesheet" th:href="@{/css/bootstrap.min.css}"/>
+  <link rel="stylesheet" th:href="@{/css/attendance-sheet.css}"/>
+</head>
+<body class="sheet-body">
+
+<div class="sheet-toolbar no-print">
+  <a th:href="@{/sessions/{id}(id=${cs.id})}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Back to session
+  </a>
+  <button type="button" class="btn btn-primary js-print">
+    <i class="bi bi-printer me-1"></i>Print this sheet
+  </button>
+</div>
+
+<main class="attendance-sheet">
+
+  <header class="sheet-header">
+    <h1>Om Sai Coaching</h1>
+    <p class="sheet-subtitle">Class attendance sheet</p>
+    <dl class="sheet-details">
+      <dt>Course</dt>
+      <dd th:text="${cs.batchSubject.batch.course.name}">Course</dd>
+      <dt>Batch</dt>
+      <dd>
+        <span th:text="${cs.batchSubject.batch.name}">Batch</span>
+        <span class="text-body-secondary" th:text="' · ' + ${cs.batchSubject.batch.academicYear}">year</span>
+      </dd>
+      <dt>Subject</dt>
+      <dd th:text="${cs.batchSubject.courseSubject.subject.name}">Subject</dd>
+      <dt>Class date</dt>
+      <dd th:text="${#temporals.format(cs.sessionDate, 'EEEE, dd MMMM yyyy')}">Monday, 01 April 2026</dd>
+      <dt>Teacher</dt>
+      <dd>
+        <span th:if="${cs.batchSubject.teacher != null}" th:text="${cs.batchSubject.teacher.fullName}">Teacher</span>
+        <span th:if="${cs.batchSubject.teacher == null}" class="text-body-secondary">Unassigned</span>
+      </dd>
+      <dt>Time</dt>
+      <dd>
+        <span th:if="${cs.startTime != null}"
+              th:text="${#temporals.format(cs.startTime, 'HH:mm')} + (${cs.endTime != null} ? ' – ' + ${#temporals.format(cs.endTime, 'HH:mm')} : '')">10:00</span>
+        <span th:if="${cs.startTime == null}" class="text-body-secondary">Not specified</span>
+      </dd>
+      <dt>Session status</dt>
+      <dd th:text="${cs.isOpen} ? 'Open' : (${cs.isCompleted} ? 'Completed' : 'Cancelled')">Open</dd>
+      <dt>Topic</dt>
+      <dd th:text="${cs.topic != null} ? ${cs.topic} : '—'">Topic</dd>
+    </dl>
+  </header>
+
+  <table class="sheet-table">
+    <thead>
+    <tr>
+      <th class="col-index">#</th>
+      <th class="col-code">Student code</th>
+      <th>Student name</th>
+      <th th:each="column : ${markColumns}" th:text="${column.label()}">Present</th>
+      <th class="col-remarks">Remarks</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="row, iter : ${roster}">
+      <td th:text="${iter.count}">1</td>
+      <td th:text="${row.studentCode}">OMS-2026-00001</td>
+      <td th:text="${row.studentName}">Student</td>
+      <td th:each="column : ${markColumns}"
+          class="mark-box"
+          th:classappend="${row.currentStatus != null and row.currentStatus.name() == column.name()} ? 'marked' : ''">
+        <span th:if="${row.currentStatus != null and row.currentStatus.name() == column.name()}"
+              class="mark" th:title="${column.name()}">&#10003;</span>
+      </td>
+      <td th:text="${row.currentRemarks}">remarks</td>
+    </tr>
+    <tr th:if="${#lists.isEmpty(roster)}">
+      <td colspan="8" class="empty-roster">No students were on this batch's roster on the class date.</td>
+    </tr>
+    </tbody>
+  </table>
+
+  <p class="sheet-note" th:if="${!#lists.isEmpty(roster)}">
+    Students enrolled after the class date are not listed. Ticks in the boxes are the
+    attendance already recorded for this session; an empty box is unmarked.
+  </p>
+
+  <footer class="sheet-footer">
+    <div class="signature">
+      <div class="signature-line">Teacher's signature</div>
+    </div>
+    <div class="signature">
+      <div class="signature-line">Date</div>
+    </div>
+    <div class="signature">
+      <div class="signature-line">Printed on <span th:text="${#temporals.format(printedOn, 'dd MMM yyyy')}">01 Jan 2026</span></div>
+    </div>
+  </footer>
+
+</main>
+
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>
