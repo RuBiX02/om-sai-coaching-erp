@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('Batches')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('batches')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('Batches', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <form th:action="@{/batches}" method="get" class="d-flex gap-2 flex-wrap">
+        <input type="search" class="form-control" placeholder="Search batch name"
+               name="q" th:value="${q}" aria-label="Search batches"/>
+        <select class="form-select w-auto" name="courseId" aria-label="Filter by course">
+          <option value="">All courses</option>
+          <option th:each="course : ${courses}" th:value="${course.id}" th:text="${course.name}"
+                  th:selected="${courseId != null and courseId == course.id}">Course</option>
+        </select>
+        <select class="form-select w-auto" name="status" aria-label="Filter by status">
+          <option value="">All statuses</option>
+          <option value="ACTIVE" th:selected="${status == 'ACTIVE'}">Active</option>
+          <option value="INACTIVE" th:selected="${status == 'INACTIVE'}">Inactive</option>
+        </select>
+        <button type="submit" class="btn btn-outline-primary">
+          <i class="bi bi-search me-1"></i>Search
+        </button>
+      </form>
+      <a th:href="@{/batches/new}" class="btn btn-primary">
+        <i class="bi bi-plus-lg me-1"></i>New batch
+      </a>
+    </div>
+
+    <div class="card">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" th:if="${!#lists.isEmpty(batches.content)}">
+            <thead class="table-light">
+            <tr>
+              <th>Batch</th>
+              <th>Course</th>
+              <th>Year</th>
+              <th>Starts</th>
+              <th class="text-center">Status</th>
+              <th class="text-end">Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="batch : ${batches.content}">
+              <td><a th:href="@{/batches/{id}(id=${batch.id})}" th:text="${batch.name}">Batch name</a></td>
+              <td th:text="${batch.course.name}">Course</td>
+              <td th:text="${batch.academicYear}">2026-27</td>
+              <td th:text="${#temporals.format(batch.startDate, 'dd MMM yyyy')}">01 Apr 2026</td>
+              <td class="text-center">
+                <div th:replace="~{layout/fragments :: statusBadge(${batch.active})}"></div>
+              </td>
+              <td class="text-end">
+                <a th:href="@{/batches/{id}(id=${batch.id})}" class="btn btn-sm btn-outline-secondary" title="View">
+                  <i class="bi bi-eye"></i><span class="visually-hidden">View</span>
+                </a>
+                <a th:href="@{/batches/{id}/edit(id=${batch.id})}" class="btn btn-sm btn-outline-secondary" title="Edit">
+                  <i class="bi bi-pencil"></i><span class="visually-hidden">Edit</span>
+                </a>
+                <form th:action="@{/batches/{id}/status(id=${batch.id})}" method="post" class="d-inline">
+                  <input type="hidden" name="active" th:value="${batch.active ? 'false' : 'true'}"/>
+                  <button type="submit" class="btn btn-sm btn-outline-secondary">
+                    <i th:class="|bi ${batch.active ? 'bi-pause-circle' : 'bi-play-circle'}|"></i>
+                    <span class="visually-hidden" th:text="${batch.active ? 'Deactivate' : 'Activate'}">toggle</span>
+                  </button>
+                </form>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+          <div class="empty-state" th:if="${#lists.isEmpty(batches.content)}">
+            <i class="bi bi-collection d-block mb-2"></i>
+            No batches found. <a th:href="@{/batches/new}">Create the first batch</a>.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div th:replace="~{layout/fragments :: pager(${batches}, ${pagerUrl})}"></div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

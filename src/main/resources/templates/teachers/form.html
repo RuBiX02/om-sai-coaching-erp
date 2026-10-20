@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en" th:with="pageTitle=${teacher != null ? 'Edit teacher profile' : 'New teacher profile'}">
+<head th:replace="~{layout/fragments :: head(${pageTitle})}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('teachers')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar(${pageTitle}, true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <div class="row">
+      <div class="col-xl-6">
+        <form th:action="${teacher != null} ? @{/teachers/{id}(id=${teacher.id})} : @{/teachers}"
+              th:object="${form}" method="post" novalidate>
+          <div class="card">
+            <div class="card-header"><i class="bi bi-person-video3 me-2 table-thumb"></i>Teacher profile</div>
+            <div class="card-body">
+              <div class="mb-3">
+                <label for="fullName" class="form-label required-label">Teacher name</label>
+                <input type="text" id="fullName" class="form-control" th:field="*{fullName}"
+                       placeholder="Full name" aria-describedby="fullNameError"/>
+                <div class="text-danger small mt-1" id="fullNameError" th:if="${#fields.hasErrors('fullName')}" th:errors="*{fullName}">Error</div>
+              </div>
+              <div class="row">
+                <div class="col-sm-6 mb-3">
+                  <label for="phone" class="form-label required-label">Phone</label>
+                  <input type="text" id="phone" class="form-control" th:field="*{phone}"
+                         aria-describedby="phoneError"/>
+                  <div class="text-danger small mt-1" id="phoneError" th:if="${#fields.hasErrors('phone')}" th:errors="*{phone}">Error</div>
+                </div>
+                <div class="col-sm-6 mb-3">
+                  <label for="email" class="form-label">Email</label>
+                  <input type="email" id="email" class="form-control" th:field="*{email}"
+                         aria-describedby="emailError"/>
+                  <div class="text-danger small mt-1" id="emailError" th:if="${#fields.hasErrors('email')}" th:errors="*{email}">Error</div>
+                </div>
+              </div>
+              <div class="mb-0">
+                <label for="userId" class="form-label">Linked login account</label>
+                <select id="userId" class="form-select" th:field="*{userId}"
+                        aria-describedby="userIdHelp userIdError">
+                  <option value="">No login account</option>
+                  <option th:each="account : ${linkableAccounts}" th:value="${account.id}"
+                          th:text="${account.fullName} + ' (' + ${account.email} + ')'">Account</option>
+                </select>
+                <div class="text-danger small mt-1" id="userIdError" th:if="${#fields.hasErrors('userId')}" th:errors="*{userId}">Error</div>
+                <div id="userIdHelp" class="form-text">
+                  Only unlinked TEACHER-role accounts are offered. The current link is preserved automatically.
+                </div>
+              </div>
+            </div>
+            <div class="card-footer d-flex gap-2">
+              <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check-lg me-1"></i><span th:text="${teacher != null ? 'Save changes' : 'Create profile'}">Save</span>
+              </button>
+              <a th:href="${teacher != null} ? @{/teachers/{id}(id=${teacher.id})} : @{/teachers}"
+                 class="btn btn-outline-secondary">Cancel</a>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

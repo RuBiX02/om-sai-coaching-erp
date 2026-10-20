@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en" th:with="pageTitle=${subject != null ? 'Edit subject' : 'New subject'}">
+<head th:replace="~{layout/fragments :: head(${pageTitle})}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('subjects')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar(${pageTitle}, true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <div class="row">
+      <div class="col-xl-6">
+        <form th:action="${subject != null} ? @{/subjects/{id}(id=${subject.id})} : @{/subjects}"
+              th:object="${form}" method="post" novalidate>
+          <div class="card">
+            <div class="card-header"><i class="bi bi-book me-2 table-thumb"></i>Subject details</div>
+            <div class="card-body">
+              <div class="mb-3">
+                <label for="name" class="form-label required-label">Subject name</label>
+                <input type="text" id="name" class="form-control" th:field="*{name}"
+                       placeholder="e.g. Mathematics" aria-describedby="nameError"/>
+                <div class="text-danger small mt-1" id="nameError" th:if="${#fields.hasErrors('name')}" th:errors="*{name}">Error</div>
+              </div>
+              <div class="mb-0">
+                <label for="description" class="form-label">Description</label>
+                <textarea id="description" rows="4" class="form-control" th:field="*{description}"
+                          placeholder="Syllabus overview, level, notes..." aria-describedby="descriptionError"></textarea>
+                <div class="text-danger small mt-1" id="descriptionError" th:if="${#fields.hasErrors('description')}" th:errors="*{description}">Error</div>
+              </div>
+            </div>
+            <div class="card-footer d-flex gap-2">
+              <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check-lg me-1"></i><span th:text="${subject != null ? 'Save changes' : 'Create subject'}">Save</span>
+              </button>
+              <a th:href="${subject != null} ? @{/subjects/{id}(id=${subject.id})} : @{/subjects}"
+                 class="btn btn-outline-secondary">Cancel</a>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

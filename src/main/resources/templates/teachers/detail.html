@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head(${teacher.fullName})}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('teachers')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar(${teacher.fullName}, true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <nav aria-label="breadcrumb" class="mb-2">
+      <ol class="breadcrumb small mb-0">
+        <li class="breadcrumb-item"><a th:href="@{/teachers}">Teachers</a></li>
+        <li class="breadcrumb-item active" th:text="${teacher.fullName}" aria-current="page">Teacher</li>
+      </ol>
+    </nav>
+
+    <div class="row g-3">
+      <div class="col-xl-5">
+        <div class="card h-100">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-person-video3 me-2 table-thumb"></i>Profile</span>
+            <div th:replace="~{layout/fragments :: statusBadge(${teacher.active})}"></div>
+          </div>
+          <div class="card-body">
+            <dl class="row mb-0 small">
+              <dt class="col-4">Name</dt>
+              <dd class="col-8" th:text="${teacher.fullName}">Name</dd>
+              <dt class="col-4">Phone</dt>
+              <dd class="col-8" th:text="${teacher.phone}">phone</dd>
+              <dt class="col-4">Email</dt>
+              <dd class="col-8">
+                <span th:if="${teacher.email}" th:text="${teacher.email}">email</span>
+                <span class="text-body-secondary" th:if="${teacher.email == null}">-</span>
+              </dd>
+              <dt class="col-4">Login account</dt>
+              <dd class="col-8">
+                <span th:if="${teacher.linkedUser != null}" th:text="${teacher.linkedUser.email}">account</span>
+                <span class="text-body-secondary" th:if="${teacher.linkedUser == null}">No login account</span>
+              </dd>
+              <dt class="col-4">Created</dt>
+              <dd class="col-8" th:text="${#temporals.format(teacher.createdAt, 'dd MMM yyyy HH:mm')}">date</dd>
+            </dl>
+          </div>
+          <div class="card-footer d-flex gap-2 flex-wrap">
+            <a th:href="@{/teachers/{id}/edit(id=${teacher.id})}" class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-pencil me-1"></i>Edit profile
+            </a>
+            <form th:action="@{/teachers/{id}/status(id=${teacher.id})}" method="post">
+              <input type="hidden" name="active" th:value="${teacher.active ? 'false' : 'true'}"/>
+              <button type="submit" class="btn btn-sm btn-outline-secondary">
+                <i th:class="|bi ${teacher.active ? 'bi-pause-circle me-1' : 'bi-play-circle me-1'}|"></i>
+                <span th:text="${teacher.active ? 'Deactivate' : 'Activate'}">Deactivate</span>
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-xl-7">
+        <div class="card h-100">
+          <div class="card-header"><i class="bi bi-journals me-2 table-thumb"></i>Assigned subjects and batches</div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-sm table-hover align-middle mb-0" th:if="${!#lists.isEmpty(assignments)}">
+                <thead class="table-light">
+                <tr>
+                  <th>Subject</th>
+                  <th>Batch</th>
+                  <th>Course</th>
+                  <th>Year</th>
+                  <th class="text-center">Batch status</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="assignment : ${assignments}">
+                  <td><a th:href="@{/subjects/{id}(id=${assignment.courseSubject.subject.id})}"
+                         th:text="${assignment.courseSubject.subject.name}">Subject</a></td>
+                  <td><a th:href="@{/batches/{id}(id=${assignment.batch.id})}" th:text="${assignment.batch.name}">Batch</a></td>
+                  <td><a th:href="@{/courses/{id}(id=${assignment.batch.course.id})}"
+                         th:text="${assignment.batch.course.name}">Course</a></td>
+                  <td th:text="${assignment.batch.academicYear}">2026-27</td>
+                  <td class="text-center">
+                    <div th:replace="~{layout/fragments :: statusBadge(${assignment.batch.active})}"></div>
+                  </td>
+                </tr>
+                </tbody>
+              </table>
+              <div class="empty-state small" th:if="${#lists.isEmpty(assignments)}">
+                <i class="bi bi-journals d-block mb-2"></i>
+                No teaching assignments. Assign this teacher to a batch subject from a batch's page.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

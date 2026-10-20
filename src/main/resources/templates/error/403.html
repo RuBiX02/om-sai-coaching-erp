@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('Access denied')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('none')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('Access denied', false)}"></div>
+  <main class="app-content">
+    <div class="empty-state card py-5 my-5">
+      <i class="bi bi-shield-lock d-block mb-2"></i>
+      <h1 class="h4">You do not have access to that feature</h1>
+      <p class="mb-3">This part of the system is limited to administrators.</p>
+      <a th:href="@{/}" class="btn btn-primary">Back to dashboard</a>
+    </div>
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

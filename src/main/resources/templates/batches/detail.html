@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head(${batch.name})}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('batches')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar(${batch.name}, true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <nav aria-label="breadcrumb" class="mb-2">
+      <ol class="breadcrumb small mb-0">
+        <li class="breadcrumb-item"><a th:href="@{/batches}">Batches</a></li>
+        <li class="breadcrumb-item active" th:text="${batch.name}" aria-current="page">Batch</li>
+      </ol>
+    </nav>
+
+    <!-- Overview -->
+    <div class="card mb-3">
+      <div class="card-body">
+        <div class="d-flex flex-wrap align-items-center gap-3">
+          <div class="flex-grow-1">
+            <h1 class="h5 mb-1">
+              <i class="bi bi-collection me-2 table-thumb"></i><span th:text="${batch.name}">Batch</span>
+              <span class="ms-2 badge text-bg-light border" th:text="${batch.academicYear}">2026-27</span>
+            </h1>
+            <p class="text-body-secondary small mb-0">
+              <a th:href="@{/courses/{id}(id=${batch.course.id})}" th:text="${batch.course.name}">Course</a>
+              &middot; <span th:text="${batch.course.category}">Category</span>
+              &middot; Start <span th:text="${#temporals.format(batch.startDate, 'dd MMM yyyy')}">01 Apr</span>
+              <span th:if="${batch.endDate != null}">
+                &middot; End <span th:text="${#temporals.format(batch.endDate, 'dd MMM yyyy')}">31 Mar</span>
+              </span>
+            </p>
+          </div>
+          <div th:replace="~{layout/fragments :: statusBadge(${batch.active})}"></div>
+          <div class="d-flex gap-2 flex-wrap">
+            <a th:href="@{/batches/{id}/edit(id=${batch.id})}" class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-pencil me-1"></i>Edit details
+            </a>
+            <form th:action="@{/batches/{id}/status(id=${batch.id})}" method="post">
+              <input type="hidden" name="active" th:value="${batch.active ? 'false' : 'true'}"/>
+              <button type="submit" class="btn btn-sm btn-outline-secondary">
+                <i th:class="|bi ${batch.active ? 'bi-pause-circle me-1' : 'bi-play-circle me-1'}|"></i>
+                <span th:text="${batch.active ? 'Deactivate' : 'Activate'}">Deactivate</span>
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3">
+      <!-- Subjects and teachers -->
+      <div class="col-xl-6">
+        <div class="card h-100">
+          <div class="card-header"><i class="bi bi-journals me-2 table-thumb"></i>Subjects taught in this batch</div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-sm table-hover align-middle mb-0" th:if="${!#lists.isEmpty(batchSubjects)}">
+                <thead class="table-light">
+                <tr>
+                  <th>Subject</th>
+                  <th>Assigned teacher</th>
+                  <th class="text-center">Update</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="bs : ${batchSubjects}">
+                  <td>
+                    <a th:href="@{/subjects/{id}(id=${bs.courseSubject.subject.id})}"
+                       th:text="${bs.courseSubject.subject.name}">Mathematics</a>
+                    <form th:action="@{/batches/subjects/{id}/remove(id=${bs.id}, batchId=${batch.id})}"
+                          method="post" class="d-inline ms-1">
+                      <button type="submit" class="btn btn-sm btn-link text-danger p-0 js-confirm"
+                              data-confirm="Remove this subject from the batch? Enrollment history of students is not affected.">
+                        <i class="bi bi-bookmark-x small"></i>
+                        <span class="visually-hidden">Remove subject</span>
+                      </button>
+                    </form>
+                  </td>
+                  <td>
+                    <a th:href="@{/teachers/{id}(id=${bs.teacher.id})}" th:if="${bs.teacher != null}"
+                       th:text="${bs.teacher.fullName}">Teacher</a>
+                    <form th:if="${bs.teacher != null}" th:action="@{/batches/subjects/{id}/teacher(id=${bs.id}, batchId=${batch.id})}"
+                          method="post" class="d-inline">
+                      <input type="hidden" name="teacherId"/>
+                      <button type="submit" class="btn btn-sm btn-link text-danger p-0 js-confirm"
+                              data-confirm="Remove this teacher from the subject?">
+                        <i class="bi bi-x-circle small"></i>
+                        <span class="visually-hidden">Remove teacher</span>
+                      </button>
+                    </form>
+                    <span class="text-body-secondary small" th:if="${bs.teacher == null}">Not assigned yet</span>
+                  </td>
+                  <td class="text-center">
+                    <form th:action="@{/batches/subjects/{id}/teacher(id=${bs.id}, batchId=${batch.id})}" method="post" class="d-flex gap-1 justify-content-center">
+                      <select name="teacherId" class="form-select form-select-sm" required>
+                        <option value="" disabled selected>Assign teacher…</option>
+                        <option th:each="teacher : ${teachers}" th:value="${teacher.id}"
+                                th:text="${teacher.fullName}">Teacher</option>
+                      </select>
+                      <button type="submit" class="btn btn-sm btn-outline-primary" title="Assign teacher">
+                        <i class="bi bi-person-check"></i>
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+                </tbody>
+              </table>
+              <div class="empty-state small" th:if="${#lists.isEmpty(batchSubjects)}">
+                <i class="bi bi-journals d-block mb-2"></i>
+                No subjects assigned to this batch yet.
+                <span th:if="${#lists.isEmpty(assignableSubjects)}" class="d-block mt-1">
+                  First add subjects to the course
+                  <a th:href="@{/courses/{id}(id=${batch.course.id})}">'<span th:text="${batch.course.name}">course</span>'</a>,
+                  then come back here.
+                </span>
+              </div>
+            </div>
+          </div>
+          <div class="card-footer" th:if="${!#lists.isEmpty(assignableSubjects)}">
+            <form th:action="@{/batches/{id}/subjects(id=${batch.id})}" method="post" class="d-flex gap-2">
+              <select name="courseSubjectId" class="form-select form-select-sm" required aria-label="Subject to add">
+                <option value="" selected disabled>Add a subject of this course…</option>
+                <option th:each="cs : ${assignableSubjects}" th:value="${cs.id}"
+                        th:text="${cs.subject.name}">Subject</option>
+              </select>
+              <button type="submit" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-plus-lg"></i>Add
+              </button>
+            </form>
+          </div>
+          <div class="card-footer text-body-secondary small"
+               th:if="${#lists.isEmpty(assignableSubjects) and #lists.isEmpty(batchSubjects)}">
+            All subjects of the course are already assigned to this batch (or the course has no subjects yet).
+          </div>
+        </div>
+      </div>
+
+      <!-- Enrolled students -->
+      <div class="col-xl-6">
+        <div class="card h-100">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-people me-2 table-thumb"></i>Enrolled students</span>
+            <a th:href="@{/students}" class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-person-plus me-1"></i>Enroll via student page
+            </a>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-sm table-hover align-middle mb-0" th:if="${!#lists.isEmpty(enrollments)}">
+                <thead class="table-light">
+                <tr>
+                  <th>Student</th>
+                  <th>Since</th>
+                  <th class="text-center">Status</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="enrollment : ${enrollments}">
+                  <td>
+                    <a th:href="@{/students/{id}(id=${enrollment.student.id})}"
+                       th:text="${enrollment.student.fullName}">Student</a>
+                    <div class="small text-body-secondary" th:text="${enrollment.student.studentCode}">OMS-…</div>
+                  </td>
+                  <td th:text="${#temporals.format(enrollment.enrollmentDate, 'dd MMM yyyy')}">01 Apr 2026</td>
+                  <td class="text-center">
+                    <span th:switch="${enrollment.status.name()}" class="badge"
+                          th:classappend="${enrollment.status.name() == 'ACTIVE'} ? 'text-bg-success' : (${enrollment.status.name() == 'COMPLETED'} ? 'text-bg-primary' : 'text-bg-secondary')">
+                      <span th:case="'ACTIVE'">Active</span>
+                      <span th:case="'COMPLETED'">Completed</span>
+                      <span th:case="'WITHDRAWN'">Withdrawn</span>
+                    </span>
+                  </td>
+                </tr>
+                </tbody>
+              </table>
+              <div class="empty-state small" th:if="${#lists.isEmpty(enrollments)}">
+                <i class="bi bi-people d-block mb-2"></i>No students enrolled in this batch yet.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en" th:with="pageTitle=${batch != null ? 'Edit batch' : 'New batch'}">
+<head th:replace="~{layout/fragments :: head(${pageTitle})}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('batches')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar(${pageTitle}, true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <div class="row">
+      <div class="col-xl-6">
+        <form th:action="${batch != null} ? @{/batches/{id}(id=${batch.id})} : @{/batches}"
+              th:object="${form}" method="post" novalidate>
+          <div class="card">
+            <div class="card-header"><i class="bi bi-collection me-2 table-thumb"></i>Batch details</div>
+            <div class="card-body">
+              <div class="mb-3">
+                <label for="courseId" class="form-label required-label">Course</label>
+                <select id="courseId" class="form-select" th:field="*{courseId}"
+                        aria-describedby="courseError courseHelp" th:disabled="${batch != null}">
+                  <option value="" selected disabled>Choose a course…</option>
+                  <option th:each="course : ${courses}" th:value="${course.id}"
+                          th:text="${course.name} + ' (' + ${course.category} + ')'">Course</option>
+                </select>
+                <input type="hidden" th:if="${batch != null}" th:field="*{courseId}"/>
+                <div class="text-danger small mt-1" id="courseError" th:if="${#fields.hasErrors('courseId')}" th:errors="*{courseId}">Error</div>
+                <div id="courseHelp" class="form-text">
+                  <span th:if="${batch != null}">The course of an existing batch cannot change - subjects, teachers and enrollments depend on it.</span>
+                  <span th:if="${batch == null}">Only active courses are listed.</span>
+                </div>
+              </div>
+              <div class="mb-3">
+                <label for="name" class="form-label required-label">Batch name</label>
+                <input type="text" id="name" class="form-control" th:field="*{name}"
+                       placeholder="e.g. Morning Batch A" aria-describedby="nameError"/>
+                <div class="text-danger small mt-1" id="nameError" th:if="${#fields.hasErrors('name')}" th:errors="*{name}">Error</div>
+              </div>
+              <div class="mb-3">
+                <label for="academicYear" class="form-label required-label">Academic year</label>
+                <input type="text" id="academicYear" class="form-control" th:field="*{academicYear}"
+                       placeholder="2026-27" aria-describedby="academicYearError"/>
+                <div class="text-danger small mt-1" id="academicYearError" th:if="${#fields.hasErrors('academicYear')}" th:errors="*{academicYear}">Error</div>
+              </div>
+              <div class="row">
+                <div class="col-sm-6 mb-3">
+                  <label for="startDate" class="form-label required-label">Start date</label>
+                  <input type="date" id="startDate" class="form-control" th:field="*{startDate}"
+                         aria-describedby="startDateError"/>
+                  <div class="text-danger small mt-1" id="startDateError" th:if="${#fields.hasErrors('startDate')}" th:errors="*{startDate}">Error</div>
+                </div>
+                <div class="col-sm-6 mb-3">
+                  <label for="endDate" class="form-label">End date (optional)</label>
+                  <input type="date" id="endDate" class="form-control" th:field="*{endDate}"
+                         aria-describedby="endDateError"/>
+                  <div class="text-danger small mt-1" id="endDateError" th:if="${#fields.hasErrors('endDate')}" th:errors="*{endDate}">Error</div>
+                </div>
+              </div>
+              <div class="text-danger small mt-1" id="endDateAfterStartError" th:if="${#fields.hasErrors('endDateAfterStart')}" th:errors="*{endDateAfterStart}">Error</div>
+            </div>
+            <div class="card-footer d-flex gap-2">
+              <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check-lg me-1"></i><span th:text="${batch != null ? 'Save changes' : 'Create batch'}">Save</span>
+              </button>
+              <a th:href="${batch != null} ? @{/batches/{id}(id=${batch.id})} : @{/batches}"
+                 class="btn btn-outline-secondary">Cancel</a>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<!--
+  Reusable layout fragments: head, sidebar, topbar and flash alerts.
+  Each full page template renders its own <body> and includes these.
+-->
+<head th:fragment="head(title)" th:with="t=${#strings.isEmpty(title) ? 'Om Sai Coaching' : title}">
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title th:text="|${t} · Om Sai Coaching ERP|">Om Sai Coaching ERP</title>
+  <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}"/>
+  <link rel="stylesheet" th:href="@{/css/bootstrap.min.css}"/>
+  <link rel="stylesheet" th:href="@{/css/bootstrap-icons.min.css}"/>
+  <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+
+<aside th:fragment="sidebar(active)" class="app-sidebar offcanvas-lg offcanvas-start" tabindex="-1" id="appSidebar">
+  <div class="offcanvas-header d-lg-none border-bottom">
+    <span class="brand-mini"><i class="bi bi-mortarboard-fill me-2"></i>Om Sai</span>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#appSidebar" aria-label="Close"></button>
+  </div>
+  <div class="app-sidebar-body">
+    <div class="brand d-none d-lg-flex">
+      <i class="bi bi-mortarboard-fill"></i>
+      <span>Om Sai Coaching</span>
+    </div>
+    <nav class="nav flex-column gap-1 px-2 pt-2" aria-label="Main navigation">
+      <a th:fragment="navitem(item, label, icon, target)"
+         th:classappend="${active == item} ? 'active' : ''"
+         class="nav-link app-nav-link"
+         th:href="${target}">
+        <i th:class="|bi ${icon} me-2|"></i><span th:text="${label}">Item</span>
+      </a>
+
+      <div th:replace="~{layout/fragments :: navitem('dashboard', 'Dashboard', 'bi-speedometer2', @{/dashboard})}"></div>
+      <div th:replace="~{layout/fragments :: navitem('courses', 'Courses', 'bi-journal-bookmark', @{/courses})}"></div>
+      <div th:replace="~{layout/fragments :: navitem('subjects', 'Subjects', 'bi-book', @{/subjects})}"></div>
+      <div th:replace="~{layout/fragments :: navitem('batches', 'Batches', 'bi-collection', @{/batches})}"></div>
+      <div th:replace="~{layout/fragments :: navitem('students', 'Students', 'bi-people', @{/students})}"></div>
+      <div th:replace="~{layout/fragments :: navitem('teachers', 'Teachers', 'bi-person-video3', @{/teachers})}"></div>
+      <div th:replace="~{layout/fragments :: navitem('users', 'Accounts', 'bi-person-gear', @{/users})}"></div>
+    </nav>
+  </div>
+</aside>
+
+<header th:fragment="topbar(title, showUser)"
+        class="app-topbar d-flex align-items-center gap-2">
+  <button class="btn btn-outline-secondary d-lg-none" type="button"
+          data-bs-toggle="offcanvas" data-bs-target="#appSidebar" aria-controls="appSidebar">
+    <i class="bi bi-list"></i><span class="visually-hidden">Menu</span>
+  </button>
+  <h1 class="h5 m-0 flex-grow-1" th:text="${title}">Page</h1>
+  <div th:if="${showUser} and ${userName != null}" class="d-flex align-items-center gap-2">
+    <span class="text-body-secondary d-none d-sm-inline" th:text="${userName}">user</span>
+    <form th:action="@{/logout}" method="post" class="m-0">
+      <button type="submit" class="btn btn-outline-primary btn-sm">
+        <i class="bi bi-box-arrow-right me-1"></i>Sign out
+      </button>
+    </form>
+  </div>
+</header>
+
+<div th:fragment="alerts()" th:if="${successMessage != null or errorMessage != null}" class="app-alerts">
+  <div th:if="${successMessage != null}" class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="bi bi-check-circle me-1"></i><span th:text="${successMessage}">Success</span>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  <div th:if="${errorMessage != null}" class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="bi bi-exclamation-triangle me-1"></i><span th:text="${errorMessage}">Error</span>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+</div>
+
+<!-- Reusable pagination controls. Expects: page (org.springframework.data.domain.Page), pageUrl (base URL string). -->
+<nav th:fragment="pager(page, pageUrl)" th:if="${page != null and page.totalPages > 1}"
+     aria-label="Pagination" class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+  <span class="text-body-secondary small">
+    <span th:text="'Page ' + (${page.number} + 1) + ' of ' + ${page.totalPages}"></span>&nbsp;
+    &middot;&nbsp;<span th:text="|${page.totalElements} record(s)|"></span>
+  </span>
+  <ul class="pagination pagination-sm m-0">
+    <li class="page-item" th:classappend="${page.first} ? 'disabled'">
+      <a class="page-link" th:href="|${pageUrl}${pageUrl.contains('?') ? '&' : '?'}page=0|">First</a>
+    </li>
+    <li class="page-item" th:classappend="${page.first} ? 'disabled'">
+      <a class="page-link" th:href="|${pageUrl}${pageUrl.contains('?') ? '&' : '?'}page=${page.number - 1}|">Previous</a>
+    </li>
+    <li th:each="i : ${#numbers.sequence(0, page.totalPages - 1)}"
+        th:if="${i >= (page.number < 5 ? 0 : page.number - 4) and i <= (page.number > page.totalPages - 5 ? page.totalPages - 1 : page.number + 4)}"
+        class="page-item" th:classappend="${(page.number) == i} ? 'active'">
+      <a class="page-link" th:href="|${pageUrl}${pageUrl.contains('?') ? '&' : '?'}page=${i}|" th:text="|${i + 1}|">1</a>
+    </li>
+    <li class="page-item" th:classappend="${page.last} ? 'disabled'">
+      <a class="page-link" th:href="|${pageUrl}${pageUrl.contains('?') ? '&' : '?'}page=${page.number + 1}|">Next</a>
+    </li>
+    <li class="page-item" th:classappend="${page.last} ? 'disabled'">
+      <a class="page-link" th:href="|${pageUrl}${pageUrl.contains('?') ? '&' : '?'}page=${page.totalPages - 1}|">Last</a>
+    </li>
+  </ul>
+</nav>
+
+<!-- Small reusable status badge for ACTIVE/INACTIVE. -->
+<span th:fragment="statusBadge(active)" th:with="ok=${active}"
+      th:class="|badge ${ok ? 'text-bg-success' : 'text-bg-secondary'}|">
+  <i th:class="|bi ${ok ? 'bi-check-circle' : 'bi-slash-circle'} me-1|"></i>
+  <span th:text="${ok ? 'Active' : 'Inactive'}">Active</span>
+</span>
+</html>

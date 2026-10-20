@@ -1,0 +1,412 @@
+#!/bin/zsh
+# End-to-end smoke test for Om Sai Coaching ERP (Phase 1).
+#
+# Prerequisites:
+#   - Application running on :8080 with the dev admin bootstrapped
+#     (admin@omsai.local / DevAdmin#2026#Pass by default).
+#   - PostgreSQL dev database reachable on 127.0.0.1:5433 (creds in DB_*).
+#   - curl installed.
+#
+# The script creates uniquely-prefixed data (suffix = run timestamp), so
+# it can be re-run against the same database.
+set -u
+BASE=${BASE:-http://127.0.0.1:8080}
+PSQL_BIN=/usr/lib/postgresql/18/bin/psql
+DB_URL_HOST=127.0.0.1
+DB_PORT=5433
+DB_USER=tojo
+DB_NAME=omsai
+DB_PASS=omsai_dev
+ADMIN_EMAIL=admin@omsai.local
+ADMIN_PASS='DevAdmin#2026#Pass'
+
+TS=$(date +%Y%m%d%H%M%S)
+WORK=/tmp/opencode/e2e
+rm -rf "$WORK"; mkdir -p "$WORK"
+cd "$WORK" || exit 1
+
+FAILS=0
+TOTAL=0
+
+ck() { # ck <description> <condition-result>  (1 = pass, 0 = fail)
+  TOTAL=$((TOTAL + 1))
+  if [ "$2" = "1" ]; then
+    printf '  OK: %s\n' "$1"
+  else
+    printf '  FAIL: %s\n' "$1"
+    cp -f post.html "trace-$TOTAL.html" 2>/dev/null || true
+    printf '%s\n' "$1" > "trace-$TOTAL.txt"
+    FAILS=$((FAILS + 1))
+  fi
+}
+
+has() { # has <text> <needle>
+  printf '%s' "$1" | grep -qF -- "$2"
+}
+
+say() { printf '\033[1;34m== %s\033[0m\n' "$*"; }
+
+dbq() {
+  PGPASSWORD=$DB_PASS "$PSQL_BIN" -h "$DB_URL_HOST" -p "$DB_PORT" -U "$DB_USER" \
+    -d "$DB_NAME" -t -A -X -v ON_ERROR_STOP=1 -c "$1"
+}
+
+# page(): GET an authenticated page into page.html, print status code
+page() {
+  PAGERESULT=$(curl -s -b jar -c jar -o page.html -w '%{http_code}' "$BASE$1")
+  printf '%s\n' "$PAGERESULT"
+}
+
+# go(): POST into post.html, print "code|redirect_url"
+go() {
+  curl -s -b jar -c jar -o post.html -w '%{http_code}|%{redirect_url}' "$@"
+}
+
+# goflash(): POST into post.html; follow the redirect and collect flash messages.
+# Spring keeps pending flash maps per target path in a FIFO queue and serves
+# them ONE PER REQUEST. The script often stacks several POSTs against the
+# same page, so after the first GET the fresh message may still be stashed.
+# Therefore: repeat GETs on the redirect target until the page shows no alert
+# and append every seen alert message into post.html for later greps.
+goflash() {
+  local out post_url CODE_PART i=1
+  out=$(go "$@")
+  post_url=${out#*|}
+  CODE_PART=${out%%|*}
+  printf '%s' "$out"
+  if [ -z "$post_url" ] || [ "$post_url" = "$out" ] || [ "$CODE_PART" = "200" ]; then
+    return 0
+  fi
+  curl -s -b jar -c jar -o post.html "$post_url" >/dev/null
+  while [ "$i" -le 8 ]; do
+    if ! grep -q 'class="alert alert-' post.html; then
+      return 0
+    fi
+    curl -s -b jar -c jar -o flashpage.html "$post_url" >/dev/null
+    if ! grep -q 'class="alert alert-' flashpage.html; then
+      return 0
+    fi
+    grep -oE 'me-1"></i><span>[^<]*' flashpage.html | sed 's/.*<span//;s/^>//' >> post.html
+    i=$((i+1))
+  done
+}
+
+# freshlogin(): perform a login on a fresh session, echo "code|redirect_url"
+freshlogin() { # freshlogin <jarfile> <email> <password>
+  local jarf=$1 user=$2 pass=$3 token out
+  curl -s -c "$jarf" -o "$jarf.page" "$BASE/login"
+  token=$(grep -o 'name="_csrf" value="[^"]*"' "$jarf.page" | head -1 | sed 's/.*value="//;s/"$//')
+  out=$(curl -s -b "$jarf" -c "$jarf" -o "$jarf.resp" -w '%{http_code}|%{redirect_url}' \
+    -d "username=$user" -d "password=$pass" --data-urlencode "_csrf=$token" "$BASE/login")
+  printf '%s' "$out"
+}
+
+# tok(): extract session CSRF token from an authenticated page
+tok() {
+  curl -s -b jar -c jar -o tok.html "$BASE$1"
+  grep -o 'name="_csrf" value="[^"]*"' tok.html | head -1 | sed 's/.*value="//;s/"$//'
+}
+
+# ---------------------------------------------------------------- wait for app
+say "waiting for application on $BASE"
+for i in {1..60}; do
+  if curl -s -o /dev/null --max-time 2 "$BASE/login"; then
+    break
+  fi
+  sleep 1
+  if [ "$i" = 60 ]; then
+    echo "Application did not come up on $BASE — aborting."
+    exit 1
+  fi
+done
+
+# ---------------------------------------------------------------- A: login
+say "login and security basics"
+out=$(freshlogin jar "$ADMIN_EMAIL" "$ADMIN_PASS")
+CODE=${out%%|*}; LOC=${out#*|}
+ck "admin login accepted (302)" "$([ "$CODE" = 302 ] && echo 1 || echo 0)"
+T=$(tok /dashboard)
+ck "csrf token available after login" "$([ -n "$T" ] && echo 1 || echo 0)"
+
+# invalid credentials
+out=$(freshlogin jar2 "$ADMIN_EMAIL" "TotallyWrongPass1")
+ck "bad password redirects to /login?error" "$(has "${out#*|}" "/login?error" && echo 1 || echo 0)"
+
+# anonymous request
+code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/courses")
+ck "anonymous /courses redirects to login (302)" "$([ "$code" = 302 ] && echo 1 || echo 0)"
+
+# missing csrf token on authenticated post
+code=$(curl -s -b jar -o infra_csrf.html -w '%{http_code}' --data-urlencode "name=x" "$BASE/courses")
+ck "post without csrf token returns 403" "$([ "$code" = 403 ] && echo 1 || echo 0)"
+
+# ---------------------------------------------------------------- B: masters
+say "subjects, courses and validation"
+post_url=$(go -d "_csrf=$T" --data-urlencode "name=E2E Subject $TS" \
+  --data-urlencode "description=Smoke testing subject" "$BASE/subjects") || true
+SUBJ_URL=${post_url#*|}
+ck "subject created (redirect to detail)" "$(has "$SUBJ_URL" "/subjects/" && echo 1 || echo 0)"
+SUBJID=${SUBJ_URL##*/}
+
+post_url=$(go -d "_csrf=$T" -d "description=" --data-urlencode "durationMonths=6" \
+  --data-urlencode "category=E2E" --data-urlencode "name=E2E Course A $TS" "$BASE/courses") || true
+C1_URL=${post_url#*|}
+ck "course A created" "$(has "$C1_URL" "/courses/" && echo 1 || echo 0)"
+C1=${C1_URL##*/}
+
+post_url=$(go -d "_csrf=$T" -d "description=" --data-urlencode "durationMonths=6" \
+  --data-urlencode "category=E2E" --data-urlencode "name=E2E Course B $TS" "$BASE/courses") || true
+C2_URL=${post_url#*|}
+ck "course B created" "$(has "$C2_URL" "/courses/" && echo 1 || echo 0)"
+C2=${C2_URL##*/}
+
+goflash -d "_csrf=$T" -d "subjectId=$SUBJID" "$BASE/courses/$C1/subjects" >/dev/null
+ck "subject assigned to course A" "$(has "$(cat post.html)" "Subject assigned" && echo 1 || echo 0)"
+
+goflash -d "_csrf=$T" -d "subjectId=$SUBJID" "$BASE/courses/$C1/subjects" >/dev/null
+ck "duplicate course-subject assignment rejected" "$(has "$(cat post.html)" "already assigned to this course" && echo 1 || echo 0)"
+
+CSID=$(dbq "select id from course_subjects where course_id=$C1 and subject_id=$SUBJID")
+ck "course_subject row persisted" "$([ -n "$CSID" ] && echo 1 || echo 0)"
+
+# ---------------------------------------------------------------- C: batches
+say "batches"
+goflash -d "_csrf=$T" -d "courseId=$C1" -d "name=E2E Batch X $TS" \
+  --data-urlencode "startDate=2026-09-01" --data-urlencode "endDate=2026-08-01" "$BASE/batches" >/dev/null
+ck "batch end-before-start rejected" "$(has "$(cat post.html)" "End date cannot be before the start date" && echo 1 || echo 0)"
+
+post_url=$(go -d "_csrf=$T" -d "courseId=$C1" --data-urlencode "academicYear=2026-27" \
+  --data-urlencode "name=E2E Batch A1 $TS" --data-urlencode "startDate=2026-09-01" "$BASE/batches") || true
+B1_URL=${post_url#*|}
+ck "batch A1 created" "$(has "$B1_URL" "/batches/" && echo 1 || echo 0)"
+B1=${B1_URL##*/}
+
+post_url=$(go -d "_csrf=$T" -d "courseId=$C1" --data-urlencode "academicYear=2026-27" \
+  --data-urlencode "name=E2E Batch A2 $TS" --data-urlencode "startDate=2026-09-01" "$BASE/batches") || true
+B2_URL=${post_url#*|}
+B2=${B2_URL##*/}
+
+post_url=$(go -d "_csrf=$T" -d "courseId=$C2" --data-urlencode "academicYear=2026-27" \
+  --data-urlencode "name=E2E Batch B1 $TS" --data-urlencode "startDate=2026-09-01" "$BASE/batches") || true
+B3_URL=${post_url#*|}
+B3=${B3_URL##*/}
+ck "batch in course B created" "$([ -n "$B3" ] && echo 1 || echo 0)"
+
+# batch subject mapping (must belong to batch's course)
+goflash -d "_csrf=$T" -d "batchId=$B1" -d "courseSubjectId=$CSID" "$BASE/batches/$B1/subjects" >/dev/null
+ck "course subject added to batch A1" "$(has "$(cat post.html)" "Subject added to batch" && echo 1 || echo 0)"
+
+BSID=$(dbq "select id from batch_subjects where batch_id=$B1 limit 1")
+ck "batch_subject row persisted" "$([ -n "$BSID" ] && echo 1 || echo 0)"
+
+goflash -d "_csrf=$T" -d "batchId=$B1" -d "courseSubjectId=$CSID" "$BASE/batches/$B1/subjects" >/dev/null
+ck "duplicate batch subject rejected" "$(has "$(cat post.html)" "already assigned to this batch" && echo 1 || echo 0)"
+CNT=$(dbq "select count(*) from batch_subjects where batch_id=$B1 and course_subject_id=$CSID")
+ck "no duplicate batch_subject row (count=1)" "$([ "$CNT" = 1 ] && echo 1 || echo 0)"
+
+# subject belonging to the OTHER course cannot be attached to batch of course A
+SUBJ2_URL=$(go -d "_csrf=$T" --data-urlencode "name=E2E Subject B $TS" "$BASE/subjects")
+SUBJ2ID=$(dbq "select id from subjects where name='E2E Subject B $TS'")
+goflash -d "_csrf=$T" -d "subjectId=$SUBJ2ID" "$BASE/courses/$C2/subjects" >/dev/null
+CS2ID=$(dbq "select id from course_subjects where course_id=$C2 and subject_id=$SUBJ2ID")
+ck "subject B assigned to course B" "$([ -n "$CS2ID" ] && echo 1 || echo 0)"
+goflash -d "_csrf=$T" -d "batchId=$B1" -d "courseSubjectId=$CS2ID" "$BASE/batches/$B1/subjects" >/dev/null
+ck "foreign-course subject blocked from batch" "$(has "$(cat post.html)" "cannot be assigned to a batch" && echo 1 || echo 0)"
+
+# ---------------------------------------------------------------- D: students
+say "students"
+PH1="98${TS: -8}"
+PH2="97${TS: -8}"
+PHB="96${TS: -8}"
+post_url=$(go -d "_csrf=$T" --data-urlencode "fullName=E2E Student One $TS" \
+  --data-urlencode "phone=$PH1" --data-urlencode "admissionDate=2026-08-01" "$BASE/students") || true
+S1_URL=${post_url#*|}
+ck "student one registered" "$(has "$S1_URL" "/students/" && echo 1 || echo 0)"
+S1=${S1_URL##*/}
+
+post_url=$(go -d "_csrf=$T" --data-urlencode "fullName=E2E Student Two $TS" \
+  --data-urlencode "phone=$PH2" --data-urlencode "admissionDate=2026-08-01" "$BASE/students") || true
+S2=${post_url##*/}
+
+CODE1=$(dbq "select student_code from students where id=$S1")
+ck "unique student code generated" "$(has "$code:$CODE1" "OMS-2026-" && echo 1 || echo 0)"
+
+szcode=$(page "/students/$S1")
+ck "profile page shows generated code" "$(has "$(cat page.html)" "$CODE1" && echo 1 || echo 0)"
+szcode=$(page "/students/$S1/edit")
+ck "student edit form renders" "$([ "$szcode" = 200 ] && echo 1 || echo 0)"
+
+goflash -d "_csrf=$T" --data-urlencode "fullName=Bad Phone Student" \
+  --data-urlencode "phone=not-a-phone" --data-urlencode "admissionDate=2026-08-01" "$BASE/students" >/dev/null
+ck "invalid phone shows validation message" "$(has "$(cat post.html)" "Enter a valid phone number" && echo 1 || echo 0)"
+
+szq=$(page "/students?q=E2E Student One $TS")
+ck "student search by name finds student" "$(has "$(cat page.html)" "E2E Student One $TS" && echo 1 || echo 0)"
+szq=$(page "/students?q=$PH1")
+ck "student search by phone finds student" "$(has "$(cat page.html)" "E2E Student One $TS" && echo 1 || echo 0)"
+
+# ---------------------------------------------------------------- E: enroll
+say "enrollments"
+goflash -d "_csrf=$T" -d "batchId=$B1" --data-urlencode "enrollmentDate=2026-09-05" \
+  "$BASE/students/$S1/enroll" >/dev/null
+ck "student enrolled into batch A1" "$(has "$(cat post.html)" "Student enrolled." && echo 1 || echo 0)"
+
+goflash -d "_csrf=$T" -d "batchId=$B1" --data-urlencode "enrollmentDate=2026-09-05" \
+  "$BASE/students/$S1/enroll" >/dev/null
+ck "duplicate enrollment in same batch rejected" "$(has "$(cat post.html)" "already has an active enrollment in that batch" && echo 1 || echo 0)"
+
+goflash -d "_csrf=$T" -d "batchId=$B2" --data-urlencode "enrollmentDate=2026-09-05" \
+  "$BASE/students/$S1/enroll" >/dev/null
+ck "same-course second batch suggests transfer" "$(has "$(cat post.html)" "Use a transfer to change batches" && echo 1 || echo 0)"
+
+goflash -d "_csrf=$T" -d "batchId=$B3" --data-urlencode "enrollmentDate=2026-09-06" \
+  "$BASE/students/$S1/enroll" >/dev/null
+ck "enroll into a different course allowed" "$(has "$(cat post.html)" "Student enrolled." && echo 1 || echo 0)"
+
+ACTIVE=$(dbq "select count(*) from enrollments where student_id=$S1 and status='ACTIVE'")
+ck "two active enrollments persisted (count=2)" "$([ "$ACTIVE" = 2 ] && echo 1 || echo 0)"
+
+# transfer same course A1 -> A2
+goflash -d "_csrf=$T" -d "targetBatchId=$B2" --data-urlencode "transferDate=2026-09-15" \
+  "$BASE/students/$S1/transfer" >/dev/null
+ck "transfer within course accepted" "$(has "$(cat post.html)" "history is preserved" && echo 1 || echo 0)"
+
+STATS=$(dbq "select count(*) from enrollments where student_id=$S1 and status='COMPLETED'")
+ck "previous enrollment closed as COMPLETED (count=1)" "$([ "$STATS" = 1 ] && echo 1 || echo 0)"
+ACTIVE=$(dbq "select count(*) from enrollments where student_id=$S1 and status='ACTIVE'")
+ck "active enrollments after transfer (count=2)" "$([ "$ACTIVE" = 2 ] && echo 1 || echo 0)"
+BA=$(dbq "select count(*) from enrollments where student_id=$S1 and batch_id=$B2 and status='ACTIVE'")
+ck "new ACTIVE enrollment points at batch A2" "$([ "$BA" = 1 ] && echo 1 || echo 0)"
+
+# transfer when already active in target batch
+goflash -d "_csrf=$T" -d "targetBatchId=$B2" --data-urlencode "transferDate=2026-09-16" \
+  "$BASE/students/$S1/transfer" >/dev/null
+ck "transfer to current batch rejected" "$(has "$(cat post.html)" "already active in that batch" && echo 1 || echo 0)"
+
+# transfer when not enrolled in the target course
+goflash -d "_csrf=$T" -d "batchId=$B1" --data-urlencode "enrollmentDate=2026-09-05" \
+  "$BASE/students/$S2/enroll" >/dev/null
+goflash -d "_csrf=$T" -d "targetBatchId=$B3" --data-urlencode "transferDate=2026-09-16" \
+  "$BASE/students/$S2/transfer" >/dev/null
+ck "transfer to other course suggests new enrollment" "$(has "$(cat post.html)" "Use a new enrollment instead of a transfer" && echo 1 || echo 0)"
+
+# ---------------------------------------------------------------- F: statuses
+say "enrollment status changes"
+EID=$(dbq "select id from enrollments where student_id=$S1 and batch_id=$B3 and status='ACTIVE'")
+goflash -d "_csrf=$T" -d "studentId=$S1" -d "action=withdraw" \
+  "$BASE/students/enrollments/$EID/status" >/dev/null
+ck "withdraw accepted" "$(has "$(cat post.html)" "Enrollment withdrawn." && echo 1 || echo 0)"
+ST=$(dbq "select status from enrollments where id=$EID")
+ck "status stored as WITHDRAWN" "$([ "$ST" = "WITHDRAWN" ] && echo 1 || echo 0)"
+
+goflash -d "_csrf=$T" -d "studentId=$S1" -d "action=complete" \
+  "$BASE/students/enrollments/$EID/status" >/dev/null
+ck "closing a closed enrollment rejected" "$(has "$(cat post.html)" "Only ACTIVE enrollments can be updated" && echo 1 || echo 0)"
+
+# ---------------------------------------------------------------- G: teachers
+say "teachers"
+post_url=$(go -d "_csrf=$T" --data-urlencode "fullName=E2E Teacher $TS" \
+  --data-urlencode "phone=$PHB" "$BASE/teachers") || true
+TH_URL=${post_url#*|}
+ck "teacher profile created" "$(has "$TH_URL" "/teachers/" && echo 1 || echo 0)"
+THID=${TH_URL##*/}
+
+goflash -d "_csrf=$T" -d "batchId=$B1" -d "teacherId=$THID" \
+  "$BASE/batches/subjects/$BSID/teacher" >/dev/null
+ck "teacher assigned to batch subject" "$(has "$(cat post.html)" "Teacher assigned." && echo 1 || echo 0)"
+HA=$(dbq "select count(*) from batch_subjects where id=$BSID and teacher_id=$THID")
+ck "teacher assignment persisted" "$([ "$HA" = 1 ] && echo 1 || echo 0)"
+
+goflash -d "_csrf=$T" -d "batchId=$B1" "$BASE/batches/subjects/$BSID/teacher" >/dev/null
+ck "teacher assignment can be cleared" "$(has "$(cat post.html)" "Teacher assignment cleared." && echo 1 || echo 0)"
+HA=$(dbq "select count(*) from batch_subjects where id=$BSID and teacher_id is null")
+ck "assignment cleared in database" "$([ "$HA" = 1 ] && echo 1 || echo 0)"
+
+goflash -d "_csrf=$T" -d "active=false" "$BASE/teachers/$THID/status" >/dev/null
+goflash -d "_csrf=$T" -d "batchId=$B1" -d "teacherId=$THID" \
+  "$BASE/batches/subjects/$BSID/teacher" >/dev/null
+ck "inactive teacher cannot receive assignments" "$(has "$(cat post.html)" "cannot receive new assignments" && echo 1 || echo 0)"
+goflash -d "_csrf=$T" -d "active=true" "$BASE/teachers/$THID/status" >/dev/null
+goflash -d "_csrf=$T" -d "batchId=$B1" -d "teacherId=$THID" \
+  "$BASE/batches/subjects/$BSID/teacher" >/dev/null
+ck "reactivated teacher gets assignment" "$(has "$(cat post.html)" "Teacher assigned." && echo 1 || echo 0)"
+
+# ---------------------------------------------------------------- H: removals
+say "referential-safety of removals"
+goflash -d "_csrf=$T" "$BASE/courses/$C1/subjects/$CSID/remove" >/dev/null
+ck "course subject removal blocked while taught" "$(has "$(cat post.html)" "cannot be removed" && echo 1 || echo 0)"
+CSROW=$(dbq "select count(*) from course_subjects where id=$CSID")
+ck "course subject row not deleted (count=1)" "$([ "$CSROW" = 1 ] && echo 1 || echo 0)"
+
+# ---------------------------------------------------------------- I: inactive student
+say "inactive student restrictions"
+goflash -d "_csrf=$T" -d "active=false" "$BASE/students/$S1/status" >/dev/null
+goflash -d "_csrf=$T" -d "batchId=$B3" --data-urlencode "enrollmentDate=2026-09-20" \
+  "$BASE/students/$S1/enroll" >/dev/null
+ck "inactive student cannot enroll" "$(has "$(cat post.html)" "is inactive and cannot be enrolled" && echo 1 || echo 0)"
+goflash -d "_csrf=$T" -d "active=true" "$BASE/students/$S1/status" >/dev/null
+
+# ---------------------------------------------------------------- J: users
+say "user accounts"
+TEACHER_EMAIL="e2e.teacher.$TS@omsai.local"
+post_url=$(go -d "_csrf=$T" --data-urlencode "fullName=E2E Teacher Account $TS" \
+  --data-urlencode "email=$TEACHER_EMAIL" -d "role=TEACHER" \
+  --data-urlencode "password=E2ETeacher#2026#Pass" "$BASE/users") || true
+ck "teacher account created via admin" "$(has "$post_url" "302" && echo 1 || echo 0)"
+USERID=$(dbq "select id from user_accounts where email='$TEACHER_EMAIL'")
+ck "user persisted in database" "$([ -n "$USERID" ] && echo 1 || echo 0)"
+
+ucode=$(page "/users")
+ck "users list renders and shows account" "$(has "$(cat page.html)" "$TEACHER_EMAIL" && echo 1 || echo 0)"
+
+# link the account to the teacher profile
+goflash -d "_csrf=$T" --data-urlencode "fullName=E2E Teacher Linked $TS" \
+  --data-urlencode "phone=$PHB" -d "userId=$USERID" "$BASE/teachers" >/dev/null
+ck "teacher profile linked to account" "$(has "$(cat post.html)" "Teacher profile created." && echo 1 || echo 0)"
+
+# ---------------------------------------------------------------- K: teacher role
+say "teacher role access (read-only)"
+out=$(freshlogin tjar "$TEACHER_EMAIL" "E2ETeacher#2026#Pass")
+ck "teacher login accepted" "$([ "${out%%|*}" = 302 ] && echo 1 || echo 0)"
+TROOT=$(curl -s -b tjar -o /dev/null -w '%{redirect_url}' "$BASE/")
+ck "teacher home redirects to /teacher" "$(has "$TROOT" "/teacher" && echo 1 || echo 0)"
+tcode=$(curl -s -b tjar -o tpage.html -w '%{http_code}' "$BASE/teacher")
+ck "teacher home renders (200)" "$([ "$tcode" = 200 ] && echo 1 || echo 0)"
+ck "assignments table present for teacher" "$(has "$(cat tpage.html)" "Subjects and batches you teach" && echo 1 || echo 0)"
+tcode=$(curl -s -b tjar -o tpage.html -w '%{http_code}' "$BASE/courses")
+ck "teacher blocked from /courses (403)" "$([ "$tcode" = 403 ] && echo 1 || echo 0)"
+tcode=$(curl -s -b tjar -o tpage.html -w '%{http_code}' "$BASE/users")
+ck "teacher blocked from /users (403)" "$([ "$tcode" = 403 ] && echo 1 || echo 0)"
+tcode=$(curl -s -b tjar -o tpage.html -w '%{http_code}' -d "name=hack" "$BASE/courses")
+ck "teacher blocked from POST /courses (403)" "$([ "$tcode" = 403 ] && echo 1 || echo 0)"
+
+# ---------------------------------------------------------------- L: rate limiting
+say "login rate limiting"
+RL_USER="e2e.lockout.$TS@omsai.local"
+frac=0
+for i in {1..5}; do
+  out=$(freshlogin "rljar$i" "$RL_USER" "WhateverWrong#Pass")
+  frac=$([ "${out%%|*}" = 302 ] && has "${out#*|}" "login?error" && echo 1 || echo 0)
+  ck "failed attempt $i -> /login?error" "$frac"
+done
+out=$(freshlogin rljar6 "$RL_USER" "WhateverWrong#Pass")
+ck "6th attempt locked out (/login?locked)" "$(has "${out#*|}" "/login?locked" && echo 1 || echo 0)"
+
+# ---------------------------------------------------------------- M: dashboard + logout
+say "dashboard and logout"
+dcode=$(page "/dashboard")
+ck "administrator dashboard renders" "$([ "$dcode" = 200 ] && has "$(cat page.html)" "Administrator Dashboard" && echo 1 || echo 0)"
+
+LT=$(tok /students)
+code=$(curl -s -b jar -c jar -o post.html -w '%{http_code}|%{redirect_url}' \
+  -d "_csrf=$LT" "$BASE/logout")
+ck "logout redirects to /login?logout" "$(has "${code#*|}" "/login?logout" && echo 1 || echo 0)"
+dcode=$(curl -s -b jar -o post.html -w '%{http_code}|%{redirect_url}' "$BASE/dashboard")
+ck "session invalidated after logout" "$(has "${dcode#*|}" "/login" && echo 1 || echo 0)"
+
+# ---------------------------------------------------------------- summary
+printf '\n%d checks, %d failed.\n' "$TOTAL" "$FAILS"
+if [ "$FAILS" -gt 0 ]; then
+  exit 1
+fi
+printf 'All end-to-end smoke checks passed.\n'

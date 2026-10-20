@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('Accounts')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('users')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('Sign-in accounts', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <div class="alert alert-light border small">
+      <i class="bi bi-info-circle me-1"></i>
+      Sign-in accounts are separate from teacher profiles. Create TEACHER accounts here and
+      link them to profiles on the teacher pages. The first administrator is created through the
+      documented bootstrap procedure (see README).
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <form th:action="@{/users}" method="get" class="d-flex gap-2">
+        <input type="search" class="form-control" placeholder="Search name or email"
+               name="q" th:value="${q}" aria-label="Search accounts"/>
+        <button type="submit" class="btn btn-outline-primary">
+          <i class="bi bi-search me-1"></i>Search
+        </button>
+      </form>
+      <a th:href="@{/users/new}" class="btn btn-primary">
+        <i class="bi bi-person-plus me-1"></i>New account
+      </a>
+    </div>
+
+    <div class="card">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" th:if="${!#lists.isEmpty(users.content)}">
+            <thead class="table-light">
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th class="text-center">Status</th>
+              <th class="text-end">Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="user : ${users.content}">
+              <td th:text="${user.fullName}">Name</td>
+              <td th:text="${user.email}">email</td>
+              <td>
+                <span th:if="${user.role.name() == 'ADMIN'}" class="badge text-bg-primary">Administrator</span>
+                <span th:if="${user.role.name() == 'TEACHER'}" class="badge text-bg-info">Teacher</span>
+              </td>
+              <td class="text-center">
+                <div th:replace="~{layout/fragments :: statusBadge(${user.active})}"></div>
+              </td>
+              <td class="text-end">
+                <form th:action="@{/users/{id}/status(id=${user.id})}" method="post" class="d-inline">
+                  <input type="hidden" name="active" th:value="${user.active ? 'false' : 'true'}"/>
+                  <button type="submit" class="btn btn-sm btn-outline-secondary">
+                    <i th:class="|bi ${user.active ? 'bi-pause-circle' : 'bi-play-circle'}|"></i>
+                    <span class="visually-hidden" th:text="${user.active ? 'Deactivate' : 'Activate'}">toggle</span>
+                  </button>
+                </form>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse"
+                        th:attr="data-bs-target='|pw-${user.id}'">
+                  <i class="bi bi-key"></i><span class="visually-hidden">Reset password</span>
+                </button>
+                <div th:id="|pw-${user.id}|" class="collapse">
+                  <form th:action="@{/users/{id}/password(id=${user.id})}" method="post"
+                        class="p-2 rounded-3 bg-light">
+                    <div class="d-flex gap-2">
+                      <input type="password" class="form-control form-control-sm" name="password"
+                             placeholder="New password (min 12 chars)" minlength="12" required
+                             aria-label="New password"/>
+                      <button type="submit" class="btn btn-sm btn-outline-primary">Reset</button>
+                    </div>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+          <div class="empty-state" th:if="${#lists.isEmpty(users.content)}">
+            <i class="bi bi-person-gear d-block mb-2"></i>No accounts found.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div th:replace="~{layout/fragments :: pager(${users}, ${pagerUrl})}"></div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

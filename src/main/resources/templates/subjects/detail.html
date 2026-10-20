@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head(${subject.name})}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('subjects')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar(${subject.name}, true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <nav aria-label="breadcrumb" class="mb-2">
+      <ol class="breadcrumb small mb-0">
+        <li class="breadcrumb-item"><a th:href="@{/subjects}">Subjects</a></li>
+        <li class="breadcrumb-item active" th:text="${subject.name}" aria-current="page">Subject</li>
+      </ol>
+    </nav>
+
+    <div class="row g-3">
+      <div class="col-xl-5">
+        <div class="card h-100">
+          <div class="card-header"><i class="bi bi-book me-2 table-thumb"></i>Subject details</div>
+          <div class="card-body">
+            <dl class="row mb-0 small">
+              <dt class="col-4">Name</dt>
+              <dd class="col-8" th:text="${subject.name}">Name</dd>
+              <dt class="col-4">Description</dt>
+              <dd class="col-8">
+                <span th:if="${subject.description}" th:text="${subject.description}">desc</span>
+                <span class="text-body-secondary" th:if="${subject.description == null}">-</span>
+              </dd>
+              <dt class="col-4">Created</dt>
+              <dd class="col-8" th:text="${#temporals.format(subject.createdAt, 'dd MMM yyyy HH:mm')}">date</dd>
+              <dt class="col-4">Last updated</dt>
+              <dd class="col-8" th:text="${#temporals.format(subject.updatedAt, 'dd MMM yyyy HH:mm')}">date</dd>
+            </dl>
+          </div>
+          <div class="card-footer">
+            <a th:href="@{/subjects/{id}/edit(id=${subject.id})}" class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-pencil me-1"></i>Edit details
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-xl-7">
+        <div class="card h-100">
+          <div class="card-header"><i class="bi bi-journals me-2 table-thumb"></i>Courses including this subject</div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0" th:if="${!#lists.isEmpty(courseSubjects)}">
+                <thead class="table-light">
+                <tr>
+                  <th>Course</th>
+                  <th>Category</th>
+                  <th>Assigned on</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="cs : ${courseSubjects}">
+                  <td><a th:href="@{/courses/{id}(id=${cs.course.id})}" th:text="${cs.course.name}">Course</a>
+                    <div th:replace="~{layout/fragments :: statusBadge(${cs.course.active})}"></div>
+                  </td>
+                  <td><span class="badge text-bg-light border" th:text="${cs.course.category}">Category</span></td>
+                  <td class="small text-body-secondary"
+                      th:text="${#temporals.format(cs.createdAt, 'dd MMM yyyy')}">date</td>
+                </tr>
+                </tbody>
+              </table>
+              <div class="empty-state small" th:if="${#lists.isEmpty(courseSubjects)}">
+                <i class="bi bi-journals d-block mb-2"></i>
+                This subject is not part of any course yet. Assign it from a course's detail page.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head(${#strings.isEmpty(title) ? 'Sign in' : title})}"></head>
+<body class="login-shell">
+<main class="container py-5">
+  <div class="card login-card shadow-sm">
+    <div class="card-body p-4">
+      <div class="text-center mb-4">
+        <i class="bi bi-mortarboard-fill login-brand login-brand-big"></i>
+        <h1 class="h4 login-brand mt-2">Om Sai Coaching ERP</h1>
+        <p class="text-body-secondary mb-0">Sign in to manage the institute</p>
+      </div>
+
+      <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+      <div th:if="${param.logout != null}" class="alert alert-info small">
+        <i class="bi bi-info-circle me-1"></i>You have signed out.
+      </div>
+      <div th:if="${param.error != null}" class="alert alert-danger small">
+        <i class="bi bi-exclamation-triangle me-1"></i>Invalid email or password.
+      </div>
+      <div th:if="${param.locked != null}" class="alert alert-warning small">
+        <i class="bi bi-slash-circle me-1"></i>Too many failed attempts. Please try again after 15 minutes.
+      </div>
+      <div th:if="${param.expired != null}" class="alert alert-warning small">
+        <i class="bi bi-clock me-1"></i>Your session has expired. Please sign in again.
+      </div>
+
+      <form th:action="@{/login}" method="post" novalidate>
+        <div class="mb-3">
+          <label for="username" class="form-label required-label">Email</label>
+          <input type="email" class="form-control" id="username" name="username"
+                 autocomplete="username" autofocus required
+                 th:value="${param.username}"/>
+        </div>
+        <div class="mb-3">
+          <label for="password" class="form-label required-label">Password</label>
+          <input type="password" class="form-control" id="password" name="password"
+                 autocomplete="current-password" required/>
+        </div>
+        <button type="submit" class="btn btn-primary w-100">
+          <i class="bi bi-box-arrow-in-right me-1"></i>Sign in
+        </button>
+      </form>
+    </div>
+  </div>
+  <p class="text-center text-body-secondary small mt-3 mb-0">
+    Access is limited to administrators and teachers of Om Sai Coaching.
+  </p>
+</main>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

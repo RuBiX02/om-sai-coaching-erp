@@ -1,0 +1,31 @@
+# Test profile configuration.
+#
+# Tests run against a dedicated PostgreSQL test database ("omsai_test")
+# on a local development cluster. They never touch the "omsai"
+# development/production database. Docker is not available in this
+# environment, so Testcontainers is not used; override these values to
+# point at any disposable PostgreSQL instance.
+spring:
+  datasource:
+    url: ${TEST_DB_URL:jdbc:postgresql://127.0.0.1:5433/omsai_test}
+    username: ${TEST_DB_USERNAME:tojo}
+    password: ${TEST_DB_PASSWORD:omsai_dev}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  thymeleaf:
+    cache: true
+
+app:
+  security:
+    bcrypt-strength: 4
+  login-rate-limit:
+    max-attempts: 5
+    window-minutes: 15

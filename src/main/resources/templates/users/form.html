@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('New account')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('users')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('New sign-in account', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <div class="row">
+      <div class="col-xl-6">
+        <form th:action="@{/users}" th:object="${form}" method="post" novalidate>
+          <div class="card">
+            <div class="card-header"><i class="bi bi-person-gear me-2 table-thumb"></i>Account details</div>
+            <div class="card-body">
+              <div class="mb-3">
+                <label for="fullName" class="form-label required-label">Full name</label>
+                <input type="text" id="fullName" class="form-control" th:field="*{fullName}"
+                       aria-describedby="fullNameError"/>
+                <div class="text-danger small mt-1" id="fullNameError" th:if="${#fields.hasErrors('fullName')}" th:errors="*{fullName}">Error</div>
+              </div>
+              <div class="mb-3">
+                <label for="email" class="form-label required-label">Email (used to sign in)</label>
+                <input type="email" id="email" class="form-control" th:field="*{email}"
+                       aria-describedby="emailError"/>
+                <div class="text-danger small mt-1" id="emailError" th:if="${#fields.hasErrors('email')}" th:errors="*{email}">Error</div>
+              </div>
+              <div class="mb-3">
+                <label for="role" class="form-label required-label">Role</label>
+                <select id="role" class="form-select" th:field="*{role}" aria-describedby="roleHelp roleError">
+                  <option value="" selected disabled>Choose a role…</option>
+                  <option value="ADMIN">Administrator - full management access</option>
+                  <option value="TEACHER">Teacher - read-only view of own assignments</option>
+                </select>
+                <div class="text-danger small mt-1" id="roleError" th:if="${#fields.hasErrors('role')}" th:errors="*{role}">Error</div>
+                <div id="roleHelp" class="form-text">TEACHER accounts can see only their own class assignments.</div>
+              </div>
+              <div class="mb-2">
+                <label for="password" class="form-label required-label">Initial password</label>
+                <input type="password" id="password" class="form-control" th:field="*{password}"
+                       minlength="12" aria-describedby="passwordHelp passwordError"/>
+                <div class="text-danger small mt-1" id="passwordError" th:if="${#fields.hasErrors('password')}" th:errors="*{password}">Error</div>
+                <div id="passwordHelp" class="form-text">At least 12 characters. Share it securely; the person can later ask for a reset.</div>
+              </div>
+            </div>
+            <div class="card-footer d-flex gap-2">
+              <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check-lg me-1"></i>Create account
+              </button>
+              <a th:href="@{/users}" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

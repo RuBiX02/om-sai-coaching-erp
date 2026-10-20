@@ -1,0 +1,169 @@
+/* Om Sai Coaching ERP - application styling on top of Bootstrap */
+
+:root {
+  --omsai-sidebar-width: 15.5rem;
+  --omsai-navy: #14306b;
+  --omsai-navy-strong: #0d224d;
+}
+
+body {
+  background: #f5f7fb;
+  min-height: 100vh;
+}
+
+/* ----- shell ------------------------------------------------------- */
+
+.app-body {
+  display: flex;
+  min-height: 100vh;
+}
+
+.app-sidebar {
+  width: var(--omsai-sidebar-width);
+  flex: 0 0 var(--omsai-sidebar-width);
+  border-right: 1px solid rgba(0, 0, 0, .08);
+}
+
+.app-sidebar-body {
+  padding-bottom: 1rem;
+}
+
+.brand {
+  padding: 1rem 1.25rem;
+  color: var(--omsai-navy-strong);
+  font-weight: 600;
+  gap: .5rem;
+  align-items: center;
+}
+
+.brand .bi {
+  font-size: 1.4rem;
+  color: var(--omsai-navy);
+}
+
+.brand-mini {
+  font-weight: 600;
+  color: var(--omsai-navy-strong);
+}
+
+.app-nav-link {
+  color: #40485d;
+  border-radius: .5rem;
+  padding: .5rem .75rem;
+  align-items: center;
+}
+
+.app-nav-link:hover {
+  background: rgba(20, 48, 107, .07);
+  color: var(--omsai-navy-strong);
+}
+
+.app-nav-link.active {
+  background: var(--omsai-navy);
+  color: #fff;
+}
+
+.app-nav-link.active .bi {
+  color: #c9d6f2;
+}
+
+/* ----- top bar ------------------------------------------------------ */
+
+.app-topbar {
+  background: #fff;
+  border-bottom: 1px solid rgba(0, 0, 0, .08);
+  padding: .6rem 1.25rem;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.app-content {
+  padding: 1.25rem;
+}
+
+.app-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Offcanvas behaviour on small screens (Bootstrap offcanvas-lg) */
+@media (min-width: 992px) {
+  .offcanvas-lg.app-sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    transform: none;
+    visibility: visible !important;
+    background: #fff;
+    z-index: 5;
+  }
+}
+
+/* ----- cards / tables ----------------------------------------------- */
+
+.stat-card .stat-icon {
+  font-size: 1.6rem;
+  color: var(--omsai-navy);
+}
+
+.stat-card .stat-value {
+  font-size: 1.7rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.table-thumb .bi {
+  color: var(--omsai-navy);
+  margin-right: .35rem;
+}
+
+.table > :not(caption) > * > * {
+  padding: .55rem .6rem;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 2.5rem 1rem;
+  color: #6c757d;
+}
+
+.empty-state .bi {
+  font-size: 2rem;
+  color: #adb5bd;
+}
+
+/* ----- forms -------------------------------------------------------- */
+
+.required-label::after {
+  content: " *";
+  color: #b02a37;
+}
+
+.form-text-char-hint {
+  font-size: .8rem;
+}
+
+/* ----- login -------------------------------------------------------- */
+
+.login-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 26rem;
+  border: 1px solid rgba(0, 0, 0, .08);
+}
+
+.login-brand {
+  color: var(--omsai-navy-strong);
+  font-weight: 700;
+}
+
+.login-brand-big {
+  font-size: 2.4rem;
+}

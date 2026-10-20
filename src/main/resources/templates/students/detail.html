@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head(${student.fullName})}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('students')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar(${student.fullName}, true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <nav aria-label="breadcrumb" class="mb-2">
+      <ol class="breadcrumb small mb-0">
+        <li class="breadcrumb-item"><a th:href="@{/students}">Students</a></li>
+        <li class="breadcrumb-item active" th:text="${student.fullName}" aria-current="page">Student</li>
+      </ol>
+    </nav>
+
+    <div class="row g-3">
+      <!-- Profile -->
+      <div class="col-xl-4">
+        <div class="card h-100">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-person me-2 table-thumb"></i>Profile</span>
+            <div th:replace="~{layout/fragments :: statusBadge(${student.active})}"></div>
+          </div>
+          <div class="card-body">
+            <div class="mb-2"><span class="font-monospace" th:text="${student.studentCode}">OMS-2026-00001</span></div>
+            <dl class="row mb-0 small">
+              <dt class="col-5">Name</dt>
+              <dd class="col-7" th:text="${student.fullName}">Name</dd>
+              <dt class="col-5">Phone</dt>
+              <dd class="col-7" th:text="${student.phone}">phone</dd>
+              <dt class="col-5">Admitted</dt>
+              <dd class="col-7" th:text="${#temporals.format(student.admissionDate, 'dd MMM yyyy')}">date</dd>
+              <dt class="col-5">Parent</dt>
+              <dd class="col-7">
+                <span th:if="${student.parentName}" th:text="${student.parentName}">Parent</span>
+                <span th:if="${student.parentName == null}" class="text-body-secondary">-</span>
+                <div class="small text-body-secondary" th:if="${student.parentPhone}">Ph: <span th:text="${student.parentPhone}">phone</span></div>
+              </dd>
+              <dt class="col-5">Address</dt>
+              <dd class="col-7">
+                <span th:if="${student.address}" th:text="${student.address}">address</span>
+                <span class="text-body-secondary" th:if="${student.address == null}">-</span>
+              </dd>
+              <dt class="col-5">Created</dt>
+              <dd class="col-7" th:text="${#temporals.format(student.createdAt, 'dd MMM yyyy HH:mm')}">date</dd>
+            </dl>
+          </div>
+          <div class="card-footer d-flex gap-2 flex-wrap">
+            <a th:href="@{/students/{id}/edit(id=${student.id})}" class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-pencil me-1"></i>Edit details
+            </a>
+            <form th:action="@{/students/{id}/status(id=${student.id})}" method="post">
+              <input type="hidden" name="active" th:value="${student.active ? 'false' : 'true'}"/>
+              <button type="submit" class="btn btn-sm btn-outline-secondary">
+                <i th:class="|bi ${student.active ? 'bi-pause-circle me-1' : 'bi-play-circle me-1'}|"></i>
+                <span th:text="${student.active ? 'Deactivate' : 'Activate'}">Deactivate</span>
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Enroll now + transfer -->
+      <div class="col-xl-4">
+        <div class="d-flex flex-column gap-3 h-100">
+          <div class="card" th:if="${student.active}">
+            <div class="card-header"><i class="bi bi-person-plus me-2 table-thumb"></i>New enrollment</div>
+            <div class="card-body">
+              <form th:action="@{/students/{id}/enroll(id=${student.id})}" th:object="${enrollForm}" method="post" novalidate>
+                <div class="mb-2">
+                  <label for="enrollBatch" class="form-label small required-label">Batch</label>
+                  <select id="enrollBatch" class="form-select form-select-sm" th:field="*{batchId}" required>
+                    <option value="" selected disabled>Choose an active batch…</option>
+                    <option th:each="batch : ${activeBatches}" th:value="${batch.id}"
+                            th:text="${batch.course.name} + ' · ' + ${batch.name} + ' (' + ${batch.academicYear} + ')'">
+                      Batch
+                    </option>
+                  </select>
+                  <div class="text-danger small mt-1" th:if="${#fields.hasErrors('batchId')}" th:errors="*{batchId}">Error</div>
+                </div>
+                <div class="mb-2">
+                  <label for="enrollDate" class="form-label small required-label">Enrollment date</label>
+                  <input type="date" id="enrollDate" class="form-control form-control-sm" th:field="*{enrollmentDate}"/>
+                  <div class="text-danger small mt-1" th:if="${#fields.hasErrors('enrollmentDate')}" th:errors="*{enrollmentDate}">Error</div>
+                </div>
+                <button type="submit" class="btn btn-sm btn-primary">
+                  <i class="bi bi-check-lg me-1"></i>Enroll
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <div class="card" th:if="${student.active}">
+            <div class="card-header"><i class="bi bi-arrow-left-right me-2 table-thumb"></i>Transfer to another batch</div>
+            <div class="card-body">
+              <p class="text-body-secondary small mb-2">
+                Closes the student's active enrollment in the chosen batch's course
+                and enrolls them in the new batch. Previous history is preserved.
+              </p>
+              <form th:action="@{/students/{id}/transfer(id=${student.id})}" th:object="${transferForm}" method="post" novalidate>
+                <div class="mb-2">
+                  <label for="transferBatch" class="form-label small required-label">New batch</label>
+                  <select id="transferBatch" class="form-select form-select-sm" th:field="*{targetBatchId}" required>
+                    <option value="" selected disabled>Choose an active batch…</option>
+                    <option th:each="batch : ${activeBatches}" th:value="${batch.id}"
+                            th:text="${batch.course.name} + ' · ' + ${batch.name} + ' (' + ${batch.academicYear} + ')'">
+                      Batch
+                    </option>
+                  </select>
+                  <div class="text-danger small mt-1" th:if="${#fields.hasErrors('targetBatchId')}" th:errors="*{targetBatchId}">Error</div>
+                </div>
+                <div class="mb-2">
+                  <label for="transferDate" class="form-label small required-label">Transfer date</label>
+                  <input type="date" id="transferDate" class="form-control form-control-sm" th:field="*{transferDate}"/>
+                  <div class="text-danger small mt-1" th:if="${#fields.hasErrors('transferDate')}" th:errors="*{transferDate}">Error</div>
+                </div>
+                <button type="submit" class="btn btn-sm btn-outline-primary js-confirm"
+                        data-confirm="Transfer the student? Their previous enrollment in the same course will be closed.">
+                  <i class="bi bi-arrow-left-right me-1"></i>Transfer
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <div class="card text-bg-light flex-grow-1" th:if="${!student.active}">
+            <div class="card-body small">
+              <i class="bi bi-info-circle me-1"></i>
+              This student is inactive. Activate the profile to create new enrollments.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Enrollment history -->
+      <div class="col-xl-4">
+        <div class="card h-100">
+          <div class="card-header"><i class="bi bi-clock-history me-2 table-thumb"></i>Enrollment history</div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-sm table-hover align-middle mb-0" th:if="${!#lists.isEmpty(enrollments)}">
+                <thead class="table-light">
+                <tr>
+                  <th>Batch</th>
+                  <th>Date</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="enrollment : ${enrollments}">
+                  <td>
+                    <a th:href="@{/batches/{id}(id=${enrollment.batch.id})}" th:text="${enrollment.batch.name}">Batch</a>
+                    <div class="small text-body-secondary" th:text="${enrollment.course.name}">Course</div>
+                  </td>
+                  <td class="small" th:text="${#temporals.format(enrollment.enrollmentDate, 'dd MMM yyyy')}">date</td>
+                  <td>
+                    <span th:switch="${enrollment.status.name()}" class="badge"
+                          th:classappend="${enrollment.status.name() == 'ACTIVE'} ? 'text-bg-success' : (${enrollment.status.name() == 'COMPLETED'} ? 'text-bg-primary' : 'text-bg-secondary')">
+                      <span th:case="'ACTIVE'">Active</span>
+                      <span th:case="'COMPLETED'">Completed</span>
+                      <span th:case="'WITHDRAWN'">Withdrawn</span>
+                    </span>
+                  </td>
+                  <td class="text-end" th:if="${enrollment.status.name() == 'ACTIVE'}">
+                    <form th:action="@{/students/enrollments/{id}/status(id=${enrollment.id}, studentId=${student.id})}" method="post" class="d-inline">
+                      <input type="hidden" name="action" value="complete"/>
+                      <button type="submit" class="btn btn-sm btn-outline-primary" title="Mark completed">
+                        <i class="bi bi-flag"></i><span class="visually-hidden">Complete</span>
+                      </button>
+                    </form>
+                    <form th:action="@{/students/enrollments/{id}/status(id=${enrollment.id}, studentId=${student.id})}" method="post" class="d-inline">
+                      <input type="hidden" name="action" value="withdraw"/>
+                      <button type="submit" class="btn btn-sm btn-outline-danger js-confirm"
+                              data-confirm="Withdraw this enrollment? It stays in the history as WITHDRAWN.">
+                        <i class="bi bi-person-dash"></i><span class="visually-hidden">Withdraw</span>
+                      </button>
+                    </form>
+                  </td>
+                  <td th:unless="${enrollment.status.name() == 'ACTIVE'}"></td>
+                </tr>
+                </tbody>
+              </table>
+              <div class="empty-state small" th:if="${#lists.isEmpty(enrollments)}">
+                <i class="bi bi-clock-history d-block mb-2"></i>This student has no enrollment history yet.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

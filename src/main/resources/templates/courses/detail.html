@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head(${course.name})}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('courses')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar(${course.name}, true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <nav aria-label="breadcrumb" class="mb-2">
+      <ol class="breadcrumb small mb-0">
+        <li class="breadcrumb-item"><a th:href="@{/courses}">Courses</a></li>
+        <li class="breadcrumb-item active" th:text="${course.name}" aria-current="page">Course</li>
+      </ol>
+    </nav>
+
+    <div class="row g-3">
+      <!-- Overview -->
+      <div class="col-xl-4">
+        <div class="card h-100">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-journal-bookmark me-2 table-thumb"></i>Course</span>
+            <div th:replace="~{layout/fragments :: statusBadge(${course.active})}"></div>
+          </div>
+          <div class="card-body">
+            <dl class="row mb-0 small">
+              <dt class="col-5">Name</dt>
+              <dd class="col-7" th:text="${course.name}">Name</dd>
+              <dt class="col-5">Category</dt>
+              <dd class="col-7"><span class="badge text-bg-light border" th:text="${course.category}">Category</span></dd>
+              <dt class="col-5">Duration</dt>
+              <dd class="col-7">
+                <span th:if="${course.durationMonths != null}" th:text="|${course.durationMonths} months|">12 months</span>
+                <span th:if="${course.durationMonths == null}" class="text-body-secondary">Not fixed</span>
+              </dd>
+              <dt class="col-5">Description</dt>
+              <dd class="col-7">
+                <span th:text="${course.description} ?: '-'" th:if="${course.description}">desc</span>
+                <span class="text-body-secondary" th:if="${course.description == null}">-</span>
+              </dd>
+              <dt class="col-5">Created</dt>
+              <dd class="col-7" th:text="${#temporals.format(course.createdAt, 'dd MMM yyyy HH:mm')}">date</dd>
+              <dt class="col-5">Updated</dt>
+              <dd class="col-7" th:text="${#temporals.format(course.updatedAt, 'dd MMM yyyy HH:mm')}">date</dd>
+            </dl>
+          </div>
+          <div class="card-footer d-flex gap-2 flex-wrap">
+            <a th:href="@{/courses/{id}/edit(id=${course.id})}" class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-pencil me-1"></i>Edit details
+            </a>
+            <form th:action="@{/courses/{id}/status(id=${course.id})}" method="post">
+              <input type="hidden" name="active" th:value="${course.active ? 'false' : 'true'}"/>
+              <button type="submit" class="btn btn-sm btn-outline-secondary"
+                      th:classappend="${course.active} ? '' : 'btn-success'">
+                <i th:class="|bi ${course.active ? 'bi-pause-circle me-1' : 'bi-play-circle me-1'}|"></i>
+                <span th:text="${course.active ? 'Deactivate' : 'Activate'}">Deactivate</span>
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Subjects -->
+      <div class="col-xl-4">
+        <div class="card h-100">
+          <div class="card-header"><i class="bi bi-book me-2 table-thumb"></i>Subjects of this course</div>
+          <div class="card-body p-0">
+            <ul class="list-group list-group-flush" th:if="${!#lists.isEmpty(assignedSubjects)}">
+              <li class="list-group-item d-flex justify-content-between align-items-center"
+                  th:each="cs : ${assignedSubjects}">
+                <a th:href="@{/subjects/{id}(id=${cs.subject.id})}" th:text="${cs.subject.name}">Mathematics</a>
+                <form th:action="@{/courses/{id}/subjects/{csId}/remove(id=${course.id}, csId=${cs.id})}" method="post" class="m-0">
+                  <button type="submit" class="btn btn-sm btn-outline-danger js-confirm"
+                          data-confirm="Remove subject from this course? This does not affect teaching history unless the subject is assigned to a batch. (The removal is blocked if the subject is taught in a batch.)">
+                    <i class="bi bi-x-lg"></i><span class="visually-hidden">Remove</span>
+                  </button>
+                </form>
+              </li>
+            </ul>
+            <div class="empty-state small" th:if="${#lists.isEmpty(assignedSubjects)}">
+              <i class="bi bi-book d-block mb-2"></i>No subjects assigned yet.
+            </div>
+          </div>
+          <div class="card-footer" th:if="${course.active and !#lists.isEmpty(assignableSubjects)}">
+            <form th:action="@{/courses/{id}/subjects(id=${course.id})}" method="post" class="d-flex gap-2">
+              <select name="subjectId" class="form-select form-select-sm" aria-label="Subject to assign" required>
+                <option value="" selected disabled>Choose a subject…</option>
+                <option th:each="s : ${assignableSubjects}" th:value="${s.id}" th:text="${s.name}">Subject</option>
+              </select>
+              <button type="submit" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-plus-lg"></i>Assign
+              </button>
+            </form>
+          </div>
+          <div class="card-footer text-body-secondary small"
+               th:if="${course.active and #lists.isEmpty(assignableSubjects) and #lists.isEmpty(assignedSubjects)}">
+            Create subjects first, then assign them here.
+          </div>
+          <div class="card-footer text-body-secondary small" th:if="${!course.active}">
+            Activate the course to change its subjects.
+          </div>
+        </div>
+      </div>
+
+      <!-- Batches -->
+      <div class="col-xl-4">
+        <div class="card h-100">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-collection me-2 table-thumb"></i>Batches of this course</span>
+            <a th:href="@{/batches/new(courseId=${course.id})}" class="btn btn-sm btn-outline-primary"
+               th:if="${course.active}">
+              <i class="bi bi-plus-lg"></i>New
+            </a>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-sm table-hover align-middle mb-0" th:if="${!#lists.isEmpty(batches)}">
+                <thead class="table-light">
+                <tr>
+                  <th>Batch</th>
+                  <th>Year</th>
+                  <th class="text-center">Status</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="batch : ${batches}">
+                  <td><a th:href="@{/batches/{id}(id=${batch.id})}" th:text="${batch.name}">Batch name</a></td>
+                  <td th:text="${batch.academicYear}">2026-27</td>
+                  <td class="text-center">
+                    <div th:replace="~{layout/fragments :: statusBadge(${batch.active})}"></div>
+                  </td>
+                </tr>
+                </tbody>
+              </table>
+              <div class="empty-state small" th:if="${#lists.isEmpty(batches)}">
+                <i class="bi bi-collection d-block mb-2"></i>No batches for this course yet.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

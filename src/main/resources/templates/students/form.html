@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en" th:with="pageTitle=${student != null ? 'Edit student' : 'Register student'}">
+<head th:replace="~{layout/fragments :: head(${pageTitle})}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('students')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar(${pageTitle}, true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <div class="row">
+      <div class="col-xl-6">
+        <form th:action="${student != null} ? @{/students/{id}(id=${student.id})} : @{/students}"
+              th:object="${form}" method="post" novalidate>
+          <div class="card">
+            <div class="card-header"><i class="bi bi-person me-2 table-thumb"></i>Student details</div>
+            <div class="card-body">
+              <div class="alert alert-light border small" th:if="${student == null}">
+                <i class="bi bi-info-circle me-1"></i>A unique student code (e.g. OMS-2026-00001)
+                is generated automatically on registration.
+              </div>
+              <div class="mb-3" th:if="${student != null}">
+                <label class="form-label">Student code</label>
+                <input type="text" class="form-control font-monospace" th:value="${student.studentCode}" disabled/>
+                <div class="form-text">The student code cannot be changed.</div>
+              </div>
+              <div class="mb-3">
+                <label for="fullName" class="form-label required-label">Student name</label>
+                <input type="text" id="fullName" class="form-control" th:field="*{fullName}"
+                       placeholder="Full name" aria-describedby="fullNameError"/>
+                <div class="text-danger small mt-1" id="fullNameError" th:if="${#fields.hasErrors('fullName')}" th:errors="*{fullName}">Error</div>
+              </div>
+              <div class="mb-3">
+                <label for="phone" class="form-label required-label">Phone</label>
+                <input type="text" id="phone" class="form-control" th:field="*{phone}"
+                       placeholder="9800000000" aria-describedby="phoneError"/>
+                <div class="text-danger small mt-1" id="phoneError" th:if="${#fields.hasErrors('phone')}" th:errors="*{phone}">Error</div>
+              </div>
+              <div class="mb-3">
+                <label for="admissionDate" class="form-label required-label">Admission date</label>
+                <input type="date" id="admissionDate" class="form-control" th:field="*{admissionDate}"
+                       aria-describedby="admissionDateError"/>
+                <div class="text-danger small mt-1" id="admissionDateError" th:if="${#fields.hasErrors('admissionDate')}" th:errors="*{admissionDate}">Error</div>
+              </div>
+              <div class="row">
+                <div class="col-sm-6 mb-3">
+                  <label for="parentName" class="form-label">Parent / guardian name</label>
+                  <input type="text" id="parentName" class="form-control" th:field="*{parentName}"
+                         aria-describedby="parentNameError"/>
+                  <div class="text-danger small mt-1" id="parentNameError" th:if="${#fields.hasErrors('parentName')}" th:errors="*{parentName}">Error</div>
+                </div>
+                <div class="col-sm-6 mb-3">
+                  <label for="parentPhone" class="form-label">Parent phone</label>
+                  <input type="text" id="parentPhone" class="form-control" th:field="*{parentPhone}"
+                         aria-describedby="parentPhoneError"/>
+                  <div class="text-danger small mt-1" id="parentPhoneError" th:if="${#fields.hasErrors('parentPhone')}" th:errors="*{parentPhone}">Error</div>
+                </div>
+              </div>
+              <div class="mb-0">
+                <label for="address" class="form-label">Address</label>
+                <textarea id="address" rows="2" class="form-control" th:field="*{address}"
+                          aria-describedby="addressError"></textarea>
+                <div class="text-danger small mt-1" id="addressError" th:if="${#fields.hasErrors('address')}" th:errors="*{address}">Error</div>
+              </div>
+            </div>
+            <div class="card-footer d-flex gap-2">
+              <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check-lg me-1"></i><span th:text="${student != null ? 'Save changes' : 'Register student'}">Save</span>
+              </button>
+              <a th:href="${student != null} ? @{/students/{id}(id=${student.id})} : @{/students}"
+                 class="btn btn-outline-secondary">Cancel</a>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

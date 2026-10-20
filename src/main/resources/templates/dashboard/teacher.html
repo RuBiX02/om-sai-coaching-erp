@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('My classes')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('none')}"></div>
+<div class="app-main d-flex flex-column">
+  <div th:replace="~{layout/fragments :: topbar('My teaching assignments', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <div class="card mb-3">
+      <div class="card-body">
+        <h1 class="h5 mb-1">
+          <i class="bi bi-person-video3 me-2 table-thumb"></i>
+          <span th:text="${profile != null ? profile.fullName : displayName}">Teacher</span>
+        </h1>
+        <p class="text-body-secondary mb-0">
+          <span th:if="${profile != null}" th:text="${profile.email} ?: 'No email on file'">email</span>
+          <span th:if="${profile == null}">Your account is not yet linked to a teacher profile. Please ask the administrator.</span>
+        </p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><i class="bi bi-collection me-2 table-thumb"></i>Subjects and batches you teach</div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" th:if="${!#lists.isEmpty(assignments)}">
+            <thead class="table-light">
+            <tr>
+              <th>Subject</th>
+              <th>Batch</th>
+              <th>Course</th>
+              <th>Term</th>
+              <th>Period</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="a : ${assignments}">
+              <td th:text="${a.courseSubject.subject.name}">Mathematics</td>
+              <td th:text="${a.batch.name}">Morning A</td>
+              <td th:text="${a.batch.course.name}">Class 10</td>
+              <td th:text="${a.batch.academicYear}">2026-27</td>
+              <td>
+                <span class="small text-body-secondary">
+                  <span th:text="${#temporals.format(a.batch.startDate, 'dd MMM yyyy')}">01 Apr 2026</span>
+                  <span th:if="${a.batch.endDate != null}">
+                    &ndash; <span th:text="${#temporals.format(a.batch.endDate, 'dd MMM yyyy')}">31 Mar 2027</span>
+                  </span>
+                </span>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+          <div class="empty-state" th:if="${#lists.isEmpty(assignments)}">
+            <i class="bi bi-journal-x d-block mb-2"></i>
+            No classes have been assigned to you yet.
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>
