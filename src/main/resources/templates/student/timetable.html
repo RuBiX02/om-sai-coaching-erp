@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('My timetable')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('timetable')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('My timetable', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <div class="card mb-3">
+      <div class="card-header">
+        <i class="bi bi-calendar-day me-2 table-thumb"></i>Today
+        <span class="text-body-secondary small"
+              th:text="' · ' + ${#temporals.format(today, 'EEEE, dd MMMM yyyy')}">date</span>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" th:if="${!#lists.isEmpty(todayClasses)}">
+            <thead class="table-light">
+            <tr>
+              <th>Time</th>
+              <th>Subject</th>
+              <th>Batch</th>
+              <th>Teacher</th>
+              <th>Room</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="entry : ${todayClasses}">
+              <td class="text-nowrap"
+                  th:text="${#temporals.format(entry.startTime, 'HH:mm')} + ' – ' + ${#temporals.format(entry.endTime, 'HH:mm')}">09:00</td>
+              <td th:text="${entry.batchSubject.courseSubject.subject.name}">Subject</td>
+              <td th:text="${entry.batchSubject.batch.name}">Batch</td>
+              <td>
+                <span th:if="${entry.batchSubject.teacher != null}" th:text="${entry.batchSubject.teacher.fullName}">Teacher</span>
+                <span th:if="${entry.batchSubject.teacher == null}" class="text-body-secondary">–</span>
+              </td>
+              <td>
+                <span th:if="${entry.classroom != null}" th:text="${entry.classroom}">Room</span>
+                <span th:if="${entry.classroom == null}" class="text-body-secondary">–</span>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+          <div class="empty-state" th:if="${#lists.isEmpty(todayClasses)}">
+            <i class="bi bi-cup-hot d-block mb-2"></i>
+            No class is scheduled for today.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <i class="bi bi-calendar-week me-2 table-thumb"></i>My weekly classes
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" th:if="${!#lists.isEmpty(weekClasses)}">
+            <thead class="table-light">
+            <tr>
+              <th>Day</th>
+              <th>Time</th>
+              <th>Subject</th>
+              <th>Batch</th>
+              <th>Teacher</th>
+              <th>Room</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="entry : ${weekClasses}">
+              <td th:text="${entry.dayOfWeek}">MONDAY</td>
+              <td class="text-nowrap"
+                  th:text="${#temporals.format(entry.startTime, 'HH:mm')} + ' – ' + ${#temporals.format(entry.endTime, 'HH:mm')}">09:00</td>
+              <td th:text="${entry.batchSubject.courseSubject.subject.name}">Subject</td>
+              <td th:text="${entry.batchSubject.batch.name}">Batch</td>
+              <td>
+                <span th:if="${entry.batchSubject.teacher != null}" th:text="${entry.batchSubject.teacher.fullName}">Teacher</span>
+                <span th:if="${entry.batchSubject.teacher == null}" class="text-body-secondary">–</span>
+              </td>
+              <td>
+                <span th:if="${entry.classroom != null}" th:text="${entry.classroom}">Room</span>
+                <span th:if="${entry.classroom == null}" class="text-body-secondary">–</span>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+          <div class="empty-state" th:if="${#lists.isEmpty(weekClasses)}">
+            <i class="bi bi-calendar-x d-block mb-2"></i>
+            No class is scheduled for your batch yet.
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

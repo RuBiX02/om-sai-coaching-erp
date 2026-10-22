@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('Examinations')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('examinations')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('Examinations', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <p class="text-body-secondary small mb-0">
+        <i class="bi bi-info-circle me-1"></i>
+        An examination belongs to one class. It is prepared as a draft, the marks are entered and
+        only an administrator publishes it - then the students see their result.
+      </p>
+      <a th:href="@{/examinations/new}" class="btn btn-primary">
+        <i class="bi bi-plus-lg me-1"></i>New examination
+      </a>
+    </div>
+
+    <div class="card">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" th:if="${!#lists.isEmpty(examinations)}">
+            <thead class="table-light">
+            <tr>
+              <th>Title</th>
+              <th>Subject</th>
+              <th>Batch</th>
+              <th>Date</th>
+              <th class="text-end">Maximum marks</th>
+              <th class="text-center">Status</th>
+              <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="examination : ${examinations}">
+              <td th:text="${examination.title}">Unit test</td>
+              <td th:text="${examination.batchSubject.courseSubject.subject.name}">Subject</td>
+              <td th:text="${examination.batchSubject.batch.name}">Batch</td>
+              <td th:text="${#temporals.format(examination.examinationDate, 'dd MMM yyyy')}">01 Apr 2026</td>
+              <td class="text-end" th:text="${examination.maximumMarks}">100.00</td>
+              <td class="text-center">
+                <span class="badge"
+                      th:classappend="${examination.status.name() == 'PUBLISHED'} ? 'text-bg-success'
+                        : (${examination.status.name() == 'CANCELLED'} ? 'text-bg-secondary' : 'text-bg-warning')"
+                      th:text="${examination.status}">DRAFT</span>
+              </td>
+              <td class="text-end">
+                <a th:href="@{/examinations/{id}(id=${examination.id})}"
+                   class="btn btn-sm btn-outline-secondary" title="View examination">
+                  <i class="bi bi-eye"></i><span class="visually-hidden">View examination</span>
+                </a>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+          <div class="empty-state" th:if="${#lists.isEmpty(examinations)}">
+            <i class="bi bi-journal-text d-block mb-2"></i>
+            <span th:if="${isTeacher}">None of your classes has an examination yet.</span>
+            <span th:if="${!isTeacher}">No examination has been created yet.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

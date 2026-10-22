@@ -9,17 +9,29 @@
 
     <div th:replace="~{layout/fragments :: alerts()}"></div>
 
-    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-      <form th:action="@{/subjects}" method="get" class="d-flex gap-2">
-        <input type="search" class="form-control" placeholder="Search subject name"
+    <header class="page-header">
+      <div>
+        <p class="page-eyebrow">
+          <i class="bi bi-book" aria-hidden="true"></i><span>Academics</span>
+        </p>
+        <h2 class="page-title">Subjects</h2>
+        <p class="page-subtitle">The subjects that courses and batches draw from.</p>
+      </div>
+      <div class="filter-actions">
+        <a th:href="@{/subjects/new}" class="btn btn-primary">
+          <i class="bi bi-plus-lg" aria-hidden="true"></i>New subject
+        </a>
+      </div>
+    </header>
+
+    <div class="filter-bar">
+      <form th:action="@{/subjects}" method="get" class="filter-form">
+        <input type="search" class="form-control filter-search" placeholder="Search subject name"
                name="q" th:value="${q}" aria-label="Search subjects"/>
         <button type="submit" class="btn btn-outline-primary">
-          <i class="bi bi-search me-1"></i>Search
+          <i class="bi bi-search" aria-hidden="true"></i>Search
         </button>
       </form>
-      <a th:href="@{/subjects/new}" class="btn btn-primary">
-        <i class="bi bi-plus-lg me-1"></i>New subject
-      </a>
     </div>
 
     <div class="card">
@@ -30,16 +42,22 @@
             <tr>
               <th>Subject</th>
               <th>Description</th>
+              <th class="text-center">Status</th>
               <th class="text-end">Actions</th>
             </tr>
             </thead>
             <tbody>
-            <tr th:each="subject : ${subjects.content}">
-              <td><a th:href="@{/subjects/{id}(id=${subject.id})}" th:text="${subject.name}">Mathematics</a></td>
+            <tr th:each="subject : ${subjects.content}"
+                th:classappend="${!subject.active} ? 'table-light opacity-75'">
+              <td><a th:href="@{/subjects/{id}(id=${subject.id})}" class="fw-semibold" th:text="${subject.name}">Mathematics</a></td>
               <td>
                 <span class="small text-body-secondary" th:if="${subject.description}"
                       th:text="${#strings.abbreviate(subject.description, 100)}">description</span>
                 <span class="small text-body-secondary" th:if="${subject.description == null}">-</span>
+              </td>
+              <td class="text-center">
+                <span class="badge" th:classappend="${subject.active} ? 'text-bg-success' : 'text-bg-secondary'"
+                      th:text="${subject.active} ? 'Active' : 'Deactivated'">Active</span>
               </td>
               <td class="text-end">
                 <a th:href="@{/subjects/{id}(id=${subject.id})}" class="btn btn-sm btn-outline-secondary" title="View">
@@ -53,8 +71,9 @@
             </tbody>
           </table>
           <div class="empty-state" th:if="${#lists.isEmpty(subjects.content)}">
-            <i class="bi bi-book-plus d-block mb-2"></i>
-            No subjects found. <a th:href="@{/subjects/new}">Create the first subject</a>.
+            <i class="bi bi-book-plus d-block" aria-hidden="true"></i>
+            <span class="empty-title">No subjects found</span>
+            <a th:href="@{/subjects/new}">Create the first subject</a>.
           </div>
         </div>
       </div>

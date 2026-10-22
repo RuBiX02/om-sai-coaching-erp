@@ -120,7 +120,7 @@
                   </td>
                   <td>
                     <span class="small" th:text="${a.markedBy.fullName}">admin</span>
-                    <div class="small text-body-secondary" th:text="${a.updatedAt != null ? #temporals.formatISO(a.updatedAt) : ''}">time</div>
+                    <div class="small text-body-secondary" th:text="${a.updatedAt != null ? #temporals.format(a.updatedAt, 'dd MMM yyyy, HH:mm') : ''}">time</div>
                   </td>
                 </tr>
                 </tbody>

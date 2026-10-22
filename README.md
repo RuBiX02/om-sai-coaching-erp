@@ -1,16 +1,21 @@
-# Om Sai Coaching ERP — Phase 3
+# Om Sai Coaching ERP
 
 A server-rendered Java web application for managing the day-to-day
 operations of a small coaching institute: courses, subjects, batches,
 students, enrollments (with batch-transfer history), login accounts,
 **class sessions with attendance history and reports**, **fee
-agreements**, **append-only payments with printable receipts**, and
-**outstanding/collection summaries**.
+agreements**, **append-only payments with printable receipts**,
+**outstanding/collection summaries**, **installment plans with
+per-installment payment allocation**, a **weekly timetable with
+exceptions**, **examinations with results**, **role-specific teacher
+and student portals**, **attendance CSV exports and printable
+attendance sheets**, and a **curated demo dataset for presentations**.
 
 Everything is honest, working software: there is no REST API, no React
 front end and no extra layers beyond what the management screens need.
-The UI templates are plain Bootstrap on the server side, with only a tiny
-amount of vanilla JavaScript for progressive enhancement.
+The UI templates are plain Bootstrap styled by one layered design system
+(see `UI_UX_AUDIT.md` for the composition decisions), with a tiny amount
+of vanilla JavaScript for progressive enhancement.
 
 ## Technology stack
 
@@ -69,7 +74,7 @@ that loads it — `.env` files are never committed):
 |------------------------|--------------------------------------------|----------------------------------------|
 | `DB_URL`               | `jdbc:postgresql://127.0.0.1:5433/omsai`   | JDBC URL of the application database   |
 | `DB_USERNAME`          | `tojo`                                     | Database user                          |
-| `DB_PASSWORD`          | `omsai_dev`                                | Database password                      |
+| `DB_PASSWORD`          | *(required — no default stored in the repo)* | Database password                      |
 | `SERVER_PORT`          | `8080`                                     | HTTP port                              |
 | `SESSION_COOKIE_SECURE`| `false` (set `true` behind HTTPS)          | Secure flag on the session cookie      |
 | `APP_BOOTSTRAP_ADMIN`  | `false`                                    | Enable the one-time admin bootstrap    |
@@ -78,6 +83,9 @@ that loads it — `.env` files are never committed):
 | `APP_ADMIN_PASSWORD`   | *(empty)*                                  | Password (≥ 12 chars) of the admin     |
 | `LOGIN_MAX_ATTEMPTS`   | `5`                                        | Failed logins allowed per 15 min       |
 | `LOGIN_WINDOW_MINUTES`| `15`                                       | Rate-limit window                      |
+| `DEMO_DATA_ENABLED`   | `false`                                    | Write the demo catalogue (see §13)     |
+| `DEMO_DATA_TARGET_DATABASE` | *(empty)*                             | The one database the seeder may write to |
+| `SPRING_PROFILES_ACTIVE` | *(none)*                                | `demo` runs the curated demo dataset   |
 
 ## 3. Run the application
 
@@ -133,19 +141,42 @@ real rows to race threads and removes them again in its `@AfterEach`).
 (respecting CSRF and session cookies) and verifies the main flows:
 
 ```bash
-# start the app (with a bootstrap admin, only needed once) in one terminal:
+# start the app in one terminal (DB password and the bootstrap admin are
+# supplied through the environment - see §2; the bootstrap is opt-in and
+# idempotent, so this is only needed on the very first run):
+DB_PASSWORD='your-local-postgres-password' \
 APP_BOOTSTRAP_ADMIN=true \
 APP_ADMIN_NAME="Om Sai Administrator" \
 APP_ADMIN_EMAIL=admin@omsai.local \
-APP_ADMIN_PASSWORD='DevAdmin#2026#Pass' \
+APP_ADMIN_PASSWORD='choose-a-strong-password' \
 ./mvnw spring-boot:run
 
-# in another terminal:
+# in another terminal (the smoke script reads its credentials from the
+# environment as well - it stores none in the repository):
+OMSAI_DB_PASSWORD='your-local-postgres-password' \
+OMSAI_ADMIN_EMAIL=admin@omsai.local \
+OMSAI_ADMIN_PASS='the-bootstrapped-admin-password' \
 zsh scripts/e2e-smoke.sh
 ```
 
+The script creates its own `E2E …` records through the running
+application and reads them back from SQL, so it and the application
+must look at the **same** database. The script therefore detects it:
+after the first record has been created through the running
+application, that record is looked up in the candidate databases and
+the one that holds it is used from then on. It prints which database it
+found:
+
+```
+== the running application uses the database 'omsai_demo'
+```
+
+So the same command works against the development instance and against
+the demo instance. Set `DB_NAME` to skip the detection and
+`DB_CANDIDATES` to change the list it looks in.
+
 The script creates only `E2E …`-prefixed temporary data (timestamped, so
-re-runs are safe), exercises 154 checks (login, CSRF, validation errors,
+re-runs are safe), exercises 208 checks (login, CSRF, validation errors,
 enrollment rules, transfers, withdraw/complete, teacher access, rate
 limiting, logout, plus the whole Phase 2 surface: fee agreements,
 payments and receipts down to the VOIDED stamp, class sessions,
@@ -157,7 +188,7 @@ session-ownership carve-out) and finishes with a summary line.
 `scripts/e2e-smoke.sh` verifies HTTP behaviour, but only a real browser
 can verify what users actually see: rendering, JavaScript behaviour,
 console errors, print output. Those are covered by a Playwright for Java
-suite (17 tests in `src/test/java/com/omsai/coaching/browser/`) that
+suite (43 tests in `src/test/java/com/omsai/coaching/browser/`) that
 boots the whole Spring application on a random HTTP port, drives a real
 headless Chromium, and asserts on the live DOM.
 
@@ -165,7 +196,9 @@ Prerequisites:
 
 - PostgreSQL databases `omsai_test` and `omsai_browser` (both disposable;
   the browser profile never touches `omsai`). `omsai_browser` can always
-  be wiped and rebuilt with `zsh scripts/reset-browser-db.sh`.
+  be wiped and rebuilt with `zsh scripts/reset-browser-db.sh`. Database
+  credentials are supplied through the environment (`TEST_DB_PASSWORD`,
+  `BROWSER_TEST_DB_PASSWORD`) — no values are stored in the repository.
 - A Chromium-family browser. First use downloads one automatically via
   the Playwright driver (into `~/.cache/ms-playwright`):
 
@@ -182,7 +215,7 @@ Run them:
 
 ```bash
 ./mvnw test                     # unit/service tests only (browser excluded)
-./mvnw test -Pbrowser-tests     # unit + real-browser suite (188 tests total)
+./mvnw test -Pbrowser-tests     # unit + real-browser suite (423 tests total)
 ```
 
 Run a single browser class: `./mvnw test -Pbrowser-tests -Dtest=AttendanceBrowserTest`.
@@ -290,6 +323,628 @@ date lines.
 zsh scripts/e2e-smoke.sh      # includes the export and sheet checks
 ```
 
+## 9. Installment plans and payment schedules
+
+A coaching institute usually collects a course fee in parts. An
+**installment plan** divides the agreed net fee of one fee agreement
+into scheduled amounts with due dates; incoming payments are then
+allocated to the schedule automatically.
+
+### What stays authoritative
+
+- The **fee agreement** (`FeeAccount`) remains the record of what is
+  owed. A plan only *schedules* it — it never adds liability and it
+  never changes the gross fee, the discount or the net fee.
+- The **payment** remains the record of money received. Allocation never
+  changes a payment's amount, its date or its receipt number.
+
+### New tables (migration `V3__installment_plans.sql`)
+
+| Table | Purpose |
+|-------|---------|
+| `fee_installments` | one scheduled installment of one fee account: number, due date, amount, who created it. Unique per `(fee_account_id, installment_number)`, amount > 0, `ON DELETE RESTRICT`. |
+| `payment_allocations` | the part of one payment that covers one installment. Unique per `(payment_id, installment_id)`, amount > 0. Composite foreign keys prove in the database that the payment and the installment belong to the **same fee account**. |
+
+All money is `NUMERIC(12,2)` and `BigDecimal` — never a float.
+
+### Creating a plan
+
+Open the fee agreement and use **Create installment plan**
+(`/fees/{id}/installments`). The form shows the agreement it divides
+(student, course, gross fee, discount, net fee, already received,
+outstanding) and a table of rows; rows can be added and removed, and
+the running total is shown as a convenience. The rules are enforced on
+the server:
+
+- at least **two** installments;
+- every amount **greater than zero**, at most two decimal places;
+- every due date present and valid;
+- installment numbers **1..n without gaps**;
+- the amounts must add up to the **net fee exactly** — a mismatch is
+  refused, the amounts are never adjusted silently;
+- a fee agreement can have **only one** plan; a repeated submission is
+  refused.
+
+### Automatic allocation (earliest due date first)
+
+A new payment is allocated to the earliest-due installment that still
+has a balance, moving on to the next one as needed; the installment
+number breaks ties when two due dates are equal. A payment may cover
+part of one installment or parts of several.
+
+*Example* — net fee ₹30,000, three installments of ₹10,000:
+
+| Installment | Scheduled | Paid | Remaining |
+|---|---:|---:|---:|
+| 1 (after a ₹8,000 payment) | 10,000 | 8,000 | 2,000 |
+| 2 | 10,000 | 0 | 10,000 |
+| 3 | 10,000 | 0 | 10,000 |
+
+A payment of ₹5,000 is allocated ₹2,000 to installment 1 and ₹3,000 to
+installment 2. The fee account's outstanding balance and the sum of the
+installment balances are both ₹17,000.
+
+The payment, its receipt and its allocations are written in **one
+transaction**: if the payment cannot be allocated completely, the
+payment is rolled back as well. If an agreement has no plan, payments
+behave exactly as before.
+
+### Payments that were received earlier
+
+When a plan is created for an agreement that already received money, the
+existing **RECEIVED** payments are allocated to the new schedule —
+oldest first (payment date, then creation time, then id) — and the
+schedule is filled from the earliest due date onwards. Voided payments
+are ignored, no payment is created or changed, and the whole operation
+rolls back if anything does not add up.
+
+### Voiding a payment
+
+The voiding workflow is unchanged: the payment stays, keeps its receipt
+number and records who voided it, when and why. Its **allocations are
+kept** as audit history, but they stop counting, because only
+allocations of RECEIVED payments are effective. The installment
+balances and their statuses are derived again, so the affected
+installment returns to its full outstanding amount and the next payment
+is allocated to the earliest installment that has a balance again.
+
+### Status of an installment
+
+The status is derived from the due date, the effective allocations and
+the business date — nothing is stored that could drift:
+
+| Status | When |
+|---|---|
+| `PAID` | nothing remains to pay |
+| `OVERDUE` | the due date has passed and a balance remains (also shown for a partly paid installment) |
+| `PARTIALLY_PAID` | something was paid, a balance remains, the due date has not passed |
+| `DUE_TODAY` | due today, nothing paid yet |
+| `UPCOMING` | anything else |
+
+Every screen shows the scheduled amount, the amount paid and the
+remaining balance next to the status.
+
+### Editing a plan
+
+A schedule can be corrected **as long as no payment has been booked
+against it**. The fee agreement page then offers *Edit installment
+plan*, which loads the current schedule into the form so the amounts,
+the due dates, the number of rows and the numbering can be corrected.
+
+The new schedule must satisfy exactly the same rules as a new one: at
+least two installments, positive amounts with at most two decimals,
+numbers 1…n without gaps, a due date on every row, and a total that
+equals the net fee of the agreement **exactly**. The gross fee, the
+discount and the net fee themselves cannot be changed here — a plan only
+schedules the agreed fee.
+
+The whole replacement is one transaction, so an invalid submission
+leaves the existing schedule exactly as it was.
+
+Once a payment has been allocated to the plan, the schedule becomes part
+of the financial record and can no longer be replaced. This is also the
+case when that payment was **voided** afterwards: the allocations of a
+voided payment are kept as audit history, so the history still exists.
+The fee agreement page then says so instead of offering the action:
+
+> This installment schedule cannot be edited because payment-allocation
+> history exists. The original schedule and financial history have been
+> preserved.
+
+The rule is enforced in the service layer, not by hiding the button.
+
+### Screens
+
+- **Fee agreement** (`/fees/{id}`): the installment schedule with the
+  derived balances and statuses, the summary (number of installments,
+  number of overdue ones, scheduled/paid/remaining, next due date) and
+  the *Create installment plan* action while no plan exists. Once a plan
+  exists, the *Edit installment plan* action is shown while the
+  schedule carries no payment-allocation history; otherwise the page
+  explains that the schedule is immutable.
+- **Plan form** (`/fees/{id}/installments`) and **edit form**
+  (`/fees/{id}/installments/edit`): the schedule rows, the running
+  total and, while editing, the current total and the difference
+  between the proposed total and the net fee.
+- **Overview** (`/installments`): total outstanding of all agreements,
+  the part of it that is covered by a plan, the overdue balance and
+  count, the amount due within the next seven days and the next
+  installments due.
+- **Upcoming** (`/installments/upcoming`): installments with a balance
+  whose due date is inside a selected range, filtered by student, course
+  and academic year.
+- **Overdue** (`/installments/overdue`): installments whose due date has
+  passed, with the number of days late.
+- **Dashboard**: installments due within seven days, the overdue
+  installment balance and the number of overdue installments.
+
+The installment balances are the same money as the agreements'
+outstanding balance, split by due date — the overview never adds them
+together.
+
+### Permissions
+
+Every installment screen and action is **administrator-only**: the URL
+rule of `SecurityConfig`, the class-level `@PreAuthorize` and the
+service-layer checks. Teachers are refused with 403 — by URL, by form
+submission and by guessed ids — and never see the navigation entry.
+The same applies to the plan *edit* form. Existing fee, payment, receipt
+and account rules are unchanged.
+
+### Tests for the installment module
+
+```bash
+mvn test -Dtest='InstallmentServiceTest,InstallmentAllocationTest,InstallmentReportTest,InstallmentConcurrencyTest,InstallmentAccessWebTest,InstallmentPlanEditTest,InstallmentPlanEditAccessWebTest'
+mvn test -Pbrowser-tests -Dtest=InstallmentBrowserTest,InstallmentPlanEditBrowserTest
+zsh scripts/e2e-smoke.sh      # includes the installment checks
+```
+
+## 10. Timetable, examinations and the three portals
+
+This release adds the recurring timetable, examinations and results, and
+a personalized portal for every role.
+
+### Timetable (recurring classes)
+
+A **timetable entry** is a planned recurring class: one batch-subject
+assignment, one weekday, a time range, an optional classroom and an
+effective period. The batch, the course, the subject and the teacher are
+derived from the assignment, so a schedule can never disagree with the
+teaching assignments.
+
+- **Conflict rules (enforced on the server).** Two schedules conflict
+  when they are on the same weekday, their time ranges overlap
+  (`startA < endB AND startB < endA` — a class ending exactly when the
+  next one begins is fine) and their effective periods overlap. The
+  conflict may be the **teacher** (assigned to two classes at once), the
+  **batch** or the **classroom**; the message says which one.
+- **Calendar exceptions.** An institute holiday closes the institute, a
+  cancelled occurrence cancels one class and a rescheduling moves it to
+  another date. An exception never deletes the recurring schedule.
+- **Generating classes.** `/timetable/generate` turns the occurrences of
+  a date range into ordinary class sessions (which then behave exactly
+  like a manually created class: attendance, reports, receipts). The run
+  is **idempotent** — a class that already exists is never touched or
+  duplicated, holidays and cancelled occurrences are skipped, and
+  completed classes keep their attendance.
+- Teachers see the timetable of their own assignments; the management
+  actions stay administrator-only.
+
+### Examinations and results
+
+- An **examination** belongs to one class (batch subject) and has a
+  title, a date, a maximum mark and a status: `DRAFT` → `PUBLISHED`,
+  plus `CANCELLED`. A cancelled examination keeps its results.
+- A **result** belongs to the student's *enrollment*, not to the
+  student — that is what preserves the academic history when a student
+  transfers to another batch.
+- **The roster** of an examination is the class roster *on the
+  examination date*: a student who enrolled later or whose enrollment
+  had already ended cannot have a result.
+- **Marks** must be a valid value between 0 and the maximum mark. An
+  absent or excused student has **no mark** — that is not a mark of
+  zero. A result is stored once per examination and enrollment.
+- **Publication is an administrator action.** Teachers create
+  examinations for their own classes and enter the marks; only an
+  administrator publishes, and a published result is corrected
+  (audited), never deleted.
+- Reports: the academic history of a student, the results of a batch
+  (present/absent/excused, average and highest mark) and the published
+  results a student sees.
+
+### The three portals
+
+| Role | Home | What it shows |
+|------|------|---------------|
+| ADMIN | `/dashboard` | the management portal: live figures, today's classes, the installment figures and a link to every module |
+| TEACHER | `/teacher` | today's classes, the attendance still to record, the examinations of their classes, the recent classes, their own schedule and their teaching assignments |
+| STUDENT | `/student` | their own dashboard, timetable, attendance, fees and installments, published results and their profile |
+
+A **student account** is created by an administrator and linked to
+exactly one student profile; the database keeps the link one-to-one (a
+profile cannot be linked to two accounts and an account to two
+profiles). The student portal derives everything from the signed-in
+account — there is no student id in the URL, so a student can never
+reach another student's records by editing the address. Students may
+edit their contact details and change their own password; they can
+neither change their student code, nor attendance, fees, payments or
+marks.
+
+### Tests for these modules
+
+```bash
+mvn test -Dtest='TimetableServiceTest,ExaminationServiceTest,PortalAccessWebTest'
+mvn test -Pbrowser-tests -Dtest=InstituteWorkflowBrowserTest
+zsh scripts/e2e-smoke.sh      # includes the timetable, examination and portal checks
+```
+
+## 11. The class lifecycle: subjects taught in a batch
+
+> Added with the client readiness audit (2026-10-21). The full report
+> is in [`CLIENT_READINESS_AUDIT.md`](CLIENT_READINESS_AUDIT.md).
+
+A *batch-subject assignment* is one subject of one course, taught in one
+batch, by one teacher — it is what a class actually is. Class sessions
+and their attendance, timetable entries and examinations all hang from
+it, and the three foreign keys that protect that history are
+`ON DELETE RESTRICT`.
+
+### Two kinds of "class" record, two different actions
+
+| Record | What it is | How it ends |
+|---|---|---|
+| **Class session** | one class that took place on one date | **Cancel** (not delete) — refused once attendance exists: *"This session already has attendance records, so it cannot be cancelled. Complete it instead."* |
+| **Timetable entry** | a recurring schedule | **Deactivate** — the classes it generated are kept |
+| **Batch** | the group of students | **Activate / deactivate** — enrollments and history are preserved |
+| **Batch-subject assignment** | one subject taught in one batch | **Deactivate** once it has been used; **removed** only while it never has been |
+
+### Removing a subject from a batch
+
+A subject that has never been taught can be removed outright. As soon as
+it has classes, a timetable entry or examinations, it carries teaching
+history that must survive, so the removal is refused with an explanation
+and the deactivate action is offered instead:
+
+> This subject cannot be removed from the batch because 2 class sessions
+> depend on it. That teaching history must be preserved. Deactivate the
+> subject instead to stop offering it for new classes.
+
+### Deactivating a subject
+
+Deactivating keeps the assignment, its teacher and every class, mark and
+result that belongs to it, and only takes it out of the pickers — no
+**new** class session, timetable entry or examination can be created for
+it. Reactivate it to teach the subject again; the history stays exactly
+where it was. Adding a deactivated subject from the "Add subject"
+picker reactivates the same record instead of creating a second one.
+
+### Migration
+
+`V7__batch_subject_lifecycle.sql` adds `batch_subjects.active` and an
+index on it. It is additive: existing assignments stay active and no
+existing record changes meaning.
+
+### Tests
+
+```bash
+mvn test -Dtest='BatchSubjectLifecycleTest,BatchSubjectAccessWebTest'
+mvn test -Pbrowser-tests -Dtest=BatchSubjectLifecycleBrowserTest
+```
+
+## 12. The subject lifecycle
+
+A subject ("Mathematics") is reusable: it can belong to several
+courses, and a course-subject pair can be taught in any number of
+batches. A subject that has been used therefore carries history.
+
+| Situation | What is allowed |
+|---|---|
+| **No course includes it** | The subject may be **deleted** — nothing depends on it. It may also be deactivated like any other subject. |
+| **A course already includes it** | It may **not** be deleted. It is **deactivated** instead: every course relationship, batch, class and result stays exactly where it is, and the subject leaves the pickers so it cannot be assigned to a new course. |
+| **Reactivation** | A deactivated subject is activated again. No relationship is recreated and nothing is duplicated. |
+
+The rule is enforced in the service layer, not by hiding the button.
+The subject page shows the status, offers *Delete subject* only for an
+unused subject and explains why a used subject cannot be deleted:
+
+> This subject is part of 2 courses, so it cannot be deleted without
+> losing the teaching history of those courses. Deactivate it instead.
+
+A deactivated subject keeps its place in the courses that already
+include it — the course page marks it as *Deactivated* — but it is no
+longer offered when subjects are assigned to a course.
+
+Migration `V8__subject_lifecycle.sql` adds `subjects.active`; it is
+additive and leaves every existing row active.
+
+### Tests
+
+```bash
+mvn test -Dtest='SubjectLifecycleTest,SubjectLifecycleAccessWebTest'
+mvn test -Pbrowser-tests -Dtest=SubjectLifecycleBrowserTest
+```
+
+## 13. The demo dataset (curated catalogue and sample identities)
+
+A demonstration environment can be filled with a curated catalogue and
+a set of **fictional** sample identities. The dataset is **off unless
+it is switched on explicitly** and it may only be written to the
+database the operator names.
+
+### What it contains
+
+* **18 subjects** — reused, never duplicated (Mathematics, Mathematics
+  Part I — Algebra, Mathematics Part II — Geometry, General Science,
+  Science and Technology, Physics, Chemistry, Biology, English,
+  Marathi, Hindi, History and Civics, History and Political Science,
+  Geography, Computer Studies, Information Technology, Engineering
+  Mathematics, Applied Mathematics).
+* **31 course offerings**: Standard 7 and 8 tuition and foundations,
+  Standard 9 and 10 SSC tuition and board preparation, Standard 11 and
+  12 Science in the PCM, PCB and PCMB combinations, MHT-CET target and
+  crash courses, JEE Main and JEE Main and Advanced, two foundation
+  programmes, and Engineering Mathematics I–IV plus the university
+  specific applied mathematics course.
+* **9 teachers** and **18 students** with plausible Maharashtrian
+  names.
+* **No financial or academic history** — no fee agreement, payment,
+  receipt, installment, class session, attendance mark or examination
+  result. The dashboard must not look busy because money and marks were
+  invented.
+
+The foundation programmes are an offering of the institute, not an
+examination category, and every engineering course says that its
+syllabus follows the affiliated university.
+
+### The identities are fictional
+
+The demo teachers and students are **demonstration identities, not
+customers and not staff**:
+
+* their phone numbers start with `00` — Indian mobile numbers always
+  start with 6 to 9, so the number can never be dialled;
+* their mail addresses use the reserved domain `example.invalid`
+  (RFC 2606), which can never resolve, so no message can leave the
+  machine;
+* they have **no sign-in account**, so no password is created and none
+  is published;
+* the administrator account is never touched.
+
+The two demonstration students that already existed in the development
+database (*Aarav Sharma*, *Dia Patel*) are **not** part of the
+catalogue and are never duplicated, overwritten or reused.
+
+### Running the seeder
+
+Three independent guards have to agree before a row is written:
+
+1. `app.demo.enabled` must be true — it is false by default, and the
+   **production profile pins it to a literal `false`**, so
+   `DEMO_DATA_ENABLED=true` has no effect on the `prod` profile;
+2. the `prod` profile must not be active;
+3. `app.demo.target-database` must name the database the application is
+   really connected to.
+
+### Launching the demo application
+
+The **demo profile** does all of that for you. It points the
+application at the demonstration database and enables the seeder:
+
+```bash
+# the one command:
+zsh scripts/start-demo-app.sh
+```
+
+The script creates the demonstration database if it does not exist,
+refuses to touch any database other than `omsai_demo`, tells you
+whether the administrator already exists, and then starts the
+application on <http://localhost:8080> with the curated dataset
+visible.
+
+The demonstration database is **disposable** and is therefore **reset
+on every start**, so the application always shows exactly the curated
+dataset - never the `E2E ...` records an end-to-end smoke test may have
+left behind. Set `KEEP_DEMO_DATA=1` to keep the current content, or
+run `zsh scripts/reset-demo-db.sh` to reset it without starting the
+application.
+
+The first run needs an administrator for the demo database. Supply it
+from the environment — **no password is stored in this repository**:
+
+```bash
+APP_ADMIN_EMAIL=admin@example.invalid \
+APP_ADMIN_PASSWORD='choose-a-strong-one' \
+zsh scripts/start-demo-app.sh
+```
+
+On the first run the seeder writes the catalogue:
+
+```
+Demo dataset: seeding the curated catalogue into 'omsai_demo'.
+Demo dataset: done. Created 18 subject(s), 31 course(s), 9 teacher(s),
+18 student(s), 31 batch(es) and 36 enrollment(s).
+```
+
+On every later run it is idempotent and creates nothing:
+
+```
+Demo dataset: done. Created 0 subject(s), 0 course(s), 0 teacher(s),
+0 student(s), 0 batch(es) and 0 enrollment(s). Already present:
+18 subject(s), 31 course(s), 9 teacher(s), 18 student(s), 31 batch(es)
+and 36 enrollment(s).
+```
+
+The equivalent without the script:
+
+```bash
+SPRING_PROFILES_ACTIVE=demo \
+DEMO_DB_URL=jdbc:postgresql://127.0.0.1:5433/omsai_demo \
+APP_ADMIN_EMAIL=admin@example.invalid \
+APP_ADMIN_PASSWORD='choose-a-strong-one' \
+./mvnw spring-boot:run
+```
+
+| Variable | Meaning |
+|---|---|
+| `DEMO_DB_URL` | the demonstration database (default `omsai_demo`) |
+| `DEMO_DB_USERNAME` / `DEMO_DB_PASSWORD` | its credentials |
+| `APP_ADMIN_EMAIL` / `APP_ADMIN_PASSWORD` | the administrator, created from the environment on the first run |
+| `PORT` | the port the script starts the application on (default 8080) |
+
+### What you will see
+
+| Page | What it shows |
+|---|---|
+| **Courses** | the 31 curated offerings in seven categories, with their description, duration and status |
+| **Subjects** | the 18 canonical subjects with their descriptions |
+| **Teachers** | the nine fictional demonstration teachers |
+| **Students** | the 18 fictional demonstration students with their town |
+| **Batches** | one batch per offering, with its teaching assignments |
+| **Course detail** | exactly the subjects the offering teaches |
+
+### A clean display needs its own database
+
+The development database `omsai` holds E2E and debug records from
+earlier test runs. They are **not** hidden by the application and they
+are **not** deleted — the demo dataset only ever writes to the
+demonstration database. The demo application therefore shows the
+curated catalogue and nothing else.
+
+To review the records of the development database that could be
+cleaned up — with the number of records that depend on each one — run
+the read-only report:
+
+```bash
+zsh scripts/demo-data-cleanup-report.sh
+DB_NAME=omsai_demo zsh scripts/demo-data-cleanup-report.sh
+```
+
+It never writes anything. Removing a candidate needs its own reviewed
+script and a backup taken with `scripts/backup-db.sh`.
+
+### Tests
+
+```bash
+mvn test -Dtest='DemoCatalogTest,DemoDataSeederTest'
+mvn test -Pbrowser-tests -Dtest=SubjectLifecycleBrowserTest
+# the catalogue as the RUNNING application shows it (needs the demo app up):
+mvn test -Pbrowser-tests -Dtest=DemoCatalogueVisibleBrowserTest
+```
+
+`DemoCatalogueVisibleBrowserTest` is deliberately different from the
+rest of the browser suite: it does **not** boot its own application and
+does **not** use the `omsai_browser` database. It drives the instance
+you actually open, so the evidence is about the real interface. Point
+it elsewhere with `DEMO_APP_URL`, `DEMO_ADMIN_EMAIL` and
+`DEMO_ADMIN_PASSWORD`.
+
+## 14. Production deployment
+
+### Requirements
+
+- **Java 25** (the build refuses anything older — see `pom.xml`)
+- **PostgreSQL 14+** (developed and tested with 16 and 18)
+- No Node.js, no build server and no external services are needed.
+
+### Build and start
+
+```bash
+./mvnw -DskipTests package          # builds target/coaching-erp-*.jar
+java -jar target/coaching-erp-*.jar  # starts on :8080
+```
+
+The **Flyway migrations run automatically at startup** (V1 → V8). The
+Hibernate schema strategy stays `validate`, so a schema that does not
+match the code refuses to start instead of being changed behind your
+back.
+
+### Configuration
+
+The development defaults live in `application.yml` and are meant for a
+local machine. A production instance uses the **`prod` profile**, which
+has **no built-in credentials at all**:
+
+```bash
+export SPRING_PROFILES_ACTIVE=prod
+export DB_URL=jdbc:postgresql://db.internal:5432/omsai
+export DB_USERNAME=omsai_app
+export DB_PASSWORD=…            # from your secret store
+export APP_BOOTSTRAP_ADMIN=true # only for the very first start
+export APP_ADMIN_EMAIL=admin@example.com
+export APP_ADMIN_PASSWORD=…     # at least 12 characters
+java -jar target/coaching-erp-*.jar
+```
+
+A missing environment variable makes the application refuse to start —
+that is the point: a production system must never fall back to the
+development credentials. The production profile also raises the BCrypt
+cost to 12, disables the bootstrap admin by default and marks the
+session cookie `secure`.
+
+| Variable | Development | Production |
+|-----------|-------------|------------|
+| `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | `omsai` on 127.0.0.1:5433 | **required** |
+| `APP_BOOTSTRAP_ADMIN` | `true` for the first start | `false` (except the first start) |
+| `SERVER_PORT` | 8080 | 8080 |
+| `SESSION_COOKIE_SECURE` | `false` (plain HTTP locally) | `true` (behind HTTPS) |
+
+### Behind a reverse proxy
+
+Terminate TLS in nginx (or a cloud load balancer) and forward
+`X-Forwarded-Proto` / `X-Forwarded-For`; the production profile
+already trusts the framework's forwarded headers. Keep the cookie
+`secure` and `httpOnly` (the defaults) and restrict the `Content-Security-Policy`
+to your own origin if you serve static files from a CDN.
+
+### Backup and recovery
+
+```bash
+# 1. back up (name the database explicitly)
+DB_NAME=omsai DB_USER=omsai_app DB_PASS=… BACKUP_DIR=/var/backups/omsai   zsh scripts/backup-db.sh
+
+# 2. restore into an explicit target - the script refuses omsai, omsai_test
+#    and omsai_browser and needs an explicit confirmation
+DB_NAME=omsai_restore DB_USER=omsai_app DB_PASS=… CONFIRM_RESTORE=YES   zsh scripts/restore-db.sh /var/backups/omsai/omsai-20260101-020000.sql.gz
+```
+
+- Take a **daily** backup (and one before every migration) and keep it
+  **outside the database server**.
+- **Test a restore regularly** — an untested backup is not a backup. The
+  procedure above was executed end to end in an isolated environment
+  (backup → dry run → restore → data verified) as part of this release.
+- The restore drops and recreates the target database, so it always
+  targets a *separate* database first, and only then is the application
+  pointed at it.
+
+### Logging, shutdown and restart
+
+The application logs to the console (and to `logs/omsai.log` in the
+production profile). It stops gracefully on `SIGTERM` (the servlet
+container waits for the in-flight requests), so a rolling restart with
+`systemctl restart` or a container stop is safe.
+
+### Deployment verification
+
+After a deployment, check:
+
+```bash
+curl -fsS https://your-host/login | grep -q "Om Sai"   # the application answers
+# and, with the credentials of a real account:
+#   * the dashboard shows the live figures,
+#   * /timetable, /examinations and /installments open,
+#   * a teacher lands on /teacher and a student on /student,
+#   * a payment can be recorded and its receipt printed.
+```
+
+### Continuous integration
+
+`.github/workflows/ci.yml` runs the unit suite, the browser suite
+(PostgreSQL service + Playwright Chromium) and publishes the test
+reports and the browser artifacts. The workflow is **configured but has
+not been executed** by this project — no GitHub remote is set up, so no
+Actions run exists to cite. The commands it runs are the ones in this
+README and they pass locally.
+
 ## Domain rules implemented (Phases 1 and 2)
 
 - **Courses** hold **subjects** (many-to-many through `course_subjects`).
@@ -374,12 +1029,27 @@ src/main/java/com/omsai/coaching/…             feature packages:
     attendance/ (class sessions, attendance, reports)
     fees/       (fee agreements, payments, receipts)
 src/main/resources/templates/…                 40 Thymeleaf templates
-src/test/java/com/omsai/coaching/…             JUnit 5 test suite (171 tests)
+src/test/java/com/omsai/coaching/…             JUnit 5 test suite (380 tests)
 src/test/resources/application-test.yml        test profile → omsai_test
-scripts/e2e-smoke.sh                           end-to-end smoke checks (154)
+scripts/e2e-smoke.sh                           end-to-end smoke checks (208)
 ```
 
 ## Known limitations
+
+- **Installment plans cannot be edited.** A plan is created once and
+  then read-only: the amounts and the numbering of a schedule are never
+  rewritten silently, and installments are never deleted. Because
+  changing a schedule safely needs an adjustment/rescheduling model
+  (which installment gets the difference, how a partly paid installment
+  is re-cut), that model is *not* part of this phase — the limitation
+  is documented rather than worked around unsafely. A plan can still be
+  created for an agreement that already received payments, and those
+  payments are allocated to it automatically.
+- **A published examination cannot be edited by a teacher** — a
+  correction is an administrator action and is audited.
+- **The timetable does not know about rooms changing between weeks**:
+  a classroom is a property of the recurring entry, not of a single
+  occurrence.
 
 See [PROJECT_STATUS.md](PROJECT_STATUS.md) for the full honest status:
 what is verified, what is not, and the environment limitations of this

@@ -16,7 +16,7 @@ spring:
   datasource:
     url: ${BROWSER_TEST_DB_URL:jdbc:postgresql://127.0.0.1:5433/omsai_browser}
     username: ${BROWSER_TEST_DB_USERNAME:tojo}
-    password: ${BROWSER_TEST_DB_PASSWORD:omsai_dev}
+    password: ${BROWSER_TEST_DB_PASSWORD:}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -49,3 +49,11 @@ app:
       name: Browser Test Administrator
       email: browser-admin@omsai.test
       password: BrowserAdmin#2026#Pass
+  demo:
+    # The curated demo catalogue is seeded into this disposable browser
+    # database, so the browser suite exercises the catalogue an
+    # administrator actually sees. The seeder is idempotent, so a
+    # repeated run creates nothing new. The target database is named
+    # explicitly and the seeder refuses any other database.
+    enabled: true
+    target-database: omsai_browser

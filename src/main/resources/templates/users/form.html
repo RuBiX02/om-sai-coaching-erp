@@ -33,9 +33,22 @@
                   <option value="" selected disabled>Choose a role…</option>
                   <option value="ADMIN">Administrator - full management access</option>
                   <option value="TEACHER">Teacher - read-only view of own assignments</option>
+                  <option value="STUDENT">Student - portal with own records only</option>
                 </select>
                 <div class="text-danger small mt-1" id="roleError" th:if="${#fields.hasErrors('role')}" th:errors="*{role}">Error</div>
-                <div id="roleHelp" class="form-text">TEACHER accounts can see only their own class assignments.</div>
+                <div id="roleHelp" class="form-text">TEACHER accounts can see only their own class assignments; a STUDENT account sees only their own records.</div>
+              </div>
+              <div class="mb-3" th:if="${form.role == 'STUDENT'}">
+                <label for="studentId" class="form-label required-label">Student profile</label>
+                <select id="studentId" class="form-select" th:field="*{studentId}" aria-describedby="studentHelp">
+                  <option value="">Choose the student…</option>
+                  <option th:each="student : ${studentsWithoutAccount}" th:value="${student.id}"
+                          th:text="${student.fullName} + ' · ' + ${student.studentCode}"
+                          th:selected="${student.id == form.studentId}">Student</option>
+                </select>
+                <div id="studentHelp" class="form-text">
+                  A student profile belongs to exactly one account, and an account to exactly one student.
+                </div>
               </div>
               <div class="mb-2">
                 <label for="password" class="form-label required-label">Initial password</label>

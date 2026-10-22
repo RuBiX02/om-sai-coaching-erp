@@ -9,27 +9,39 @@
 
     <div th:replace="~{layout/fragments :: alerts()}"></div>
 
-    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-      <form th:action="@{/batches}" method="get" class="d-flex gap-2 flex-wrap">
-        <input type="search" class="form-control" placeholder="Search batch name"
+    <header class="page-header">
+      <div>
+        <p class="page-eyebrow">
+          <i class="bi bi-collection" aria-hidden="true"></i><span>Academics</span>
+        </p>
+        <h2 class="page-title">Batches</h2>
+        <p class="page-subtitle">Running and past groups of students for each course and academic year.</p>
+      </div>
+      <div class="filter-actions">
+        <a th:href="@{/batches/new}" class="btn btn-primary">
+          <i class="bi bi-plus-lg" aria-hidden="true"></i>New batch
+        </a>
+      </div>
+    </header>
+
+    <div class="filter-bar">
+      <form th:action="@{/batches}" method="get" class="filter-form">
+        <input type="search" class="form-control filter-search" placeholder="Search batch name"
                name="q" th:value="${q}" aria-label="Search batches"/>
-        <select class="form-select w-auto" name="courseId" aria-label="Filter by course">
+        <select class="form-select" name="courseId" aria-label="Filter by course">
           <option value="">All courses</option>
           <option th:each="course : ${courses}" th:value="${course.id}" th:text="${course.name}"
                   th:selected="${courseId != null and courseId == course.id}">Course</option>
         </select>
-        <select class="form-select w-auto" name="status" aria-label="Filter by status">
+        <select class="form-select" name="status" aria-label="Filter by status">
           <option value="">All statuses</option>
           <option value="ACTIVE" th:selected="${status == 'ACTIVE'}">Active</option>
           <option value="INACTIVE" th:selected="${status == 'INACTIVE'}">Inactive</option>
         </select>
         <button type="submit" class="btn btn-outline-primary">
-          <i class="bi bi-search me-1"></i>Search
+          <i class="bi bi-search" aria-hidden="true"></i>Search
         </button>
       </form>
-      <a th:href="@{/batches/new}" class="btn btn-primary">
-        <i class="bi bi-plus-lg me-1"></i>New batch
-      </a>
     </div>
 
     <div class="card">
@@ -48,7 +60,7 @@
             </thead>
             <tbody>
             <tr th:each="batch : ${batches.content}">
-              <td><a th:href="@{/batches/{id}(id=${batch.id})}" th:text="${batch.name}">Batch name</a></td>
+              <td><a th:href="@{/batches/{id}(id=${batch.id})}" class="fw-semibold" th:text="${batch.name}">Batch name</a></td>
               <td th:text="${batch.course.name}">Course</td>
               <td th:text="${batch.academicYear}">2026-27</td>
               <td th:text="${#temporals.format(batch.startDate, 'dd MMM yyyy')}">01 Apr 2026</td>
@@ -74,8 +86,9 @@
             </tbody>
           </table>
           <div class="empty-state" th:if="${#lists.isEmpty(batches.content)}">
-            <i class="bi bi-collection d-block mb-2"></i>
-            No batches found. <a th:href="@{/batches/new}">Create the first batch</a>.
+            <i class="bi bi-collection d-block" aria-hidden="true"></i>
+            <span class="empty-title">No batches found</span>
+            <a th:href="@{/batches/new}">Create the first batch</a>.
           </div>
         </div>
       </div>

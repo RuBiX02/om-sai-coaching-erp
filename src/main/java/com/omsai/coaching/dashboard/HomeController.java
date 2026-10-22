@@ -7,8 +7,9 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 
 /**
- * Root URL: sends administrators to the dashboard and teachers to their
- * read-only assignment view.
+ * Root URL: sends every role to its own home page - administrators to
+ * the management dashboard, teachers to their assignment view and
+ * students to their portal.
  */
 @Controller
 public class HomeController {
@@ -21,9 +22,24 @@ public class HomeController {
 
     @GetMapping("/")
     public String home(Authentication authentication) {
-        boolean isAdmin = authentication != null && authentication.getAuthorities().stream()
+        if (authentication == null) {
+            return "redirect:/login";
+        }
+        if (hasRole(authentication, "ROLE_ADMIN")) {
+            return "redirect:/dashboard";
+        }
+        if (hasRole(authentication, "ROLE_TEACHER")) {
+            return "redirect:/teacher";
+        }
+        if (hasRole(authentication, "ROLE_STUDENT")) {
+            return "redirect:/student";
+        }
+        return "redirect:/login";
+    }
+
+    private static boolean hasRole(Authentication authentication, String role) {
+        return authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
-                .anyMatch("ROLE_ADMIN"::equals);
-        return isAdmin ? "redirect:/dashboard" : "redirect:/teacher";
+                .anyMatch(role::equals);
     }
 }

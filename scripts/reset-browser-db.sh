@@ -11,13 +11,13 @@
 #   the next run.
 #
 # Usage:
-#   zsh scripts/reset-browser-db.sh
+#   DB_PASS='your-local-postgres-password' zsh scripts/reset-browser-db.sh
 set -eu
 
 DB_HOST=${DB_HOST:-127.0.0.1}
 DB_PORT=${DB_PORT:-5433}
 DB_USER=${DB_USER:-tojo}
-DB_PASS=${DB_PASS:-omsai_dev}
+DB_PASS=${DB_PASS:?set DB_PASS - the password of the local PostgreSQL user}
 DB_NAME=${DB_NAME:-omsai_browser}
 PSQL_BIN=${PSQL_BIN:-/usr/lib/postgresql/18/bin/psql}
 

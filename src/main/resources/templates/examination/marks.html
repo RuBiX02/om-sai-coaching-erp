@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('Enter marks')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('examinations')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('Enter marks', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-pencil-square me-2 table-thumb"></i>
+          <span th:text="${examination.title}">Unit test</span>
+          <span class="text-body-secondary small"
+                th:text="' · ' + ${examination.batchSubject.courseSubject.subject.name} + ' · ' + ${#temporals.format(examination.examinationDate, 'dd MMM yyyy')}">· Subject · date</span>
+        </span>
+        <span class="small text-body-secondary">
+          Maximum marks: <strong th:text="${examination.maximumMarks}">100.00</strong>
+        </span>
+      </div>
+      <div class="card-body small text-body-secondary">
+        Only the students who were on the roster of this class on the examination date are listed.
+        An absent or excused student has no mark - that is not a mark of zero.
+      </div>
+    </div>
+
+    <form th:action="@{/examinations/{id}/marks(id=${examination.id})}" method="post">
+      <div class="card">
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table align-middle mb-0" th:if="${!#lists.isEmpty(rows)}">
+              <thead class="table-light">
+              <tr>
+                <th>Student</th>
+                <th class="col-min-10rem">Status</th>
+                <th class="col-min-10rem">Marks</th>
+                <th>Remarks</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr th:each="row : ${rows}">
+                <td>
+                  <div th:text="${row.studentName()}">Student</div>
+                  <div class="small text-body-secondary" th:text="${row.studentCode()}">code</div>
+                </td>
+                <td>
+                  <select class="form-select" th:name="'status_' + ${row.enrollment().id}"
+                          th:attr="aria-label=|Status for ${row.studentName()}|">
+                    <option value="">Choose…</option>
+                    <option th:each="option : ${statuses}" th:value="${option}" th:text="${option}"
+                            th:selected="${row.result() != null and row.result().status.name() == option.name()}">PRESENT</option>
+                  </select>
+                </td>
+                <td>
+                  <input type="text" inputmode="decimal" class="form-control"
+                         th:name="'marks_' + ${row.enrollment().getId()}"
+                         th:value="${row.result() != null and row.result().marks != null} ? ${row.result().marks} : ''"
+                         th:attr="aria-label=|Marks for ${row.studentName()}|"/>
+                </td>
+                <td>
+                  <input type="text" class="form-control"
+                         th:name="'remarks_' + ${row.enrollment().getId()}"
+                         th:value="${row.result() != null and row.result().remarks != null} ? ${row.result().remarks} : ''"
+                         th:attr="aria-label=|Remarks for ${row.studentName()}|"/>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+            <div class="empty-state" th:if="${#lists.isEmpty(rows)}">
+              <i class="bi bi-person-x d-block mb-2"></i>
+              No student was on the roster of this class on the examination date, so there is
+              nothing to mark.
+            </div>
+          </div>
+        </div>
+        <div class="card-footer d-flex gap-2 justify-content-end">
+          <a th:href="@{/examinations/{id}(id=${examination.id})}" class="btn btn-outline-secondary">Back</a>
+          <button type="submit" class="btn btn-primary" th:if="${!#lists.isEmpty(rows)}">
+            <i class="bi bi-check2-circle me-1"></i>Save marks
+          </button>
+        </div>
+      </div>
+    </form>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

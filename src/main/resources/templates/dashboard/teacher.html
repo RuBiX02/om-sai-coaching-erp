@@ -1,65 +1,256 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
-<head th:replace="~{layout/fragments :: head('My classes')}"></head>
+<!--
+  Teacher portal dashboard. Role-appropriate: the teacher sees their own
+  day (classes, attendance to record) and their own teaching workload -
+  no institute-wide figures, no finance.
+-->
+<head th:replace="~{layout/fragments :: head('My teaching dashboard')}"></head>
 <body class="app-body">
 <div th:replace="~{layout/fragments :: sidebar('none')}"></div>
 <div class="app-main d-flex flex-column">
-  <div th:replace="~{layout/fragments :: topbar('My teaching assignments', true)}"></div>
+  <div th:replace="~{layout/fragments :: topbar('My teaching dashboard', true)}"></div>
   <main class="app-content">
 
     <div th:replace="~{layout/fragments :: alerts()}"></div>
 
-    <div class="card mb-3">
-      <div class="card-body">
-        <h1 class="h5 mb-1">
-          <i class="bi bi-person-video3 me-2 table-thumb"></i>
-          <span th:text="${profile != null ? profile.fullName : displayName}">Teacher</span>
-        </h1>
-        <p class="text-body-secondary mb-0">
-          <span th:if="${profile != null}" th:text="${profile.email} ?: 'No email on file'">email</span>
-          <span th:if="${profile == null}">Your account is not yet linked to a teacher profile. Please ask the administrator.</span>
+    <header class="page-header">
+      <div>
+        <p class="page-eyebrow">
+          <i class="bi bi-person-video3" aria-hidden="true"></i><span>Teacher portal</span>
+        </p>
+        <h2 class="page-title">My teaching dashboard</h2>
+        <p class="page-subtitle" th:if="${profile != null}">
+          <span th:text="${profile.fullName}">Teacher</span> ·
+          <span th:text="${profile.email} ?: 'No email on file'">email</span>
+        </p>
+        <p class="page-subtitle" th:if="${profile == null}">
+          Your account is not yet linked to a teacher profile. Please ask the administrator.
         </p>
       </div>
-    </div>
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <span class="page-header-meta">
+          <i class="bi bi-calendar3" aria-hidden="true"></i>
+          <span th:text="${#temporals.format(today, 'EEEE, dd MMMM yyyy')}">date</span>
+        </span>
+        <a th:href="@{/timetable}" class="btn btn-outline-secondary">
+          <i class="bi bi-calendar-week" aria-hidden="true"></i>Weekly timetable
+        </a>
+      </div>
+    </header>
 
-    <div class="card">
-      <div class="card-header"><i class="bi bi-collection me-2 table-thumb"></i>Subjects and batches you teach</div>
-      <div class="card-body p-0">
-        <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0" th:if="${!#lists.isEmpty(assignments)}">
-            <thead class="table-light">
-            <tr>
-              <th>Subject</th>
-              <th>Batch</th>
-              <th>Course</th>
-              <th>Term</th>
-              <th>Period</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr th:each="a : ${assignments}">
-              <td th:text="${a.courseSubject.subject.name}">Mathematics</td>
-              <td th:text="${a.batch.name}">Morning A</td>
-              <td th:text="${a.batch.course.name}">Class 10</td>
-              <td th:text="${a.batch.academicYear}">2026-27</td>
-              <td>
-                <span class="small text-body-secondary">
-                  <span th:text="${#temporals.format(a.batch.startDate, 'dd MMM yyyy')}">01 Apr 2026</span>
-                  <span th:if="${a.batch.endDate != null}">
-                    &ndash; <span th:text="${#temporals.format(a.batch.endDate, 'dd MMM yyyy')}">31 Mar 2027</span>
+    <section aria-label="Teaching day" class="mb-3">
+      <div class="row g-3">
+        <div class="col-lg-6">
+          <div class="card h-100">
+            <div class="card-header">
+              <span class="section-title">
+                <i class="bi bi-calendar-day" aria-hidden="true"></i>Today's classes
+              </span>
+            </div>
+            <div class="card-body p-0" th:if="${!#lists.isEmpty(todayClasses)}">
+              <ol class="timeline py-2 px-3 mb-0">
+                <li class="timeline-item" th:each="entry : ${todayClasses}">
+                  <div class="timeline-time">
+                    <span th:if="${entry.startTime != null}" th:text="${#temporals.format(entry.startTime, 'HH:mm')}">09:00</span>
+                    <span th:if="${entry.endTime != null}" class="timeline-end"
+                          th:text="${#temporals.format(entry.endTime, 'HH:mm')}">10:00</span>
+                  </div>
+                  <div class="timeline-marker" aria-hidden="true"></div>
+                  <div class="timeline-body">
+                    <div class="timeline-title" th:text="${entry.batchSubject.courseSubject.subject.name}">Subject</div>
+                    <div class="timeline-sub">
+                      <span th:text="${entry.batchSubject.batch.name}">Batch</span>
+                      <span th:if="${entry.classroom != null}" th:text="' · ' + ${entry.classroom}"> · Room 1</span>
+                    </div>
+                  </div>
+                </li>
+              </ol>
+            </div>
+            <div class="card-body" th:if="${#lists.isEmpty(todayClasses)}">
+              <div class="empty-state">
+                <i class="bi bi-cup-hot d-block" aria-hidden="true"></i>
+                <span class="empty-title">No class is scheduled for you today</span>
+                Your weekly timetable shows the rest of the week.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-6">
+          <div class="card h-100">
+            <div class="card-header">
+              <span class="section-title">
+                <i class="bi bi-clipboard-check" aria-hidden="true"></i>Attendance still to record
+              </span>
+            </div>
+            <div class="card-body p-0" th:if="${!#lists.isEmpty(attendancePending)}">
+              <ul class="list-unstyled px-3 py-1 mb-0">
+                <li th:each="classSession : ${attendancePending}" class="person-row">
+                  <span class="person-avatar" aria-hidden="true">
+                    <i class="bi bi-clipboard"></i>
                   </span>
-                </span>
-              </td>
-            </tr>
-            </tbody>
-          </table>
-          <div class="empty-state" th:if="${#lists.isEmpty(assignments)}">
-            <i class="bi bi-journal-x d-block mb-2"></i>
-            No classes have been assigned to you yet.
+                  <div class="person-body">
+                    <div class="person-name" th:text="${classSession.batchSubject.courseSubject.subject.name}">Subject</div>
+                    <div class="person-meta">
+                      <span th:text="${classSession.batchSubject.batch.name}">Batch</span> ·
+                      <span th:text="${#temporals.format(classSession.sessionDate, 'dd MMM yyyy')}">01 Apr 2026</span>
+                    </div>
+                  </div>
+                  <div class="person-side">
+                    <a th:href="@{/sessions/{id}/attendance(id=${classSession.id})}"
+                       class="btn btn-sm btn-primary">Mark attendance</a>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            <div class="card-body" th:if="${#lists.isEmpty(attendancePending)}">
+              <div class="empty-state">
+                <i class="bi bi-check2-circle d-block" aria-hidden="true"></i>
+                <span class="empty-title">Nothing is waiting</span>
+                Every open class of yours has its attendance recorded.
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </section>
+
+    <section aria-label="Examinations and recent classes" class="mb-3">
+      <div class="row g-3">
+        <div class="col-lg-6">
+          <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <span class="section-title">
+                <i class="bi bi-journal-check" aria-hidden="true"></i>Examinations of your classes
+              </span>
+              <a th:href="@{/examinations}" class="small">All examinations</a>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" th:if="${!#lists.isEmpty(examinations)}">
+                  <thead class="table-light">
+                  <tr>
+                    <th>Title</th>
+                    <th>Batch</th>
+                    <th>Date</th>
+                    <th class="text-center">Status</th>
+                    <th></th>
+                  </tr>
+                  </thead>
+                  <tbody>
+                  <tr th:each="examination : ${examinations}">
+                    <td class="fw-semibold" th:text="${examination.title}">Unit test</td>
+                    <td th:text="${examination.batchSubject.batch.name}">Batch</td>
+                    <td class="text-nowrap" th:text="${#temporals.format(examination.examinationDate, 'dd MMM yyyy')}">01 Apr 2026</td>
+                    <td class="text-center">
+                      <span class="badge"
+                            th:classappend="${examination.status.name() == 'PUBLISHED'} ? 'text-bg-success' : 'text-bg-warning'"
+                            th:text="${examination.status}">DRAFT</span>
+                    </td>
+                    <td class="text-end">
+                      <a th:href="@{/examinations/{id}/marks(id=${examination.id})}"
+                         class="btn btn-sm btn-outline-primary">Enter marks</a>
+                    </td>
+                  </tr>
+                  </tbody>
+                </table>
+                <div class="empty-state" th:if="${#lists.isEmpty(examinations)}">
+                  <i class="bi bi-journal-x d-block" aria-hidden="true"></i>
+                  <span class="empty-title">No examination of your classes yet</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-6">
+          <div class="card h-100">
+            <div class="card-header">
+              <span class="section-title">
+                <i class="bi bi-clock-history" aria-hidden="true"></i>Recent classes
+              </span>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" th:if="${!#lists.isEmpty(recentSessions)}">
+                  <thead class="table-light">
+                  <tr>
+                    <th>Date</th>
+                    <th>Subject</th>
+                    <th>Batch</th>
+                    <th class="text-center">Status</th>
+                  </tr>
+                  </thead>
+                  <tbody>
+                  <tr th:each="classSession : ${recentSessions}">
+                    <td class="text-nowrap" th:text="${#temporals.format(classSession.sessionDate, 'dd MMM yyyy')}">01 Apr 2026</td>
+                    <td th:text="${classSession.batchSubject.courseSubject.subject.name}">Subject</td>
+                    <td th:text="${classSession.batchSubject.batch.name}">Batch</td>
+                    <td class="text-center">
+                      <span class="badge"
+                            th:classappend="${classSession.isCompleted} ? 'text-bg-primary'
+                              : (${classSession.isCancelled} ? 'text-bg-secondary' : 'text-bg-success')"
+                            th:text="${classSession.isCompleted} ? 'Completed' : (${classSession.isCancelled} ? 'Cancelled' : 'Open')">OPEN</span>
+                    </td>
+                  </tr>
+                  </tbody>
+                </table>
+                <div class="empty-state" th:if="${#lists.isEmpty(recentSessions)}">
+                  <i class="bi bi-calendar-x d-block" aria-hidden="true"></i>
+                  <span class="empty-title">No class of yours has been held yet</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section aria-label="Teaching assignments">
+      <div class="card">
+        <div class="card-header">
+          <span class="section-title">
+            <i class="bi bi-collection" aria-hidden="true"></i>Subjects and batches you teach
+          </span>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" th:if="${!#lists.isEmpty(assignments)}">
+              <thead class="table-light">
+              <tr>
+                <th>Subject</th>
+                <th>Batch</th>
+                <th>Course</th>
+                <th>Term</th>
+                <th>Period</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr th:each="a : ${assignments}">
+                <td class="fw-semibold" th:text="${a.courseSubject.subject.name}">Mathematics</td>
+                <td th:text="${a.batch.name}">Morning A</td>
+                <td th:text="${a.batch.course.name}">Class 10</td>
+                <td th:text="${a.batch.academicYear}">2026-27</td>
+                <td>
+                  <span class="small text-body-secondary text-nowrap">
+                    <span th:text="${#temporals.format(a.batch.startDate, 'dd MMM yyyy')}">01 Apr 2026</span>
+                    <span th:if="${a.batch.endDate != null}">
+                      &ndash; <span th:text="${#temporals.format(a.batch.endDate, 'dd MMM yyyy')}">31 Mar 2027</span>
+                    </span>
+                  </span>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+            <div class="empty-state" th:if="${#lists.isEmpty(assignments)}">
+              <i class="bi bi-journal-x d-block" aria-hidden="true"></i>
+              <span class="empty-title">No classes have been assigned to you yet</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
 
   </main>
 </div>

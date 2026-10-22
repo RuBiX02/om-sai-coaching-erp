@@ -11,6 +11,7 @@ public class AppProperties {
     private final Security security = new Security();
     private final LoginRateLimit loginRateLimit = new LoginRateLimit();
     private final Bootstrap bootstrap = new Bootstrap();
+    private final Demo demo = new Demo();
 
     public Security getSecurity() {
         return security;
@@ -22,6 +23,10 @@ public class AppProperties {
 
     public Bootstrap getBootstrap() {
         return bootstrap;
+    }
+
+    public Demo getDemo() {
+        return demo;
     }
 
     public static class Security {
@@ -101,6 +106,38 @@ public class AppProperties {
 
         public void setPassword(String password) {
             this.password = password;
+        }
+    }
+
+    /**
+     * The demo dataset: the curated course catalogue and the fictional
+     * sample identities of a demonstration environment.
+     *
+     * <p>It is off unless it is switched on explicitly, and it refuses
+     * to run unless the operator also names the database it may write
+     * to. The production profile pins {@code enabled} to false, so the
+     * demo data can never be seeded into a production database by
+     * accident.</p>
+     */
+    public static class Demo {
+        private boolean enabled;
+        private String targetDatabase = "";
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        /** The name of the one database the seeder may write to. */
+        public String getTargetDatabase() {
+            return targetDatabase;
+        }
+
+        public void setTargetDatabase(String targetDatabase) {
+            this.targetDatabase = targetDatabase;
         }
     }
 }

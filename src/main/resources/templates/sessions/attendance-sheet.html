@@ -67,7 +67,7 @@
     <tbody>
     <tr th:each="row, iter : ${roster}">
       <td th:text="${iter.count}">1</td>
-      <td th:text="${row.studentCode}">OMS-2026-00001</td>
+      <td class="col-code" th:text="${row.studentCode}">OMS-2026-00001</td>
       <td th:text="${row.studentName}">Student</td>
       <td th:each="column : ${markColumns}"
           class="mark-box"

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('Timetable')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('timetable')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('Timetable', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <ul class="nav nav-pills">
+        <li class="nav-item">
+          <a class="nav-link active" th:href="@{/timetable}">Weekly timetable</a>
+        </li>
+        <li class="nav-item" th:if="${!isTeacher}">
+          <a class="nav-link" th:href="@{/timetable/exceptions}">Holidays &amp; exceptions</a>
+        </li>
+        <li class="nav-item" th:if="${!isTeacher}">
+          <a class="nav-link" th:href="@{/timetable/generate}">Generate classes</a>
+        </li>
+      </ul>
+      <a th:if="${!isTeacher}" th:href="@{/timetable/new}" class="btn btn-primary">
+        <i class="bi bi-plus-lg me-1"></i>New timetable entry
+      </a>
+    </div>
+
+    <form th:action="@{/timetable}" method="get" class="d-flex gap-2 mb-3 flex-wrap align-items-end"
+          aria-label="Timetable filters">
+      <div>
+        <label for="week" class="form-label mb-0 small">Week of</label>
+        <input type="date" id="week" class="form-control" name="week" th:value="${weekStart}"/>
+      </div>
+      <div th:if="${!isTeacher}">
+        <label for="batchId" class="form-label mb-0 small">Batch</label>
+        <select id="batchId" class="form-select" name="batchId">
+          <option value="">All batches</option>
+          <option th:each="batch : ${batches}" th:value="${batch.id}" th:text="${batch.name}"
+                  th:selected="${batchId != null and batchId == batch.id}">Batch</option>
+        </select>
+      </div>
+      <div th:if="${!isTeacher}">
+        <label for="teacherId" class="form-label mb-0 small">Teacher</label>
+        <select id="teacherId" class="form-select" name="teacherId">
+          <option value="">All teachers</option>
+          <option th:each="teacher : ${teachers}" th:value="${teacher.id}" th:text="${teacher.fullName}"
+                  th:selected="${teacherId != null and teacherId == teacher.id}">Teacher</option>
+        </select>
+      </div>
+      <div>
+        <label for="classroom" class="form-label mb-0 small">Classroom</label>
+        <input type="text" id="classroom" class="form-control w-max-9rem" name="classroom"
+               th:value="${classroom}" placeholder="Room"/>
+      </div>
+      <button type="submit" class="btn btn-primary"><i class="bi bi-search me-1"></i>Show</button>
+    </form>
+
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-calendar-week me-2 table-thumb"></i>Classes of the selected week</span>
+        <span class="small text-body-secondary"
+              th:text="${#temporals.format(days[0], 'dd MMM yyyy')} + ' – ' + ${#temporals.format(days[6], 'dd MMM yyyy')}">week</span>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" th:if="${!#lists.isEmpty(entries)}">
+            <thead class="table-light">
+            <tr>
+              <th>Day</th>
+              <th>Time</th>
+              <th>Subject</th>
+              <th>Batch</th>
+              <th>Teacher</th>
+              <th>Classroom</th>
+              <th>Valid from</th>
+              <th class="text-center">Status</th>
+              <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="entry : ${entries}">
+              <td th:text="${entry.dayOfWeek}">MONDAY</td>
+              <td class="text-nowrap">
+                <span th:text="${#temporals.format(entry.startTime, 'HH:mm')} + ' – ' + ${#temporals.format(entry.endTime, 'HH:mm')}">09:00</span>
+              </td>
+              <td th:text="${entry.batchSubject.courseSubject.subject.name}">Subject</td>
+              <td th:text="${entry.batchSubject.batch.name}">Batch</td>
+              <td>
+                <span th:if="${entry.batchSubject.teacher != null}" th:text="${entry.batchSubject.teacher.fullName}">Teacher</span>
+                <span th:if="${entry.batchSubject.teacher == null}" class="text-body-secondary">Unassigned</span>
+              </td>
+              <td>
+                <span th:if="${entry.classroom != null}" th:text="${entry.classroom}">Room</span>
+                <span th:if="${entry.classroom == null}" class="text-body-secondary">–</span>
+              </td>
+              <td th:text="${#temporals.format(entry.effectiveFrom, 'dd MMM yyyy')}">01 Jan 2026</td>
+              <td class="text-center">
+                <span class="badge" th:classappend="${entry.active} ? 'text-bg-success' : 'text-bg-secondary'"
+                      th:text="${entry.active} ? 'ACTIVE' : 'INACTIVE'">ACTIVE</span>
+              </td>
+              <td class="text-end">
+                <a th:href="@{/timetable/{id}(id=${entry.id})}" class="btn btn-sm btn-outline-secondary" title="View entry">
+                  <i class="bi bi-eye"></i><span class="visually-hidden">View entry</span>
+                </a>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+          <div class="empty-state" th:if="${#lists.isEmpty(entries)}">
+            <i class="bi bi-calendar-x d-block mb-2"></i>
+            No classes are scheduled in this selection.
+            <span th:if="${!isTeacher}">
+              Create a recurring timetable entry and generate the class sessions from it.
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

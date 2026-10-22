@@ -20,8 +20,11 @@ public class UserForm {
     private String email;
 
     @NotBlank(message = "Role is required.")
-    @Pattern(regexp = "ADMIN|TEACHER", message = "Choose a valid role.")
+    @Pattern(regexp = "ADMIN|TEACHER|STUDENT", message = "Choose a valid role.")
     private String role;
+
+    /** The student profile a STUDENT account belongs to (required for students). */
+    private Long studentId;
 
     @NotBlank(message = "Password is required.")
     @Size(min = 12, max = 72, message = "Password must be between 12 and 72 characters.")
@@ -49,6 +52,14 @@ public class UserForm {
 
     public void setRole(String role) {
         this.role = role;
+    }
+
+    public Long getStudentId() {
+        return studentId;
+    }
+
+    public void setStudentId(Long studentId) {
+        this.studentId = studentId;
     }
 
     public String getPassword() {

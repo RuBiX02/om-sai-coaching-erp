@@ -9,7 +9,7 @@ spring:
   datasource:
     url: ${TEST_DB_URL:jdbc:postgresql://127.0.0.1:5433/omsai_test}
     username: ${TEST_DB_USERNAME:tojo}
-    password: ${TEST_DB_PASSWORD:omsai_dev}
+    password: ${TEST_DB_PASSWORD:}
   jpa:
     hibernate:
       ddl-auto: validate

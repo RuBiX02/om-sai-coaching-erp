@@ -10,6 +10,27 @@
 
     <div th:replace="~{layout/fragments :: alerts()}"></div>
 
+    <header class="page-header">
+      <div>
+        <p class="page-eyebrow">
+          <i class="bi bi-cash-coin" aria-hidden="true"></i><span>Finance</span>
+        </p>
+        <h2 class="page-title" th:text="${modeTitle}">Fee agreements</h2>
+        <p class="page-subtitle">
+          <span th:if="${mode == 'outstanding'}">Accounts whose outstanding balance (net fee minus received payments) is above zero.</span>
+          <span th:if="${mode == 'overdue'}">Accounts whose due date has passed and whose balance is still outstanding.</span>
+          <span th:if="${mode == 'all'}">The fee agreements of every enrollment, with their balances.</span>
+          Balances are always computed from the recorded payments; voided payments do not count towards collections.
+        </p>
+      </div>
+      <div class="filter-actions">
+        <span class="page-header-meta">
+          <i class="bi bi-graph-up" aria-hidden="true"></i>
+          <a th:href="@{/fees/collections}">Collection summary</a>
+        </span>
+      </div>
+    </header>
+
     <ul class="nav nav-pills mb-3">
       <li class="nav-item">
         <a class="nav-link" th:classappend="${mode == 'all'} ? 'active'" th:href="@{/fees}">All agreements</a>
@@ -25,28 +46,23 @@
       </li>
     </ul>
 
-    <div th:if="${mode != 'all'}" class="alert alert-light border small">
-      <i class="bi bi-info-circle me-1"></i>
-      <span th:if="${mode == 'outstanding'}">Accounts whose outstanding balance (net fee minus received payments) is above zero.</span>
-      <span th:if="${mode == 'overdue'}">Accounts whose due date has passed and whose balance is still outstanding.</span>
-      Balances are always computed from the recorded payments; voided payments do not count towards collections.
+    <div class="filter-bar">
+      <form th:action="${mode == 'outstanding'} ? @{/fees/outstanding} : (${mode == 'overdue'} ? @{/fees/overdue} : @{/fees})"
+            method="get" class="filter-form">
+        <input type="search" class="form-control filter-search" placeholder="Student name or code"
+               name="q" th:value="${q}" aria-label="Search accounts"/>
+        <select class="form-select" name="courseId" aria-label="Filter by course">
+          <option value="">All courses</option>
+          <option th:each="course : ${courses}" th:value="${course.id}" th:text="${course.name}"
+                  th:selected="${courseId != null and courseId == course.id}">Course</option>
+        </select>
+        <input type="text" class="form-control w-max-9rem" placeholder="2026-27"
+               name="academicYear" th:value="${academicYear}" aria-label="Academic year"/>
+        <button type="submit" class="btn btn-outline-primary">
+          <i class="bi bi-search" aria-hidden="true"></i>Search
+        </button>
+      </form>
     </div>
-
-    <form th:action="${mode == 'outstanding'} ? @{/fees/outstanding} : (${mode == 'overdue'} ? @{/fees/overdue} : @{/fees})"
-          method="get" class="d-flex gap-2 mb-3 flex-wrap">
-      <input type="search" class="form-control" placeholder="Student name or code"
-             name="q" th:value="${q}" aria-label="Search accounts"/>
-      <select class="form-select w-auto" name="courseId" aria-label="Filter by course">
-        <option value="">All courses</option>
-        <option th:each="course : ${courses}" th:value="${course.id}" th:text="${course.name}"
-                th:selected="${courseId != null and courseId == course.id}">Course</option>
-      </select>
-      <input type="text" class="form-control w-max-9rem" placeholder="2026-27"
-             name="academicYear" th:value="${academicYear}" aria-label="Academic year"/>
-      <button type="submit" class="btn btn-outline-primary">
-        <i class="bi bi-search me-1"></i>Search
-      </button>
-    </form>
 
     <div class="card">
       <div class="card-body p-0">
@@ -68,8 +84,8 @@
             <tbody>
             <tr th:each="row : ${accounts.content}">
               <td>
-                <div th:text="${row.studentName}">Student</div>
-                <div class="small text-body-secondary" th:text="${row.studentCode}">code</div>
+                <a th:href="@{/fees/{id}(id=${row.id})}" class="fw-semibold" th:text="${row.studentName}">Student</a>
+                <div class="small text-body-secondary font-monospace" th:text="${row.studentCode}">code</div>
               </td>
               <td th:text="${row.courseName}">Course</td>
               <td th:text="${row.academicYear}">2026-27</td>
@@ -93,8 +109,9 @@
             </tbody>
           </table>
           <div class="empty-state" th:if="${#lists.isEmpty(accounts.content)}">
-            <i class="bi bi-cash-coin d-block mb-2"></i>
-            No fee agreements found. Open a student's record and create a fee agreement from an active enrollment.
+            <i class="bi bi-cash-coin d-block" aria-hidden="true"></i>
+            <span class="empty-title">No fee agreements found</span>
+            Open a student's record and create a fee agreement from an active enrollment.
           </div>
         </div>
       </div>

@@ -20,6 +20,7 @@ public class GlobalModelAdvice {
             model.addAttribute("userName", principal.fullName());
             model.addAttribute("isAdmin", principal.role() == com.omsai.coaching.security.UserAccount.Role.ADMIN);
             model.addAttribute("isTeacher", principal.role() == com.omsai.coaching.security.UserAccount.Role.TEACHER);
+            model.addAttribute("isStudent", principal.role() == com.omsai.coaching.security.UserAccount.Role.STUDENT);
         }
     }
 }

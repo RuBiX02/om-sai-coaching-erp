@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('Examination')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('examinations')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('Examination', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <form th:if="${examination == null}" th:action="@{/examinations}" method="post"
+          class="card mb-3" th:object="${form}">
+      <div class="card-header">
+        <i class="bi bi-journal-plus me-2 table-thumb"></i>New examination
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label for="batchSubjectId" class="form-label">Class (batch subject)</label>
+            <select id="batchSubjectId" class="form-select" th:field="*{batchSubjectId}">
+              <option value="">Choose a class…</option>
+              <option th:each="assignment : ${assignments}" th:value="${assignment.id}"
+                      th:text="${assignment.batch.name} + ' · ' + ${assignment.courseSubject.subject.name} + ' · ' + ${assignment.batch.course.name}"
+                      th:selected="${assignment.id == form.batchSubjectId}">Assignment</option>
+            </select>
+            <div class="text-danger small mt-1" th:if="${#fields.hasErrors('batchSubjectId')}"
+                 th:errors="*{batchSubjectId}">Error</div>
+          </div>
+          <div class="col-md-6">
+            <label for="title" class="form-label">Title</label>
+            <input type="text" id="title" class="form-control" th:field="*{title}"
+                   placeholder="Unit test 1" maxlength="160"/>
+            <div class="text-danger small mt-1" th:if="${#fields.hasErrors('title')}"
+                 th:errors="*{title}">Error</div>
+          </div>
+          <div class="col-md-4">
+            <label for="examinationDate" class="form-label">Date</label>
+            <input type="date" id="examinationDate" class="form-control" th:field="*{examinationDate}"/>
+            <div class="text-danger small mt-1" th:if="${#fields.hasErrors('examinationDate')}"
+                 th:errors="*{examinationDate}">Error</div>
+          </div>
+          <div class="col-md-4">
+            <label for="maximumMarks" class="form-label">Maximum marks</label>
+            <input type="text" inputmode="decimal" id="maximumMarks" class="form-control"
+                   th:field="*{maximumMarks}" placeholder="100"/>
+            <div class="text-danger small mt-1" th:if="${#fields.hasErrors('maximumMarks')}"
+                 th:errors="*{maximumMarks}">Error</div>
+          </div>
+          <div class="col-md-4">
+            <label for="description" class="form-label">Description (optional)</label>
+            <input type="text" id="description" class="form-control" th:field="*{description}"/>
+          </div>
+        </div>
+      </div>
+      <div class="card-footer d-flex gap-2 justify-content-end">
+        <a th:href="@{/examinations}" class="btn btn-outline-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary">
+          <i class="bi bi-check2-circle me-1"></i>Create draft
+        </button>
+      </div>
+    </form>
+
+    <form th:if="${examination != null}" th:action="@{/examinations/{id}(id=${examination.id})}" method="post"
+          class="card mb-3" th:object="${form}">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-pencil me-2 table-thumb"></i>Edit examination</span>
+        <span class="badge text-bg-warning" th:text="${examination.status}">DRAFT</span>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label for="batchSubjectId" class="form-label">Class (batch subject)</label>
+            <select id="batchSubjectId" class="form-select" th:field="*{batchSubjectId}">
+              <option th:each="assignment : ${assignments}" th:value="${assignment.id}"
+                      th:text="${assignment.batch.name} + ' · ' + ${assignment.courseSubject.subject.name} + ' · ' + ${assignment.batch.course.name}"
+                      th:selected="${assignment.id == form.batchSubjectId}">Assignment</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label for="title" class="form-label">Title</label>
+            <input type="text" id="title" class="form-control" th:field="*{title}" maxlength="160"/>
+          </div>
+          <div class="col-md-4">
+            <label for="examinationDate" class="form-label">Date</label>
+            <input type="date" id="examinationDate" class="form-control" th:field="*{examinationDate}"/>
+          </div>
+          <div class="col-md-4">
+            <label for="maximumMarks" class="form-label">Maximum marks</label>
+            <input type="text" inputmode="decimal" id="maximumMarks" class="form-control"
+                   th:field="*{maximumMarks}"/>
+          </div>
+          <div class="col-md-4">
+            <label for="description" class="form-label">Description (optional)</label>
+            <input type="text" id="description" class="form-control" th:field="*{description}"/>
+          </div>
+        </div>
+      </div>
+      <div class="card-footer d-flex gap-2 justify-content-end">
+        <a th:href="@{/examinations/{id}(id=${examination.id})}" class="btn btn-outline-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary">
+          <i class="bi bi-check2-circle me-1"></i>Save changes
+        </button>
+      </div>
+    </form>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

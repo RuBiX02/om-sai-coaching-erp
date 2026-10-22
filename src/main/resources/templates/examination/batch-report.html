@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('Batch results')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('examinations')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('Batch results', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <form th:action="@{/examinations/reports/batch}" method="get" class="d-flex gap-2 mb-3 flex-wrap align-items-end"
+          aria-label="Report filters">
+      <div>
+        <label for="batchId" class="form-label mb-0 small">Batch</label>
+        <select id="batchId" class="form-select" name="batchId">
+          <option value="">Choose a batch…</option>
+          <option th:each="batch : ${batches}" th:value="${batch.id}" th:text="${batch.name}"
+                  th:selected="${batchId != null and batchId == batch.id}">Batch</option>
+        </select>
+      </div>
+      <div>
+        <label for="from" class="form-label mb-0 small">From</label>
+        <input type="date" id="from" class="form-control" name="from" th:value="${from}"/>
+      </div>
+      <div>
+        <label for="to" class="form-label mb-0 small">To</label>
+        <input type="date" id="to" class="form-control" name="to" th:value="${to}"/>
+      </div>
+      <button type="submit" class="btn btn-primary"><i class="bi bi-search me-1"></i>Show</button>
+    </form>
+
+    <div class="card" th:if="${summaries != null}">
+      <div class="card-header">
+        <i class="bi bi-bar-chart me-2 table-thumb"></i>Examinations of the batch
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" th:if="${!#lists.isEmpty(summaries)}">
+            <thead class="table-light">
+            <tr>
+              <th>Examination</th>
+              <th>Subject</th>
+              <th>Date</th>
+              <th class="text-end">Maximum</th>
+              <th class="text-center">Present</th>
+              <th class="text-center">Absent</th>
+              <th class="text-center">Excused</th>
+              <th class="text-end">Average</th>
+              <th class="text-end">Highest</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="summary : ${summaries}">
+              <td th:text="${summary.examination().title}">Unit test</td>
+              <td th:text="${summary.examination().batchSubject.courseSubject.subject.name}">Subject</td>
+              <td th:text="${#temporals.format(summary.examination().examinationDate, 'dd MMM yyyy')}">01 Apr 2026</td>
+              <td class="text-end" th:text="${summary.examination().maximumMarks}">100.00</td>
+              <td class="text-center" th:text="${summary.presentCount()}">0</td>
+              <td class="text-center" th:text="${summary.absentCount()}">0</td>
+              <td class="text-center" th:text="${summary.excusedCount()}">0</td>
+              <td class="text-end">
+                <span th:if="${summary.averageMarks() != null}" th:text="${summary.averageMarks()}">0.00</span>
+                <span th:if="${summary.averageMarks() == null}" class="text-body-secondary">–</span>
+              </td>
+              <td class="text-end">
+                <span th:if="${summary.highestMarks() != null}" th:text="${summary.highestMarks()}">0.00</span>
+                <span th:if="${summary.highestMarks() == null}" class="text-body-secondary">–</span>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+          <div class="empty-state" th:if="${#lists.isEmpty(summaries)}">
+            <i class="bi bi-journal-x d-block mb-2"></i>
+            This batch has no examination in the selected range.
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

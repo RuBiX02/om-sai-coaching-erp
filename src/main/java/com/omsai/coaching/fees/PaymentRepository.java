@@ -78,6 +78,20 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
             """)
     List<Payment> findForAccount(@Param("accountId") Long accountId);
 
+    /**
+     * The RECEIVED payments of one account in a deterministic order
+     * (payment date, creation time, id): used when an installment plan
+     * is created and the money that is already in has to be allocated
+     * to the new schedule.
+     */
+    @Query("""
+            select p from Payment p
+            where p.feeAccount.id = :accountId
+              and p.status = 'RECEIVED'
+            order by p.paymentDate, p.createdAt, p.id
+            """)
+    List<Payment> findReceivedForAllocation(@Param("accountId") Long accountId);
+
     /** Payment search across receipt number, student name and student code. */
     @Query("""
             select p from Payment p

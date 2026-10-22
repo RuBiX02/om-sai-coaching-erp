@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head(${editing} ? 'Edit installment plan' : 'Installment plan')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('fees')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar(${editing} ? 'Edit installment plan' : 'Installment plan', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <div class="card mb-3">
+      <div class="card-header">
+        <i class="bi bi-cash-coin me-2 table-thumb"></i>
+        <span th:text="${editing} ? 'Fee agreement the schedule belongs to' : 'Fee agreement the plan divides'">Fee agreement the plan divides</span>
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-sm-4">Student</dt>
+          <dd class="col-sm-8">
+            <a th:href="@{/students/{id}(id=${account.student.id})}" th:text="${account.student.fullName}">Student</a>
+            <span class="small text-body-secondary" th:text="' · ' + ${account.student.studentCode}">code</span>
+          </dd>
+          <dt class="col-sm-4">Course</dt>
+          <dd class="col-sm-8">
+            <span th:text="${account.course.name}">Course</span>
+            <span class="small text-body-secondary" th:text="' · ' + ${account.academicYear}">year</span>
+          </dd>
+          <dt class="col-sm-4">Gross fee</dt>
+          <dd class="col-sm-8" th:text="${account.grossFee}">12000</dd>
+          <dt class="col-sm-4">Discount</dt>
+          <dd class="col-sm-8" th:text="${account.discountAmount}">0</dd>
+          <dt class="col-sm-4">Net fee</dt>
+          <dd class="col-sm-8 fw-semibold" th:text="${account.netFee}">12000</dd>
+          <dt class="col-sm-4" th:if="${editing}">Currently scheduled</dt>
+          <dd class="col-sm-8 fw-semibold" th:if="${editing}" th:text="${currentTotal}">12000</dd>
+          <dt class="col-sm-4">Already received</dt>
+          <dd class="col-sm-8" th:text="${received}">0</dd>
+          <dt class="col-sm-4">Outstanding</dt>
+          <dd class="col-sm-8 fw-bold" th:text="${outstanding}">12000</dd>
+        </dl>
+        <p class="small text-body-secondary mb-0 mt-3">
+          <i class="bi bi-info-circle me-1"></i>
+          The installments must add up to exactly the net fee
+          (<span th:text="${account.netFee}">12000</span>). At least two installments are needed.
+          <span th:if="${!editing}">
+            Payments that were already received are allocated to the new schedule automatically —
+            the payment records and their receipts stay exactly as they are.
+          </span>
+          <span th:if="${editing}">
+            The fee agreement itself is not touched: only the schedule of the installments changes.
+          </span>
+        </p>
+      </div>
+    </div>
+
+    <form th:action="${editing} ? @{/fees/{id}/installments/edit(id=${account.id})} : @{/fees/{id}/installments(id=${account.id})}"
+          method="post" id="installment-plan-form"
+          th:attr="data-net-fee=${account.netFee}">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-calendar2-week me-2 table-thumb"></i>
+            <span th:text="${editing} ? 'Edit the installment schedule' : 'Installment schedule'">Installment schedule</span>
+          </span>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="js-add-installment">
+            <i class="bi bi-plus-lg me-1"></i>Add installment
+          </button>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table align-middle mb-0" id="installment-rows">
+              <thead class="table-light">
+              <tr>
+                <th class="col-min-10rem">No.</th>
+                <th class="col-min-10rem">Due date</th>
+                <th class="col-min-10rem">Amount</th>
+                <th></th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr th:each="row, iter : ${rows}" class="installment-row">
+                <td>
+                  <input type="number" name="installmentNumber" min="1" step="1"
+                         class="form-control installment-number"
+                         th:value="${row.installmentNumber()}" aria-label="Installment number"/>
+                </td>
+                <td>
+                  <input type="date" name="dueDate" class="form-control installment-due"
+                         th:value="${row.dueDate()}" aria-label="Due date"/>
+                </td>
+                <td>
+                  <input type="text" inputmode="decimal" name="amount" class="form-control installment-amount"
+                         th:value="${row.amount()}" aria-label="Installment amount"/>
+                </td>
+                <td class="text-end">
+                  <button type="button" class="btn btn-sm btn-outline-danger js-remove-installment" title="Remove installment">
+                    <i class="bi bi-x-lg"></i><span class="visually-hidden">Remove installment</span>
+                  </button>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <span class="small text-body-secondary">
+            <span th:if="${editing}">
+              Scheduled now: <strong th:text="${currentTotal}">0</strong>
+              · Proposed: <strong id="js-scheduled-total">0</strong>
+              · Difference from the net fee: <strong id="js-difference">0.00</strong>
+              · <span id="js-total-hint" class="text-body-secondary">must equal the net fee</span>
+            </span>
+            <span th:unless="${editing}">
+              Scheduled: <strong id="js-scheduled-total">0</strong>
+              · <span id="js-total-hint" class="text-body-secondary">must equal the net fee</span>
+            </span>
+          </span>
+          <div class="d-flex gap-2">
+            <a th:href="@{/fees/{id}(id=${account.id})}" class="btn btn-outline-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-check2-circle me-1"></i>
+              <span th:text="${editing} ? 'Save the new schedule' : 'Create installment plan'">Create installment plan</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </form>
+
+    <div class="card mt-3">
+      <div class="card-body small text-body-secondary">
+        <i class="bi bi-shield-lock me-1"></i>
+        A plan only schedules the agreed fee — it never changes the gross fee, the discount or the net fee.
+        <span th:if="${!editing}">
+          Once payments have been booked against the schedule, it can no longer be changed;
+          the payments and their receipts are the history that matters.
+        </span>
+        <span th:if="${editing}">
+          A schedule can be replaced as long as no payment has been booked against it. After that the
+          schedule is part of the financial record and is kept exactly as it was.
+        </span>
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+<script th:src="@{/js/installments.js}"></script>
+</body>
+</html>

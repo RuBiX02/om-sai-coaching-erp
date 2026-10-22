@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('Examination')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('examinations')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('Examination', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-journal-text me-2 table-thumb"></i>
+          <span th:text="${examination.title}">Unit test</span>
+        </span>
+        <span class="badge"
+              th:classappend="${examination.status.name() == 'PUBLISHED'} ? 'text-bg-success'
+                : (${examination.status.name() == 'CANCELLED'} ? 'text-bg-secondary' : 'text-bg-warning')"
+              th:text="${examination.status}">DRAFT</span>
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-sm-4">Subject</dt>
+          <dd class="col-sm-8" th:text="${examination.batchSubject.courseSubject.subject.name}">Subject</dd>
+          <dt class="col-sm-4">Course</dt>
+          <dd class="col-sm-8" th:text="${examination.batchSubject.batch.course.name}">Course</dd>
+          <dt class="col-sm-4">Batch</dt>
+          <dd class="col-sm-8" th:text="${examination.batchSubject.batch.name}">Batch</dd>
+          <dt class="col-sm-4">Teacher</dt>
+          <dd class="col-sm-8">
+            <span th:if="${examination.batchSubject.teacher != null}"
+                  th:text="${examination.batchSubject.teacher.fullName}">Teacher</span>
+            <span th:if="${examination.batchSubject.teacher == null}" class="text-body-secondary">Unassigned</span>
+          </dd>
+          <dt class="col-sm-4">Date</dt>
+          <dd class="col-sm-8" th:text="${#temporals.format(examination.examinationDate, 'dd MMMM yyyy')}">01 April 2026</dd>
+          <dt class="col-sm-4">Maximum marks</dt>
+          <dd class="col-sm-8" th:text="${examination.maximumMarks}">100.00</dd>
+          <dt class="col-sm-4">Description</dt>
+          <dd class="col-sm-8">
+            <span th:if="${examination.description != null}" th:text="${examination.description}">Description</span>
+            <span th:if="${examination.description == null}" class="text-body-secondary">–</span>
+          </dd>
+          <dt class="col-sm-4">Created by</dt>
+          <dd class="col-sm-8" th:text="${examination.createdBy.fullName}">Administrator</dd>
+        </dl>
+      </div>
+      <div class="card-footer d-flex gap-2 flex-wrap">
+        <a th:href="@{/examinations/{id}/marks(id=${examination.id})}" class="btn btn-primary">
+          <i class="bi bi-pencil-square me-1"></i>Enter marks
+        </a>
+        <a th:if="${isAdmin and examination.status.name() == 'DRAFT'}"
+           th:href="@{/examinations/{id}/edit(id=${examination.id})}" class="btn btn-outline-secondary">
+          <i class="bi bi-pencil me-1"></i>Edit
+        </a>
+        <form th:if="${isAdmin and examination.status.name() == 'DRAFT'}"
+              th:action="@{/examinations/{id}/publish(id=${examination.id})}" method="post" class="m-0">
+          <button type="submit" class="btn btn-outline-success js-confirm"
+                  data-confirm="Publish this examination? The students will be able to see their results.">
+            <i class="bi bi-megaphone me-1"></i>Publish results
+          </button>
+        </form>
+        <form th:if="${examination.status.name() == 'DRAFT'}"
+              th:action="@{/examinations/{id}/cancel(id=${examination.id})}" method="post" class="m-0">
+          <button type="submit" class="btn btn-outline-danger js-confirm"
+                  data-confirm="Cancel this examination? The results already recorded are kept.">
+            <i class="bi bi-x-circle me-1"></i>Cancel examination
+          </button>
+        </form>
+        <a th:href="@{/examinations}" class="btn btn-outline-secondary">All examinations</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <i class="bi bi-list-check me-2 table-thumb"></i>Results
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" th:if="${!#lists.isEmpty(rows)}">
+            <thead class="table-light">
+            <tr>
+              <th>Student</th>
+              <th class="text-center">Status</th>
+              <th class="text-end">Marks</th>
+              <th class="text-end">Percentage</th>
+              <th>Remarks</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="row : ${rows}">
+              <td>
+                <div th:text="${row.studentName()}">Student</div>
+                <div class="small text-body-secondary" th:text="${row.studentCode()}">code</div>
+              </td>
+              <td class="text-center">
+                <span th:if="${row.result() != null}" class="badge"
+                      th:classappend="${row.result().status.name() == 'PRESENT'} ? 'text-bg-success'
+                        : (${row.result().status.name() == 'ABSENT'} ? 'text-bg-danger' : 'text-bg-info')"
+                      th:text="${row.result().status}">PRESENT</span>
+                <span th:if="${row.result() == null}" class="text-body-secondary">Not marked</span>
+              </td>
+              <td class="text-end">
+                <span th:if="${row.result() != null and row.result().marks != null}"
+                      th:text="${row.result().marks}">80.00</span>
+                <span th:if="${row.result() != null and row.result().marks == null}"
+                      class="text-body-secondary">–</span>
+                <span th:if="${row.result() == null}" class="text-body-secondary">–</span>
+              </td>
+              <td class="text-end">
+                <span th:if="${row.result() != null and row.result().marks != null}"
+                      th:text="${row.result().percentage(examination.maximumMarks)} + '%'">80.0%</span>
+                <span th:if="${row.result() == null or row.result().marks == null}"
+                      class="text-body-secondary">–</span>
+              </td>
+              <td>
+                <span th:if="${row.result() != null and row.result().remarks != null}"
+                      th:text="${row.result().remarks}">Remarks</span>
+                <span th:if="${row.result() == null or row.result().remarks == null}"
+                      class="text-body-secondary">–</span>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+          <div class="empty-state" th:if="${#lists.isEmpty(rows)}">
+            <i class="bi bi-person-x d-block mb-2"></i>
+            No student was on the roster of this class on the examination date.
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

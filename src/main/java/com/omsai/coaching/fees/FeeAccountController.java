@@ -7,6 +7,7 @@ import com.omsai.coaching.enrollment.EnrollmentRepository;
 import com.omsai.coaching.security.AppUserPrincipal;
 import com.omsai.coaching.security.UserAccount;
 import com.omsai.coaching.security.UserAccountRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.AccessDeniedException;
@@ -25,7 +26,9 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Fee-agreement pages, outstanding/overdue lists and the collection
@@ -39,6 +42,7 @@ public class FeeAccountController {
 
     private final FeeAccountService feeAccountService;
     private final PaymentService paymentService;
+    private final InstallmentService installmentService;
     private final EnrollmentRepository enrollmentRepository;
     private final CourseRepository courseRepository;
     private final UserAccountRepository userAccountRepository;
@@ -47,6 +51,7 @@ public class FeeAccountController {
 
     public FeeAccountController(FeeAccountService feeAccountService,
                                 PaymentService paymentService,
+                                InstallmentService installmentService,
                                 EnrollmentRepository enrollmentRepository,
                                 CourseRepository courseRepository,
                                 UserAccountRepository userAccountRepository,
@@ -54,6 +59,7 @@ public class FeeAccountController {
                                 BusinessClock businessClock) {
         this.feeAccountService = feeAccountService;
         this.paymentService = paymentService;
+        this.installmentService = installmentService;
         this.enrollmentRepository = enrollmentRepository;
         this.courseRepository = courseRepository;
         this.userAccountRepository = userAccountRepository;
@@ -160,6 +166,7 @@ public class FeeAccountController {
     public String detail(@PathVariable Long id, Model model) {
         FeeAccount account = feeAccountService.getWithDetails(id);
         BigDecimal outstanding = feeAccountService.outstandingOf(account);
+        List<InstallmentService.InstallmentView> installments = installmentService.viewFor(id);
         model.addAttribute("account", account);
         model.addAttribute("received", account.netFee().subtract(outstanding));
         model.addAttribute("outstanding", outstanding);
@@ -169,6 +176,12 @@ public class FeeAccountController {
                 account.getDueDate() != null
                         && account.getDueDate().isBefore(businessClock.today())
                         && outstanding.compareTo(BigDecimal.ZERO) > 0);
+        model.addAttribute("installments", installments);
+        model.addAttribute("hasPlan", !installments.isEmpty());
+        model.addAttribute("installmentSummary", installmentSummary(installments));
+        // A schedule may only be replaced while no payment has been
+        // booked against it.
+        model.addAttribute("planEditable", installmentService.isEditable(id));
         return "fees/detail";
     }
 
@@ -211,6 +224,126 @@ public class FeeAccountController {
         }
     }
 
+    /**
+     * The installment plan form of a fee account. The plan divides the
+     * agreed net fee; the fee account itself is never changed by it.
+     */
+    @GetMapping("/{id}/installments")
+    public String installmentForm(@PathVariable Long id,
+                                  Model model,
+                                  RedirectAttributes redirect) {
+        FeeAccount account = feeAccountService.getWithDetails(id);
+        if (installmentService.hasPlan(id)) {
+            redirect.addFlashAttribute("errorMessage",
+                    "This fee agreement already has an installment plan.");
+            return "redirect:/fees/" + id;
+        }
+        installmentPlanModel(model, account);
+        model.addAttribute("editing", false);
+        model.addAttribute("rows", defaultRows(account));
+        return "fees/installment-form";
+    }
+
+    /**
+     * Creates the installment plan. The submitted rows are validated
+     * server side; the whole plan (and the allocation of payments that
+     * were already received) is written in one transaction.
+     */
+    @PostMapping("/{id}/installments")
+    public String createInstallmentPlan(@PathVariable Long id,
+                                        HttpServletRequest request,
+                                        Model model,
+                                        RedirectAttributes redirect) {
+        List<InstallmentInput> rows = readRows(request.getParameterMap());
+        try {
+            installmentService.createPlan(id, rows, admin());
+            redirect.addFlashAttribute("successMessage", "Installment plan created.");
+            return "redirect:/fees/" + id;
+        } catch (AccessDeniedException e) {
+            throw e;
+        } catch (BusinessRuleException e) {
+            FeeAccount account = feeAccountService.getWithDetails(id);
+            installmentPlanModel(model, account);
+            model.addAttribute("editing", false);
+            model.addAttribute("rows", rows);
+            model.addAttribute("errorMessage", e.getMessage());
+            return "fees/installment-form";
+        }
+    }
+
+    /**
+     * The edit form of an existing installment plan. The current
+     * schedule is loaded into the form so it can be corrected.
+     *
+     * <p>A plan that carries payment-allocation history is immutable:
+     * the schedule has become part of the financial record. The form is
+     * not offered then - the fee account page explains why.</p>
+     */
+    @GetMapping("/{id}/installments/edit")
+    public String editInstallmentPlanForm(@PathVariable Long id,
+                                          Model model,
+                                          RedirectAttributes redirect) {
+        FeeAccount account = feeAccountService.findWithDetails(id);
+        if (account == null) {
+            redirect.addFlashAttribute("errorMessage", "Fee agreement not found.");
+            return "redirect:/fees";
+        }
+        if (!installmentService.hasPlan(id)) {
+            redirect.addFlashAttribute("errorMessage",
+                    "This fee agreement has no installment plan to edit.");
+            return "redirect:/fees/" + id;
+        }
+        if (!installmentService.isEditable(id)) {
+            redirect.addFlashAttribute("errorMessage",
+                    InstallmentService.IMMUTABLE_PLAN_MESSAGE);
+            return "redirect:/fees/" + id;
+        }
+        installmentPlanModel(model, account);
+        model.addAttribute("editing", true);
+        model.addAttribute("rows", installmentService.scheduleOf(id));
+        model.addAttribute("currentTotal", installmentService.scheduledTotal(id));
+        return "fees/installment-form";
+    }
+
+    /**
+     * Replaces the schedule of an existing installment plan. The
+     * submitted rows are validated server side and the whole schedule
+     * is replaced in one transaction; an invalid submission leaves the
+     * original schedule untouched.
+     */
+    @PostMapping("/{id}/installments/edit")
+    public String replaceInstallmentPlan(@PathVariable Long id,
+                                         HttpServletRequest request,
+                                         Model model,
+                                         RedirectAttributes redirect) {
+        List<InstallmentInput> rows = readRows(request.getParameterMap());
+        try {
+            installmentService.replacePlan(id, rows, admin());
+            redirect.addFlashAttribute("successMessage",
+                    "Installment plan updated. The payments, their receipts and the fee agreement are unchanged.");
+            return "redirect:/fees/" + id;
+        } catch (AccessDeniedException e) {
+            throw e;
+        } catch (ImmutablePlanException e) {
+            // Nothing the administrator typed can change this: the
+            // schedule has become part of the financial record.
+            redirect.addFlashAttribute("errorMessage", e.getMessage());
+            return "redirect:/fees/" + id;
+        } catch (BusinessRuleException e) {
+            FeeAccount account = feeAccountService.findWithDetails(id);
+            if (account == null) {
+                redirect.addFlashAttribute("errorMessage", "Fee agreement not found.");
+                return "redirect:/fees";
+            }
+            installmentPlanModel(model, account);
+            model.addAttribute("editing", true);
+            model.addAttribute("rows", rows);
+            model.addAttribute("currentTotal", installmentService.scheduledTotal(id));
+            model.addAttribute("errorMessage", e.getMessage());
+            return "fees/installment-form";
+        }
+    }
+
     /** Collection summary for a date range (defaults to the current business month). */
     @GetMapping("/collections")
     public String collections(@RequestParam(required = false) LocalDate from,
@@ -229,6 +362,92 @@ public class FeeAccountController {
     }
 
     // ----- helpers ----------------------------------------------------------
+
+    /**
+     * The model every installment-plan form needs: the fee agreement and
+     * how much of it has already been paid.
+     */
+    private void installmentPlanModel(Model model, FeeAccount account) {
+        model.addAttribute("account", account);
+        model.addAttribute("received", account.netFee().subtract(feeAccountService.outstandingOf(account)));
+        model.addAttribute("outstanding", feeAccountService.outstandingOf(account));
+    }
+
+    /**
+     * The summary of an installment plan: how many installments, how
+     * many of them are overdue and how much of the schedule is still
+     * open.
+     */
+    public record InstallmentSummary(int count,
+                                     int overdueCount,
+                                     BigDecimal scheduled,
+                                     BigDecimal paid,
+                                     BigDecimal remaining,
+                                     LocalDate nextDueDate) {
+    }
+
+    private static InstallmentSummary installmentSummary(List<InstallmentService.InstallmentView> views) {
+        if (views.isEmpty()) {
+            return new InstallmentSummary(0, 0, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, null);
+        }
+        int overdue = 0;
+        BigDecimal scheduled = BigDecimal.ZERO;
+        BigDecimal paid = BigDecimal.ZERO;
+        LocalDate nextDue = null;
+        for (InstallmentService.InstallmentView view : views) {
+            scheduled = scheduled.add(view.installment().getAmount());
+            paid = paid.add(view.paid());
+            if (view.status() == InstallmentStatus.OVERDUE) {
+                overdue++;
+            }
+            LocalDate due = view.installment().getDueDate();
+            if (view.remaining().signum() > 0 && (nextDue == null || due.isBefore(nextDue))) {
+                nextDue = due;
+            }
+        }
+        return new InstallmentSummary(views.size(), overdue, scheduled, paid,
+                scheduled.subtract(paid), nextDue);
+    }
+
+    /**
+     * The two default rows of the plan form: half of the net fee each,
+     * so the schedule already adds up and the administrator only has to
+     * adjust the dates.
+     */
+    private List<InstallmentInput> defaultRows(FeeAccount account) {
+        BigDecimal netFee = account.netFee();
+        BigDecimal first = netFee.divide(new BigDecimal("2"), 2, java.math.RoundingMode.HALF_UP);
+        BigDecimal second = netFee.subtract(first);
+        LocalDate today = businessClock.today();
+        LocalDate firstDue = account.getDueDate() != null ? account.getDueDate() : today;
+        LocalDate secondDue = account.getDueDate() != null
+                ? account.getDueDate().plusMonths(1)
+                : today.plusMonths(1);
+        return List.of(
+                new InstallmentInput(first.toPlainString(), firstDue.toString(), "1"),
+                new InstallmentInput(second.toPlainString(), secondDue.toString(), "2"));
+    }
+
+    /**
+     * Reads the submitted plan rows. The rows are posted as repeated
+     * parameters; nothing is trusted, the service validates every
+     * value.
+     */
+    private static List<InstallmentInput> readRows(Map<String, String[]> params) {
+        String[] amounts = params.getOrDefault("amount", new String[0]);
+        String[] dueDates = params.getOrDefault("dueDate", new String[0]);
+        String[] numbers = params.getOrDefault("installmentNumber", new String[0]);
+        int count = Math.max(amounts.length, Math.max(dueDates.length, numbers.length));
+        List<InstallmentInput> rows = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            rows.add(new InstallmentInput(valueAt(amounts, i), valueAt(dueDates, i), valueAt(numbers, i)));
+        }
+        return rows;
+    }
+
+    private static String valueAt(String[] values, int index) {
+        return index < values.length ? values[index] : null;
+    }
 
     private UserAccount admin() {
         var authentication = SecurityContextHolder.getContext().getAuthentication();

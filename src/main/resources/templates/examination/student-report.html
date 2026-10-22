@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('Student results')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('examinations')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('Student results', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <div class="card mb-3">
+      <div class="card-header">
+        <i class="bi bi-person me-2 table-thumb"></i>Academic history
+      </div>
+      <div class="card-body">
+        <div class="fw-semibold" th:text="${student.fullName}">Student</div>
+        <div class="small text-body-secondary" th:text="${student.studentCode}">OMS-2026-00001</div>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-header">
+        <i class="bi bi-clock-history me-2 table-thumb"></i>Enrollments
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" th:if="${!#lists.isEmpty(enrollments)}">
+            <thead class="table-light">
+            <tr>
+              <th>Course</th>
+              <th>Batch</th>
+              <th>Period</th>
+              <th class="text-center">Status</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="enrollment : ${enrollments}">
+              <td th:text="${enrollment.course.name}">Course</td>
+              <td th:text="${enrollment.batch.name}">Batch</td>
+              <td>
+                <span th:text="${#temporals.format(enrollment.enrollmentDate, 'dd MMM yyyy')}">01 Jan 2026</span>
+                <span th:if="${enrollment.endDate != null}">
+                  &ndash; <span th:text="${#temporals.format(enrollment.endDate, 'dd MMM yyyy')}">30 Jun 2026</span>
+                </span>
+                <span th:if="${enrollment.endDate == null}" class="text-body-secondary">&ndash; active</span>
+              </td>
+              <td class="text-center">
+                <span class="badge" th:classappend="${enrollment.status.name() == 'ACTIVE'} ? 'text-bg-success' : 'text-bg-secondary'"
+                      th:text="${enrollment.status}">ACTIVE</span>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+          <div class="empty-state" th:if="${#lists.isEmpty(enrollments)}">
+            <i class="bi bi-inbox d-block mb-2"></i>
+            This student has no enrollment yet.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <i class="bi bi-journal-check me-2 table-thumb"></i>Examination results
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" th:if="${!#lists.isEmpty(results)}">
+            <thead class="table-light">
+            <tr>
+              <th>Examination</th>
+              <th>Subject</th>
+              <th>Date</th>
+              <th class="text-center">Status</th>
+              <th class="text-end">Marks</th>
+              <th class="text-end">Percentage</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="result : ${results}">
+              <td th:text="${result.examination.title}">Unit test</td>
+              <td th:text="${result.examination.batchSubject.courseSubject.subject.name}">Subject</td>
+              <td th:text="${#temporals.format(result.examination.examinationDate, 'dd MMM yyyy')}">01 Apr 2026</td>
+              <td class="text-center">
+                <span class="badge"
+                      th:classappend="${result.status.name() == 'PRESENT'} ? 'text-bg-success'
+                        : (${result.status.name() == 'ABSENT'} ? 'text-bg-danger' : 'text-bg-info')"
+                      th:text="${result.status}">PRESENT</span>
+                <span class="badge text-bg-secondary" th:if="${!result.published}">DRAFT</span>
+              </td>
+              <td class="text-end">
+                <span th:if="${result.marks != null}" th:text="${result.marks}">80.00</span>
+                <span th:if="${result.marks == null}" class="text-body-secondary">–</span>
+              </td>
+              <td class="text-end">
+                <span th:if="${result.marks != null}"
+                      th:text="${result.percentage(result.examination.maximumMarks)} + '%'">80.0%</span>
+                <span th:if="${result.marks == null}" class="text-body-secondary">–</span>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+          <div class="empty-state" th:if="${#lists.isEmpty(results)}">
+            <i class="bi bi-journal-x d-block mb-2"></i>
+            This student has no examination result yet.
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

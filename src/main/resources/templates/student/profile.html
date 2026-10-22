@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('My profile')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('profile')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('My profile', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <div class="row g-3">
+      <div class="col-lg-6">
+        <form th:action="@{/student/profile}" method="post" class="card">
+          <div class="card-header">
+            <i class="bi bi-person me-2 table-thumb"></i>My details
+          </div>
+          <div class="card-body">
+            <div class="mb-3">
+              <label for="fullName" class="form-label">Name</label>
+              <input type="text" id="fullName" class="form-control" th:value="${student.fullName}" disabled/>
+              <div class="form-text">Your name and student code are managed by the institute.</div>
+            </div>
+            <div class="mb-3">
+              <label for="studentCode" class="form-label">Student code</label>
+              <input type="text" id="studentCode" class="form-control" th:value="${student.studentCode}" disabled/>
+            </div>
+            <div class="mb-3">
+              <label for="phone" class="form-label">My phone</label>
+              <input type="tel" id="phone" class="form-control" name="phone" th:value="${student.phone}"
+                     maxlength="20"/>
+            </div>
+            <div class="mb-3">
+              <label for="parentName" class="form-label">Parent / guardian name</label>
+              <input type="text" id="parentName" class="form-control" name="parentName"
+                     th:value="${student.parentName}" maxlength="120"/>
+            </div>
+            <div class="mb-3">
+              <label for="parentPhone" class="form-label">Parent / guardian phone</label>
+              <input type="tel" id="parentPhone" class="form-control" name="parentPhone"
+                     th:value="${student.parentPhone}" maxlength="20"/>
+            </div>
+            <div class="mb-3">
+              <label for="address" class="form-label">Address</label>
+              <textarea id="address" class="form-control" name="address" rows="2" maxlength="400"
+                        th:text="${student.address}"></textarea>
+            </div>
+          </div>
+          <div class="card-footer d-flex justify-content-end">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-check2-circle me-1"></i>Save details
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="col-lg-6">
+        <form th:action="@{/student/password}" method="post" class="card mb-3">
+          <div class="card-header">
+            <i class="bi bi-key me-2 table-thumb"></i>Change my password
+          </div>
+          <div class="card-body">
+            <div class="mb-3">
+              <label for="currentPassword" class="form-label">Current password</label>
+              <input type="password" id="currentPassword" class="form-control" name="currentPassword"
+                     autocomplete="current-password" required/>
+            </div>
+            <div class="mb-3">
+              <label for="newPassword" class="form-label">New password</label>
+              <input type="password" id="newPassword" class="form-control" name="newPassword"
+                     autocomplete="new-password" minlength="12" required/>
+              <div class="form-text">At least 12 characters.</div>
+            </div>
+            <div class="mb-3">
+              <label for="confirmPassword" class="form-label">Repeat the new password</label>
+              <input type="password" id="confirmPassword" class="form-control" name="confirmPassword"
+                     autocomplete="new-password" minlength="12" required/>
+            </div>
+          </div>
+          <div class="card-footer d-flex justify-content-end">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-shield-lock me-1"></i>Change password
+            </button>
+          </div>
+        </form>
+
+        <div class="card">
+          <div class="card-header">
+            <i class="bi bi-clock-history me-2 table-thumb"></i>My enrollments
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0" th:if="${!#lists.isEmpty(enrollments)}">
+                <thead class="table-light">
+                <tr>
+                  <th>Course</th>
+                  <th>Batch</th>
+                  <th>Period</th>
+                  <th class="text-center">Status</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="enrollment : ${enrollments}">
+                  <td th:text="${enrollment.course.name}">Course</td>
+                  <td th:text="${enrollment.batch.name}">Batch</td>
+                  <td>
+                    <span th:text="${#temporals.format(enrollment.enrollmentDate, 'dd MMM yyyy')}">01 Jan 2026</span>
+                    <span th:if="${enrollment.endDate != null}">
+                      &ndash; <span th:text="${#temporals.format(enrollment.endDate, 'dd MMM yyyy')}">30 Jun 2026</span>
+                    </span>
+                    <span th:if="${enrollment.endDate == null}" class="text-body-secondary">&ndash; active</span>
+                  </td>
+                  <td class="text-center">
+                    <span class="badge"
+                          th:classappend="${enrollment.status.name() == 'ACTIVE'} ? 'text-bg-success' : 'text-bg-secondary'"
+                          th:text="${enrollment.status}">ACTIVE</span>
+                  </td>
+                </tr>
+                </tbody>
+              </table>
+              <div class="empty-state" th:if="${#lists.isEmpty(enrollments)}">
+                <i class="bi bi-inbox d-block mb-2"></i>
+                No enrollment yet.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

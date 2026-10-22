@@ -5,7 +5,7 @@ spring:
   datasource:
     url: ${DB_URL:jdbc:postgresql://127.0.0.1:5433/omsai}
     username: ${DB_USERNAME:tojo}
-    password: ${DB_PASSWORD:omsai_dev}
+    password: ${DB_PASSWORD:}
     hikari:
       maximum-pool-size: 10
       minimum-idle: 2
@@ -54,6 +54,13 @@ app:
       name: ${APP_ADMIN_NAME:}
       email: ${APP_ADMIN_EMAIL:}
       password: ${APP_ADMIN_PASSWORD:}
+  # The demo dataset: the curated course catalogue and the fictional
+  # sample identities of a demonstration environment. It is off unless
+  # it is switched on explicitly, and it may only be written to the
+  # database that is named here. See README "Demo dataset".
+  demo:
+    enabled: ${DEMO_DATA_ENABLED:false}
+    target-database: ${DEMO_DATA_TARGET_DATABASE:}
 
 logging:
   level:

@@ -95,6 +95,11 @@ public class CourseService {
         }
         Subject subject = subjectRepository.findById(subjectId)
                 .orElseThrow(() -> new BusinessRuleException("Subject not found."));
+        if (!subject.isActive()) {
+            throw new BusinessRuleException(
+                    "Subject \"" + subject.getName() + "\" is deactivated and cannot be assigned to a course. "
+                            + "Activate it first if it is taught again.");
+        }
         if (courseSubjectRepository.existsByCourseIdAndSubjectId(courseId, subjectId)) {
             throw new BusinessRuleException(
                     "Subject \"" + subject.getName() + "\" is already assigned to this course.");

@@ -71,6 +71,15 @@ public interface ClassSessionRepository extends JpaRepository<ClassSession, Long
 
     boolean existsByBatchSubjectId(Long batchSubjectId);
 
+    /** The session of one assignment and date, if it exists (idempotent generation). */
+    @Query("""
+            select cs from ClassSession cs
+            where cs.batchSubject.id = :batchSubjectId
+              and cs.sessionDate = :sessionDate
+            """)
+    Optional<ClassSession> findByBatchSubjectIdAndSessionDate(@Param("batchSubjectId") Long batchSubjectId,
+                                                              @Param("sessionDate") LocalDate sessionDate);
+
     long countBySessionDate(LocalDate date);
 
     long countBySessionDateAndStatus(LocalDate date, ClassSession.Status status);
@@ -99,6 +108,50 @@ public interface ClassSessionRepository extends JpaRepository<ClassSession, Long
                                         @Param("to") LocalDate to,
                                         @Param("status") ClassSession.Status status,
                                         Pageable pageable);
+
+    /**
+     * The classes of a teacher inside a date range. The dates are
+     * always concrete values: a query with a mixture of null and
+     * non-null parameters cannot be typed by the database.
+     */
+    @Query("""
+            select cs from ClassSession cs
+            join fetch cs.batchSubject bs
+            join fetch bs.batch b
+            join fetch b.course c
+            join fetch bs.courseSubject csub
+            join fetch csub.subject s
+            left join fetch bs.teacher t
+            where bs.teacher.id = :teacherId
+              and cs.sessionDate >= :from
+              and cs.sessionDate <= :to
+            order by cs.sessionDate desc, cs.id desc
+            """)
+    Page<ClassSession> searchForTeacherBetween(@Param("teacherId") Long teacherId,
+                                               @Param("from") LocalDate from,
+                                               @Param("to") LocalDate to,
+                                               Pageable pageable);
+
+    /** The classes of a teacher inside a date range and with one status. */
+    @Query("""
+            select cs from ClassSession cs
+            join fetch cs.batchSubject bs
+            join fetch bs.batch b
+            join fetch b.course c
+            join fetch bs.courseSubject csub
+            join fetch csub.subject s
+            left join fetch bs.teacher t
+            where bs.teacher.id = :teacherId
+              and cs.sessionDate >= :from
+              and cs.sessionDate <= :to
+              and cs.status = :status
+            order by cs.sessionDate desc, cs.id desc
+            """)
+    Page<ClassSession> searchForTeacherBetweenWithStatus(@Param("teacherId") Long teacherId,
+                                                         @Param("from") LocalDate from,
+                                                         @Param("to") LocalDate to,
+                                                         @Param("status") ClassSession.Status status,
+                                                         Pageable pageable);
 
     /** Sessions on one date (for the date report and the dashboard). */
     @Query("""

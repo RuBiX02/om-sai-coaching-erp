@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('My attendance')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('sessions')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('My attendance', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <div class="card mb-3">
+      <div class="card-body d-flex flex-wrap gap-4 align-items-center">
+        <div>
+          <div class="fw-semibold" th:text="${student.fullName}">Student</div>
+          <div class="small text-body-secondary" th:text="${student.studentCode}">code</div>
+        </div>
+        <div>
+          <div class="fw-semibold" th:text="${percentage != null} ? ${percentage + '%'} : 'Insufficient data'">—</div>
+          <div class="small text-body-secondary">
+            (present + late) ÷ (present + late + absent) × 100
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <i class="bi bi-clock-history me-2 table-thumb"></i>My attendance per period
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" th:if="${!#lists.isEmpty(report.rows())}">
+            <thead class="table-light">
+            <tr>
+              <th>Course</th>
+              <th>Batch</th>
+              <th>Period</th>
+              <th class="text-center">Eligible sessions</th>
+              <th class="text-center">Present</th>
+              <th class="text-center">Absent</th>
+              <th class="text-center">Late</th>
+              <th class="text-center">Excused</th>
+              <th class="text-center">%</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="row : ${report.rows()}">
+              <td th:text="${row.courseName()}">Course</td>
+              <td th:text="${row.batchName()}">Batch</td>
+              <td>
+                <span th:text="${#temporals.format(row.enrolledFrom(), 'dd MMM yyyy')}">01 Jan 2026</span>
+                <span th:if="${row.enrolledTo() != null}">
+                  &ndash; <span th:text="${#temporals.format(row.enrolledTo(), 'dd MMM yyyy')}">30 Jun 2026</span>
+                </span>
+                <span th:if="${row.enrolledTo() == null}" class="text-body-secondary">&ndash; active</span>
+              </td>
+              <td class="text-center" th:text="${row.eligibleSessions()}">0</td>
+              <td class="text-center" th:text="${row.present()}">0</td>
+              <td class="text-center" th:text="${row.absent()}">0</td>
+              <td class="text-center" th:text="${row.late()}">0</td>
+              <td class="text-center" th:text="${row.excused()}">0</td>
+              <td class="text-center">
+                <span th:if="${row.percentage() != null}" th:text="${row.percentage()} + '%'">91.7%</span>
+                <span th:if="${row.percentage() == null}" class="text-body-secondary">&mdash;</span>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+          <div class="empty-state" th:if="${#lists.isEmpty(report.rows())}">
+            <i class="bi bi-calendar-x d-block mb-2"></i>
+            No completed class with attendance yet.
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

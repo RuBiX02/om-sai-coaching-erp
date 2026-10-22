@@ -1,5 +1,16 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
+<!--
+  Administrator dashboard.
+
+  The page answers four questions in order, using only live figures from
+  DashboardService / InstallmentService - nothing is hardcoded:
+
+    1. What is happening today?        -> the metric band + schedule timeline
+    2. What needs my attention?        -> the attention panel
+    3. How is enrollment/attendance?   -> people & academics metrics
+    4. What is happening with fees?    -> the finance metrics + tables
+-->
 <head th:replace="~{layout/fragments :: head('Dashboard')}"></head>
 <body class="app-body">
 <div th:replace="~{layout/fragments :: sidebar('dashboard')}"></div>
@@ -9,277 +20,333 @@
 
     <div th:replace="~{layout/fragments :: alerts()}"></div>
 
-    <!-- Live figures from the database -->
-    <div class="row g-3 mb-1">
-      <div class="col-6 col-xl-3">
-        <div class="card stat-card h-100">
-          <div class="card-body d-flex align-items-center gap-3">
-            <i class="bi bi-people-fill stat-icon"></i>
-            <div>
-              <div class="stat-value" th:text="${stats.activeStudents}">0</div>
-              <div class="text-body-secondary small">Active students</div>
-            </div>
-          </div>
-          <div class="card-footer bg-transparent border-top-0">
-            <a th:href="@{/students?status=ACTIVE}" class="small">View students <i class="bi bi-arrow-right ms-1"></i></a>
-          </div>
-        </div>
+    <!-- ============================ page header ============================ -->
+    <header class="page-header">
+      <div>
+        <p class="page-eyebrow">
+          <i class="bi bi-sun" aria-hidden="true"></i>
+          <span th:text="${greeting}">Good morning</span>
+        </p>
+        <h2 class="page-title">Institute overview</h2>
+        <p class="page-subtitle">
+          Enrollment, attendance and fee activity across the institute.
+        </p>
       </div>
-      <div class="col-6 col-xl-3">
-        <div class="card stat-card h-100">
-          <div class="card-body d-flex align-items-center gap-3">
-            <i class="bi bi-journal-bookmark-fill stat-icon"></i>
-            <div>
-              <div class="stat-value" th:text="${stats.activeCourses}">0</div>
-              <div class="text-body-secondary small">Active courses</div>
-            </div>
-          </div>
-          <div class="card-footer bg-transparent border-top-0">
-            <a th:href="@{/courses?status=ACTIVE}" class="small">View courses <i class="bi bi-arrow-right ms-1"></i></a>
-          </div>
-        </div>
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <span class="page-header-meta">
+          <i class="bi bi-calendar3" aria-hidden="true"></i>
+          <span th:text="${#temporals.format(today, 'EEEE, dd MMMM yyyy')}">date</span>
+        </span>
+        <a th:href="@{/students/new}" class="btn btn-primary">
+          <i class="bi bi-person-plus" aria-hidden="true"></i>Register student
+        </a>
+        <a th:href="@{/fees}" class="btn btn-outline-secondary">
+          <i class="bi bi-cash-coin" aria-hidden="true"></i>Fee accounts
+        </a>
+        <a th:href="@{/sessions/new}" class="btn btn-outline-secondary">
+          <i class="bi bi-calendar2-plus" aria-hidden="true"></i>New session
+        </a>
       </div>
-      <div class="col-6 col-xl-3">
-        <div class="card stat-card h-100">
-          <div class="card-body d-flex align-items-center gap-3">
-            <i class="bi bi-collection-fill stat-icon"></i>
-            <div>
-              <div class="stat-value" th:text="${stats.activeBatches}">0</div>
-              <div class="text-body-secondary small">Active batches</div>
-            </div>
-          </div>
-          <div class="card-footer bg-transparent border-top-0">
-            <a th:href="@{/batches?status=ACTIVE}" class="small">View batches <i class="bi bi-arrow-right ms-1"></i></a>
-          </div>
-        </div>
-      </div>
-      <div class="col-6 col-xl-3">
-        <div class="card stat-card h-100">
-          <div class="card-body d-flex align-items-center gap-3">
-            <i class="bi bi-person-video3 stat-icon"></i>
-            <div>
-              <div class="stat-value" th:text="${stats.activeTeachers}">0</div>
-              <div class="text-body-secondary small">Active teachers</div>
-            </div>
-          </div>
-          <div class="card-footer bg-transparent border-top-0">
-            <a th:href="@{/teachers?status=ACTIVE}" class="small">View teachers <i class="bi bi-arrow-right ms-1"></i></a>
-          </div>
-        </div>
-      </div>
-    </div>
+    </header>
 
-    <!-- Phase 2: today's classes, attendance, collections and outstanding -->
-    <div class="row g-3 mb-1 mt-1">
-      <div class="col-6 col-xl-3">
-        <div class="card stat-card h-100">
-          <div class="card-body d-flex align-items-center gap-3">
-            <i class="bi bi-calendar2-check stat-icon"></i>
-            <div>
-              <div class="stat-value" th:text="${phase2.sessionsToday}">0</div>
-              <div class="text-body-secondary small">Class sessions today</div>
-            </div>
-          </div>
-          <div class="card-footer bg-transparent border-top-0 small text-body-secondary">
-            <span th:text="${phase2.openToday}">0</span> open ·
-            <span th:text="${phase2.completedToday}">0</span> completed ·
-            <span th:text="${phase2.cancelledToday}">0</span> cancelled
-          </div>
-        </div>
+    <!-- ========================= the metric band ========================= -->
+    <section class="metric-band" aria-label="Institute summary">
+      <div class="metric-cell">
+        <div class="stat-label">Active students</div>
+        <div class="stat-value" th:text="${stats.activeStudents}">0</div>
+        <div class="stat-hint">Enrolled and studying now</div>
       </div>
-      <div class="col-6 col-xl-3">
-        <div class="card stat-card h-100">
-          <div class="card-body d-flex align-items-center gap-3">
-            <i class="bi bi-clipboard-check stat-icon"></i>
-            <div>
-              <div class="stat-value"
-                   th:text="${phase2.attendanceToday.present() + phase2.attendanceToday.late() + phase2.attendanceToday.absent() + phase2.attendanceToday.excused()}">0</div>
-              <div class="text-body-secondary small">Attendance marks today</div>
-            </div>
-          </div>
-          <div class="card-footer bg-transparent border-top-0 small text-body-secondary">
-            P <span th:text="${phase2.attendanceToday.present()}">0</span> ·
-            L <span th:text="${phase2.attendanceToday.late()}">0</span> ·
-            A <span th:text="${phase2.attendanceToday.absent()}">0</span> ·
-            E <span th:text="${phase2.attendanceToday.excused()}">0</span>
-          </div>
-        </div>
+      <div class="metric-cell">
+        <div class="stat-label">Active teachers</div>
+        <div class="stat-value" th:text="${stats.activeTeachers}">0</div>
+        <div class="stat-hint">Teaching staff on record</div>
       </div>
-      <div class="col-6 col-xl-3">
-        <div class="card stat-card h-100">
-          <div class="card-body d-flex align-items-center gap-3">
-            <i class="bi bi-cash-stack stat-icon"></i>
-            <div>
-              <div class="stat-value">₹ <span th:text="${phase2.collectionsThisMonth}">0</span></div>
-              <div class="text-body-secondary small">Collections this month</div>
-            </div>
-          </div>
-          <div class="card-footer bg-transparent border-top-0">
-            <a th:href="@{/fees/collections}" class="small">Collection summary <i class="bi bi-arrow-right ms-1"></i></a>
-          </div>
-        </div>
+      <div class="metric-cell">
+        <div class="stat-label">Active batches</div>
+        <div class="stat-value" th:text="${stats.activeBatches}">0</div>
+        <div class="stat-hint">Currently running groups</div>
       </div>
-      <div class="col-6 col-xl-3">
-        <div class="card stat-card h-100">
-          <div class="card-body d-flex align-items-center gap-3">
-            <i class="bi bi-wallet2 stat-icon"></i>
-            <div>
-              <div class="stat-value">₹ <span th:text="${phase2.outstandingTotal}">0</span></div>
-              <div class="text-body-secondary small">Total outstanding</div>
-            </div>
-          </div>
-          <div class="card-footer bg-transparent border-top-0">
-            <a th:href="@{/fees/overdue}" class="small">
-              <span th:text="${phase2.overdueAccounts}">0</span> overdue account(s) <i class="bi bi-arrow-right ms-1"></i>
-            </a>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="row g-3">
-      <div class="col-lg-8">
-        <div class="card h-100">
-          <div class="card-header d-flex justify-content-between align-items-center">
-            <span><i class="bi bi-clock-history me-2 table-thumb"></i>Recent enrollments</span>
-            <a th:href="@{/students}" class="small">All students</a>
-          </div>
-          <div class="card-body p-0">
-            <div class="table-responsive">
-              <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
-                <tr>
-                  <th>Student</th>
-                  <th>Batch</th>
-                  <th>Date</th>
-                  <th class="text-center">Status</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr th:each="e : ${recentEnrollments}">
-                  <td>
-                    <a th:href="@{/students/{id}(id=${e.student.id})}" th:text="${e.student.fullName}">Student</a>
-                    <div class="small text-body-secondary" th:text="${e.student.studentCode}">OMS-2026-00001</div>
-                  </td>
-                  <td>
-                    <a th:href="@{/batches/{id}(id=${e.batch.id})}" th:text="${e.batch.name}">Batch</a>
-                    <div class="small text-body-secondary" th:text="${e.course.name}">Course</div>
-                  </td>
-                  <td th:text="${#temporals.format(e.enrollmentDate, 'dd MMM yyyy')}">01 Jan 2026</td>
-                  <td class="text-center">
-                    <span th:switch="${e.status.name()}"
-                          class="badge"
-                          th:classappend="${e.status.name() == 'ACTIVE'} ? 'text-bg-success' : (${e.status.name() == 'COMPLETED'} ? 'text-bg-primary' : 'text-bg-secondary')">
-                      <span th:case="'ACTIVE'">Active</span>
-                      <span th:case="'COMPLETED'">Completed</span>
-                      <span th:case="'WITHDRAWN'">Withdrawn</span>
-                    </span>
-                  </td>
-                </tr>
-                <tr th:if="${#lists.isEmpty(recentEnrollments)}">
-                  <td colspan="4">
-                    <div class="empty-state">
-                      <i class="bi bi-inbox d-block mb-2"></i>
-                      No enrollments yet. Register a student and enroll them in a batch.
-                    </div>
-                  </td>
-                </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+      <div class="metric-cell">
+        <div class="stat-label">Active courses</div>
+        <div class="stat-value" th:text="${stats.activeCourses}">0</div>
+        <div class="stat-hint">Offerings open for admission</div>
       </div>
 
-      <div class="col-lg-4">
-        <div class="card h-100">
-          <div class="card-header"><i class="bi bi-lightning-charge me-2 table-thumb"></i>Quick actions</div>
-          <div class="card-body d-grid gap-2">
-            <a th:href="@{/students/new}" class="btn btn-outline-primary">
-              <i class="bi bi-person-plus me-2"></i>Register student
-            </a>
-            <a th:href="@{/batches/new}" class="btn btn-outline-primary">
-              <i class="bi bi-plus-circle me-2"></i>Create batch
-            </a>
-            <a th:href="@{/courses/new}" class="btn btn-outline-primary">
-              <i class="bi bi-plus-circle me-2"></i>Create course
-            </a>
-            <a th:href="@{/subjects/new}" class="btn btn-outline-primary">
-              <i class="bi bi-plus-circle me-2"></i>Create subject
-            </a>
-            <a th:href="@{/teachers/new}" class="btn btn-outline-primary">
-              <i class="bi bi-person-plus me-2"></i>Create teacher profile
-            </a>
-          </div>
-          <div class="card-body border-top pt-3">
-            <h2 class="h6 text-body-secondary mb-2">Daily workflow</h2>
-            <ol class="small text-body-secondary ps-3 mb-0">
-              <li>Create subjects, then assign them to a course.</li>
-              <li>Create a batch for the course and assign its subjects and teachers.</li>
-              <li>Register students and enroll them in batches.</li>
-            </ol>
-          </div>
+      <div class="metric-cell">
+        <div class="stat-label">Class sessions today</div>
+        <div class="stat-value" th:text="${phase2.sessionsToday}">0</div>
+        <div class="stat-hint">
+          <span th:text="${phase2.openToday}">0</span> open ·
+          <span th:text="${phase2.completedToday}">0</span> completed ·
+          <span th:text="${phase2.cancelledToday}">0</span> cancelled
         </div>
       </div>
-    </div>
+      <div class="metric-cell">
+        <div class="stat-label">Attendance marks today</div>
+        <div class="stat-value"
+             th:text="${phase2.attendanceToday.present() + phase2.attendanceToday.late() + phase2.attendanceToday.absent() + phase2.attendanceToday.excused()}">0</div>
+        <div class="stat-hint">
+          P <span th:text="${phase2.attendanceToday.present()}">0</span> ·
+          L <span th:text="${phase2.attendanceToday.late()}">0</span> ·
+          A <span th:text="${phase2.attendanceToday.absent()}">0</span> ·
+          E <span th:text="${phase2.attendanceToday.excused()}">0</span>
+        </div>
+      </div>
+      <div class="metric-cell is-hero">
+        <div class="stat-label">Collections this month</div>
+        <div class="stat-value is-money" th:text="${@money.money(phase2.collectionsThisMonth)}">₹ 0.00</div>
+        <div class="stat-hint">Received in the current month</div>
+      </div>
+      <div class="metric-cell">
+        <div class="stat-label">Total outstanding</div>
+        <div class="stat-value is-money" th:text="${@money.money(phase2.outstandingTotal)}">₹ 0.00</div>
+        <div class="stat-hint">
+          <span class="metric-chip is-danger" th:if="${phase2.overdueAccounts > 0}">
+            <i class="bi bi-exclamation-circle" aria-hidden="true"></i>
+            <span th:text="${phase2.overdueAccounts}">0</span> past due
+          </span>
+          <span class="metric-chip is-ok" th:if="${phase2.overdueAccounts == 0}">
+            <i class="bi bi-check-circle" aria-hidden="true"></i>Nothing past due
+          </span>
+        </div>
+      </div>
+    </section>
 
-    <div class="row g-3 mt-1">
-      <div class="col-12">
-        <div class="card">
-          <div class="card-header d-flex justify-content-between align-items-center">
-            <span><i class="bi bi-calendar2-check me-2 table-thumb"></i>Class sessions today</span>
-            <a th:href="@{/sessions}" class="small">All sessions</a>
-          </div>
-          <div class="card-body p-0">
-            <div class="table-responsive">
-              <table class="table table-hover align-middle mb-0" th:if="${!#lists.isEmpty(sessionsToday)}">
-                <thead class="table-light">
-                <tr>
-                  <th>Time</th>
-                  <th>Batch</th>
-                  <th>Subject</th>
-                  <th>Teacher</th>
-                  <th class="text-center">Status</th>
-                  <th class="text-end">Session</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr th:each="cs : ${sessionsToday}">
-                  <td>
+    <!-- ================ today's schedule + attention panel ================ -->
+    <section aria-label="Today and attention" class="mb-3">
+      <div class="row g-3">
+        <div class="col-lg-7">
+          <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <span class="section-title">
+                <i class="bi bi-calendar2-check" aria-hidden="true"></i>Class sessions today
+              </span>
+              <a th:href="@{/sessions}" class="small">All sessions</a>
+            </div>
+            <div class="card-body p-0" th:if="${!#lists.isEmpty(sessionsToday)}">
+              <ol class="timeline py-2 px-3 mb-0">
+                <li th:each="cs : ${sessionsToday}"
+                    th:classappend="${cs.isCompleted} ? 'is-completed' : (${cs.isCancelled} ? 'is-cancelled' : '')"
+                    class="timeline-item">
+                  <div class="timeline-time">
                     <span th:if="${cs.startTime != null}" th:text="${#temporals.format(cs.startTime, 'HH:mm')}">10:00</span>
-                    <span th:if="${cs.startTime == null}" class="text-body-secondary">&ndash;</span>
-                  </td>
-                  <td th:text="${cs.batchSubject.batch.name}">Batch</td>
-                  <td th:text="${cs.batchSubject.courseSubject.subject.name}">Subject</td>
-                  <td>
-                    <span th:if="${cs.batchSubject.teacher != null}" th:text="${cs.batchSubject.teacher.fullName}">Teacher</span>
-                    <span th:if="${cs.batchSubject.teacher == null}" class="text-body-secondary">Unassigned</span>
-                  </td>
-                  <td class="text-center">
+                    <span th:if="${cs.startTime == null}">&ndash;</span>
+                    <span class="timeline-end" th:if="${cs.endTime != null}"
+                          th:text="${#temporals.format(cs.endTime, 'HH:mm')}">11:00</span>
+                  </div>
+                  <div class="timeline-marker" aria-hidden="true"></div>
+                  <div class="timeline-body">
+                    <div class="timeline-title" th:text="${cs.batchSubject.batch.name}">Batch</div>
+                    <div class="timeline-sub">
+                      <span th:text="${cs.batchSubject.courseSubject.subject.name}">Subject</span>
+                      <span th:if="${cs.batchSubject.teacher != null}"
+                            th:text="' · ' + ${cs.batchSubject.teacher.fullName}"> · Teacher</span>
+                      <span th:if="${cs.batchSubject.teacher == null}" class="text-warning"> · teacher unassigned</span>
+                    </div>
+                  </div>
+                  <div class="timeline-side">
                     <span th:switch="${cs.status.name()}" class="badge"
                           th:classappend="${cs.isOpen} ? 'text-bg-success' : (${cs.isCompleted} ? 'text-bg-primary' : 'text-bg-secondary')">
+                      <i th:case="'OPEN'" class="bi bi-play-circle-fill me-1" aria-hidden="true"></i>
+                      <i th:case="'COMPLETED'" class="bi bi-check-circle-fill me-1" aria-hidden="true"></i>
+                      <i th:case="'CANCELLED'" class="bi bi-x-circle-fill me-1" aria-hidden="true"></i>
                       <span th:case="'OPEN'">Open</span>
                       <span th:case="'COMPLETED'">Completed</span>
                       <span th:case="'CANCELLED'">Cancelled</span>
                     </span>
-                  </td>
-                  <td class="text-end">
                     <a th:href="@{/sessions/{id}(id=${cs.id})}" class="btn btn-sm btn-outline-secondary" title="View session">
-                      <i class="bi bi-eye"></i><span class="visually-hidden">View</span>
+                      <i class="bi bi-eye" aria-hidden="true"></i><span class="visually-hidden">View session</span>
                     </a>
-                  </td>
-                </tr>
-                </tbody>
-              </table>
-              <div class="empty-state" th:if="${#lists.isEmpty(sessionsToday)}">
-                <i class="bi bi-calendar2 d-block mb-2"></i>
-                No class sessions recorded for today.
+                  </div>
+                </li>
+              </ol>
+            </div>
+            <div class="card-body" th:if="${#lists.isEmpty(sessionsToday)}">
+              <div class="empty-state">
+                <i class="bi bi-calendar2-plus d-block" aria-hidden="true"></i>
+                <span class="empty-title">No class sessions for today</span>
+                Schedule a session to start recording attendance.
+                <div class="empty-action">
+                  <a th:href="@{/sessions/new}" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-calendar2-plus me-1" aria-hidden="true"></i>Schedule a session
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-5">
+          <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <span class="section-title">
+                <i class="bi bi-bell" aria-hidden="true"></i>Needs attention
+              </span>
+              <a th:href="@{/installments/overdue}" class="small">Overdue report</a>
+            </div>
+            <div class="card-body p-0">
+              <div class="px-3 py-1">
+                <a th:href="@{/installments/overdue}"
+                   th:class="'attention-item ' + (${installments.overdueCount > 0} ? 'is-danger' : 'is-ok')">
+                  <span class="attention-icon bi"
+                        th:classappend="${installments.overdueCount > 0} ? 'bi-exclamation-triangle' : 'bi-check-circle'"
+                        aria-hidden="true"></span>
+                  <span class="attention-body">
+                    <span class="attention-title"
+                          th:text="${installments.overdueCount > 0} ? 'Overdue installments' : 'No overdue installments'">Overdue installments</span>
+                    <span class="attention-sub">
+                      <span th:text="${installments.overdueCount}">0</span>
+                      <span th:text="${installments.overdueCount == 1} ? 'installment' : 'installments'">installments</span>
+                      · <span th:text="${@money.money(installments.overdueBalance)}">₹ 0.00</span> outstanding
+                    </span>
+                  </span>
+                  <i class="bi bi-chevron-right attention-chev" aria-hidden="true"></i>
+                </a>
+
+                <a th:href="@{/fees}"
+                   th:class="'attention-item ' + (${phase2.overdueAccounts > 0} ? 'is-warning' : 'is-ok')">
+                  <span class="attention-icon bi"
+                        th:classappend="${phase2.overdueAccounts > 0} ? 'bi-hourglass-split' : 'bi-check-circle'"
+                        aria-hidden="true"></span>
+                  <span class="attention-body">
+                    <span class="attention-title"
+                          th:text="${phase2.overdueAccounts > 0} ? 'Fee accounts past due' : 'No overdue fee accounts'">Fee accounts past due</span>
+                    <span class="attention-sub">
+                      <span th:if="${phase2.overdueAccounts > 0}">
+                        <span th:text="${phase2.overdueAccounts}">0</span>
+                        <span th:text="${phase2.overdueAccounts == 1} ? 'account' : 'accounts'">accounts</span> past their due date
+                      </span>
+                      <span th:if="${phase2.overdueAccounts == 0}">Every account is within its due date</span>
+                    </span>
+                  </span>
+                  <i class="bi bi-chevron-right attention-chev" aria-hidden="true"></i>
+                </a>
+
+                <a th:href="@{/installments/upcoming}" class="attention-item is-neutral">
+                  <span class="attention-icon bi bi-calendar2-week" aria-hidden="true"></span>
+                  <span class="attention-body">
+                    <span class="attention-title">Due in the next 7 days</span>
+                    <span class="attention-sub">
+                      <span th:text="${installments.dueInSevenDays}">0</span>
+                      <span th:text="${installments.dueInSevenDays == 1} ? 'installment' : 'installments'">installments</span>
+                      · <span th:text="${@money.money(installments.dueInSevenDaysAmount)}">₹ 0.00</span> to collect
+                    </span>
+                  </span>
+                  <i class="bi bi-chevron-right attention-chev" aria-hidden="true"></i>
+                </a>
+
+                <a th:if="${installments.nextDueDate != null}" th:href="@{/installments}" class="attention-item is-neutral">
+                  <span class="attention-icon bi bi-calendar-event" aria-hidden="true"></span>
+                  <span class="attention-body">
+                    <span class="attention-title">Next due date</span>
+                    <span class="attention-sub"
+                          th:text="${#temporals.format(installments.nextDueDate, 'EEEE, dd MMMM yyyy')}">date</span>
+                  </span>
+                  <i class="bi bi-chevron-right attention-chev" aria-hidden="true"></i>
+                </a>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </section>
+
+    <!-- ============== next installments + recent enrollments ============== -->
+    <section aria-label="Collections and admissions">
+      <div class="row g-3">
+        <div class="col-lg-7">
+          <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <span class="section-title">
+                <i class="bi bi-calendar2-week" aria-hidden="true"></i>Next installments due
+              </span>
+              <a th:href="@{/installments}" class="small">All installments</a>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive" th:if="${!#lists.isEmpty(nextInstallments)}">
+                <table class="table table-hover align-middle mb-0">
+                  <thead>
+                  <tr>
+                    <th>Student</th>
+                    <th>Course</th>
+                    <th class="text-center">#</th>
+                    <th>Due date</th>
+                    <th class="text-end">Remaining</th>
+                  </tr>
+                  </thead>
+                  <tbody>
+                  <tr th:each="row : ${nextInstallments}">
+                    <td>
+                      <span class="fw-semibold" th:text="${row.studentName}">Student</span>
+                    </td>
+                    <td class="text-body-secondary" th:text="${row.courseName}">Course</td>
+                    <td class="text-center" th:text="${row.installmentNumber}">1</td>
+                    <td class="text-nowrap" th:text="${#temporals.format(row.dueDate, 'dd MMM yyyy')}">01 Jan 2026</td>
+                    <td class="text-end fw-semibold" th:text="${@money.money(row.amount - row.paid)}">₹ 10000.00</td>
+                  </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="empty-state" th:if="${#lists.isEmpty(nextInstallments)}">
+                <i class="bi bi-calendar-check d-block" aria-hidden="true"></i>
+                <span class="empty-title">No installment is due</span>
+                Create an installment plan from a fee agreement to schedule the collection.
+                <div class="empty-action">
+                  <a th:href="@{/installments}" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-calendar2-week me-1" aria-hidden="true"></i>Open installments
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-5">
+          <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <span class="section-title">
+                <i class="bi bi-clock-history" aria-hidden="true"></i>Recent enrollments
+              </span>
+              <a th:href="@{/students}" class="small">All students</a>
+            </div>
+            <div class="card-body p-0">
+              <ul class="list-unstyled px-3 py-1 mb-0" th:if="${!#lists.isEmpty(recentEnrollments)}">
+                <li class="person-row" th:each="e : ${recentEnrollments}">
+                  <span class="person-avatar" aria-hidden="true"
+                        th:text="${#strings.toUpperCase(#strings.substring(e.student.fullName, 0, 1))}">S</span>
+                  <div class="person-body">
+                    <div class="person-name">
+                      <a th:href="@{/students/{id}(id=${e.student.id})}" th:text="${e.student.fullName}">Student</a>
+                    </div>
+                    <div class="person-meta">
+                      <span th:text="${e.student.studentCode}">OMS-2026-00001</span> ·
+                      <span th:text="${e.batch.name}">Batch</span> ·
+                      <span th:text="${#temporals.format(e.enrollmentDate, 'dd MMM yyyy')}">01 Jan 2026</span>
+                    </div>
+                  </div>
+                  <div class="person-side">
+                    <span th:switch="${e.status.name()}" class="badge"
+                          th:classappend="${e.status.name() == 'ACTIVE'} ? 'text-bg-success' : (${e.status.name() == 'COMPLETED'} ? 'text-bg-primary' : 'text-bg-secondary')">
+                      <i th:case="'ACTIVE'" class="bi bi-check-circle-fill me-1" aria-hidden="true"></i>
+                      <i th:case="'COMPLETED'" class="bi bi-archive-fill me-1" aria-hidden="true"></i>
+                      <i th:case="'WITHDRAWN'" class="bi bi-dash-circle-fill me-1" aria-hidden="true"></i>
+                      <span th:case="'ACTIVE'">Active</span>
+                      <span th:case="'COMPLETED'">Completed</span>
+                      <span th:case="'WITHDRAWN'">Withdrawn</span>
+                    </span>
+                  </div>
+                </li>
+              </ul>
+              <div class="empty-state" th:if="${#lists.isEmpty(recentEnrollments)}">
+                <i class="bi bi-inbox d-block" aria-hidden="true"></i>
+                <span class="empty-title">No enrollments yet</span>
+                Register a student and enroll them in a batch.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
 
   </main>
 </div>

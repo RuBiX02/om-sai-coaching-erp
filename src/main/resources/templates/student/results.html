@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('My results')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('examinations')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('My results', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <div class="card mb-3">
+      <div class="card-body d-flex flex-wrap gap-4 align-items-center">
+        <div>
+          <div class="fw-semibold" th:text="${student.fullName}">Student</div>
+          <div class="small text-body-secondary" th:text="${student.studentCode}">code</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <i class="bi bi-journal-check me-2 table-thumb"></i>Published results
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" th:if="${!#lists.isEmpty(results)}">
+            <thead class="table-light">
+            <tr>
+              <th>Examination</th>
+              <th>Subject</th>
+              <th>Date</th>
+              <th class="text-center">Status</th>
+              <th class="text-end">Marks</th>
+              <th class="text-end">Maximum</th>
+              <th class="text-end">Percentage</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="result : ${results}">
+              <td th:text="${result.examination.title}">Unit test</td>
+              <td th:text="${result.examination.batchSubject.courseSubject.subject.name}">Subject</td>
+              <td th:text="${#temporals.format(result.examination.examinationDate, 'dd MMM yyyy')}">01 Apr 2026</td>
+              <td class="text-center">
+                <span class="badge"
+                      th:classappend="${result.status.name() == 'PRESENT'} ? 'text-bg-success'
+                        : (${result.status.name() == 'ABSENT'} ? 'text-bg-danger' : 'text-bg-info')"
+                      th:text="${result.status}">PRESENT</span>
+              </td>
+              <td class="text-end">
+                <span th:if="${result.marks != null}" th:text="${result.marks}">0.00</span>
+                <span th:if="${result.marks == null}" class="text-body-secondary">–</span>
+              </td>
+              <td class="text-end" th:text="${result.examination.maximumMarks}">0.00</td>
+              <td class="text-end">
+                <span th:if="${result.marks != null}"
+                      th:text="${result.percentage(result.examination.maximumMarks)} + '%'">0.0%</span>
+                <span th:if="${result.marks == null}" class="text-body-secondary">–</span>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+          <div class="empty-state" th:if="${#lists.isEmpty(results)}">
+            <i class="bi bi-journal-x d-block mb-2"></i>
+            No published result yet. A result appears here as soon as the institute publishes it.
+          </div>
+        </div>
+      </div>
+      <div class="card-footer small text-body-secondary">
+        <i class="bi bi-info-circle me-1"></i>
+        A result that is still being prepared is not shown here. Absent and excused have no mark —
+        that is not a mark of zero.
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

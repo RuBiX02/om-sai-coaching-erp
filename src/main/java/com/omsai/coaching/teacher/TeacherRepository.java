@@ -15,6 +15,9 @@ public interface TeacherRepository extends JpaRepository<Teacher, Long> {
 
     Optional<Teacher> findByLinkedUserId(Long userId);
 
+    /** The teacher profile with this name (used to keep a seed idempotent). */
+    Optional<Teacher> findByFullNameIgnoreCase(String fullName);
+
     @Query("""
             select t from Teacher t
             left join fetch t.linkedUser

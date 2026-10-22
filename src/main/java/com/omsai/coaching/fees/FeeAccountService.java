@@ -130,6 +130,16 @@ public class FeeAccountService implements EnrollmentTransferObserver {
                 .orElseThrow(() -> new BusinessRuleException("Fee agreement not found."));
     }
 
+    /**
+     * The account with its full context, or null when it does not exist.
+     * Used by the screens that answer with a clean "not found" message
+     * instead of a rule violation.
+     */
+    @Transactional(readOnly = true)
+    public FeeAccount findWithDetails(Long id) {
+        return feeAccountRepository.findWithDetails(id).orElse(null);
+    }
+
     /** The computed outstanding balance of an account: net fee minus RECEIVED payments. */
     @Transactional(readOnly = true)
     public BigDecimal outstandingOf(FeeAccount account) {

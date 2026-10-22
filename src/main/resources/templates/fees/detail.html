@@ -37,15 +37,15 @@
               <dt class="col-sm-4">Academic year</dt>
               <dd class="col-sm-8" th:text="${account.academicYear}">2026-27</dd>
               <dt class="col-sm-4">Gross fee</dt>
-              <dd class="col-sm-8" th:text="${account.grossFee}">12000</dd>
+              <dd class="col-sm-8" th:text="${@money.money(account.grossFee)}">₹ 12000.00</dd>
               <dt class="col-sm-4">Discount</dt>
-              <dd class="col-sm-8" th:text="${account.discountAmount}">0</dd>
+              <dd class="col-sm-8" th:text="${@money.money(account.discountAmount)}">₹ 0.00</dd>
               <dt class="col-sm-4">Net fee</dt>
-              <dd class="col-sm-8 fw-semibold" th:text="${account.netFee}">12000</dd>
+              <dd class="col-sm-8 fw-semibold" th:text="${@money.money(account.netFee)}">₹ 12000.00</dd>
               <dt class="col-sm-4">Total received</dt>
-              <dd class="col-sm-8" th:text="${received}">0</dd>
+              <dd class="col-sm-8" th:text="${@money.money(received)}">₹ 0.00</dd>
               <dt class="col-sm-4">Outstanding balance</dt>
-              <dd class="col-sm-8 fw-bold" th:text="${outstanding}">12000</dd>
+              <dd class="col-sm-8 fw-bold" th:text="${@money.money(outstanding)}">₹ 12000.00</dd>
               <dt class="col-sm-4">Due date</dt>
               <dd class="col-sm-8">
                 <span th:if="${account.dueDate != null}" th:text="${#temporals.format(account.dueDate, 'dd MMM yyyy')}">01 Jan 2026</span>
@@ -57,7 +57,7 @@
                 <span th:if="${account.notes == null}" class="text-body-secondary">&ndash;</span>
               </dd>
               <dt class="col-sm-4">Created</dt>
-              <dd class="col-sm-8" th:text="${#temporals.formatISO(account.createdAt)}"></dd>
+              <dd class="col-sm-8" th:text="${#temporals.format(account.createdAt, 'dd MMM yyyy, HH:mm')}"></dd>
             </dl>
           </div>
           <div class="card-footer d-flex gap-2 flex-wrap">
@@ -67,9 +67,90 @@
             <a th:href="@{/fees/{id}/edit(id=${account.id})}" class="btn btn-outline-secondary">
               <i class="bi bi-pencil me-1"></i>Edit agreement
             </a>
+            <a th:if="${!hasPlan}" th:href="@{/fees/{id}/installments(id=${account.id})}"
+               class="btn btn-outline-secondary">
+              <i class="bi bi-calendar2-week me-1"></i>Create installment plan
+            </a>
             <a th:href="@{/payments}" class="btn btn-outline-secondary">All payments</a>
           </div>
         </div>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-calendar2-week me-2 table-thumb"></i>Installment plan</span>
+        <span th:if="${hasPlan}" class="small text-body-secondary">
+          <span th:text="${installmentSummary.count}">0</span> installment(s) ·
+          <span th:text="${installmentSummary.overdueCount}">0</span> overdue ·
+          scheduled <span th:text="${installmentSummary.scheduled}">0</span> ·
+          paid <span th:text="${installmentSummary.paid}">0</span> ·
+          remaining <span th:text="${installmentSummary.remaining}">0</span>
+          <span th:if="${installmentSummary.nextDueDate != null}">
+            · next due <span th:text="${#temporals.format(installmentSummary.nextDueDate, 'dd MMM yyyy')}">01 Jan 2026</span>
+          </span>
+        </span>
+        <a th:if="${!hasPlan}" th:href="@{/fees/{id}/installments(id=${account.id})}"
+           class="btn btn-sm btn-primary">
+          <i class="bi bi-plus-lg me-1"></i>Create installment plan
+        </a>
+        <a th:if="${hasPlan and planEditable}" th:href="@{/fees/{id}/installments/edit(id=${account.id})}"
+           class="btn btn-sm btn-outline-primary">
+          <i class="bi bi-pencil me-1"></i>Edit installment plan
+        </a>
+      </div>
+      <div class="card-body p-0" th:if="${hasPlan}">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+            <tr>
+              <th>#</th>
+              <th>Due date</th>
+              <th class="text-end">Scheduled</th>
+              <th class="text-end">Paid</th>
+              <th class="text-end">Remaining</th>
+              <th class="text-center">Status</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="view : ${installments}">
+              <td th:text="${view.installment().installmentNumber}">1</td>
+              <td th:text="${#temporals.format(view.installment().dueDate, 'dd MMM yyyy')}">01 Jan 2026</td>
+              <td class="text-end" th:text="${view.installment().amount}">10000</td>
+              <td class="text-end" th:text="${view.paid}">0</td>
+              <td class="text-end fw-semibold" th:text="${view.remaining}">10000</td>
+              <td class="text-center">
+                <span class="badge"
+                      th:classappend="${view.status().name() == 'PAID'} ? 'text-bg-success'
+                        : (${view.status().name() == 'OVERDUE'} ? 'text-bg-danger'
+                        : (${view.status().name() == 'PARTIALLY_PAID'} ? 'text-bg-warning'
+                        : (${view.status().name() == 'DUE_TODAY'} ? 'text-bg-info' : 'text-bg-secondary')))"
+                      th:text="${view.status().name()}">UPCOMING</span>
+              </td>
+            </tr>
+            </tbody>
+            <tfoot class="table-light">
+            <tr>
+              <th colspan="2">Total</th>
+              <th class="text-end" th:text="${installmentSummary.scheduled}">0</th>
+              <th class="text-end" th:text="${installmentSummary.paid}">0</th>
+              <th class="text-end" th:text="${installmentSummary.remaining}">0</th>
+              <th></th>
+            </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+      <div class="card-body border-top text-body-secondary small" th:if="${hasPlan and !planEditable}">
+        <i class="bi bi-lock me-1"></i>
+        This schedule can no longer be edited: payment-allocation history exists for this agreement.
+        The original schedule and the financial history have been preserved.
+      </div>
+      <div class="card-body text-body-secondary" th:if="${!hasPlan}">
+        <i class="bi bi-info-circle me-1"></i>
+        This agreement is paid as one lump sum. An installment plan divides the net fee into
+        scheduled amounts with due dates; payments are then allocated to the earliest installment
+        that still has a balance.
       </div>
     </div>
 
@@ -97,7 +178,7 @@
             <tr th:each="p : ${payments}" th:with="voided=${p.status.name() == 'VOIDED'}">
               <td><a th:href="@{/payments/{id}/receipt(id=${p.id})}" th:text="${p.receiptNumber}">OMS-RCP-2026-000001</a></td>
               <td th:text="${#temporals.format(p.paymentDate, 'dd MMM yyyy')}">01 Jan 2026</td>
-              <td class="text-end" th:text="${p.amount}">1000</td>
+              <td class="text-end" th:text="${@money.money(p.amount)}">₹ 1000.00</td>
               <td th:text="${p.paymentMethod}">CASH</td>
               <td>
                 <span th:if="${p.referenceNumber != null}" th:text="${p.referenceNumber}">UPI ref</span>

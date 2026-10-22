@@ -26,6 +26,13 @@ public interface CourseSubjectRepository extends JpaRepository<CourseSubject, Lo
             """)
     long countAssignmentsForSubject(@Param("subjectId") Long subjectId);
 
+    /** Number of courses that include this subject. */
+    @Query("""
+            select count(cs) from CourseSubject cs
+            where cs.subject.id = :subjectId
+            """)
+    long countForSubject(@Param("subjectId") Long subjectId);
+
     @Query("""
             select cs from CourseSubject cs
             join fetch cs.subject s
@@ -51,10 +58,15 @@ public interface CourseSubjectRepository extends JpaRepository<CourseSubject, Lo
             """)
     List<CourseSubject> findForSubject(@Param("subjectId") Long subjectId);
 
-    /** Subjects of the course that are not yet assigned to it. */
+    /**
+     * Subjects of the course that are not yet assigned to it and are
+     * still taught. A deactivated subject keeps its existing course
+     * relationships but must not be offered for a new course.
+     */
     @Query("""
             select s from Subject s
-            where not exists (
+            where s.active = true
+              and not exists (
                 select cs from CourseSubject cs
                 where cs.course = :course and cs.subject = s)
             order by s.name

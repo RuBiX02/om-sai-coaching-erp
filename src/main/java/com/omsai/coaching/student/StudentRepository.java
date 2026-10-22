@@ -10,11 +10,24 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 
     boolean existsByStudentCodeIgnoreCase(String studentCode);
 
+    /** The student profile with this name (used to keep a seed idempotent). */
+    java.util.Optional<Student> findByFullNameIgnoreCase(String fullName);
+
     /** Next value of the dedicated student-code sequence. */
     @Query(value = "select nextval('student_code_seq')", nativeQuery = true)
     long nextStudentCodeValue();
 
     long countByActiveTrue();
+
+    /** The student profile behind a sign-in account. */
+    @Query("select s from Student s where s.userAccount.id = :userAccountId")
+    java.util.Optional<Student> findByUserAccountId(@Param("userAccountId") Long userAccountId);
+
+    boolean existsByUserAccountId(Long userAccountId);
+
+    /** The students without a portal account (for the account creation). */
+    @Query("select s from Student s where s.userAccount is null order by s.fullName")
+    java.util.List<Student> findWithoutAccount();
 
     @Query("""
             select s from Student s

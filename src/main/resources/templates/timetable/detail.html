@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('Timetable entry')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('timetable')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('Timetable entry', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-calendar-week me-2 table-thumb"></i>Recurring class</span>
+        <span class="badge" th:classappend="${entry.active} ? 'text-bg-success' : 'text-bg-secondary'"
+              th:text="${entry.active} ? 'ACTIVE' : 'INACTIVE'">ACTIVE</span>
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-sm-4">Subject</dt>
+          <dd class="col-sm-8" th:text="${entry.batchSubject.courseSubject.subject.name}">Subject</dd>
+          <dt class="col-sm-4">Course</dt>
+          <dd class="col-sm-8" th:text="${entry.batchSubject.batch.course.name}">Course</dd>
+          <dt class="col-sm-4">Batch</dt>
+          <dd class="col-sm-8" th:text="${entry.batchSubject.batch.name}">Batch</dd>
+          <dt class="col-sm-4">Teacher</dt>
+          <dd class="col-sm-8">
+            <span th:if="${entry.batchSubject.teacher != null}" th:text="${entry.batchSubject.teacher.fullName}">Teacher</span>
+            <span th:if="${entry.batchSubject.teacher == null}" class="text-body-secondary">Unassigned</span>
+          </dd>
+          <dt class="col-sm-4">Weekday</dt>
+          <dd class="col-sm-8" th:text="${entry.dayOfWeek}">MONDAY</dd>
+          <dt class="col-sm-4">Time</dt>
+          <dd class="col-sm-8"
+              th:text="${#temporals.format(entry.startTime, 'HH:mm')} + ' – ' + ${#temporals.format(entry.endTime, 'HH:mm')}">09:00 – 10:00</dd>
+          <dt class="col-sm-4">Classroom</dt>
+          <dd class="col-sm-8">
+            <span th:if="${entry.classroom != null}" th:text="${entry.classroom}">Room</span>
+            <span th:if="${entry.classroom == null}" class="text-body-secondary">–</span>
+          </dd>
+          <dt class="col-sm-4">Topic</dt>
+          <dd class="col-sm-8">
+            <span th:if="${entry.topic != null}" th:text="${entry.topic}">Topic</span>
+            <span th:if="${entry.topic == null}" class="text-body-secondary">–</span>
+          </dd>
+          <dt class="col-sm-4">Valid from</dt>
+          <dd class="col-sm-8" th:text="${#temporals.format(entry.effectiveFrom, 'dd MMM yyyy')}">01 Jan 2026</dd>
+          <dt class="col-sm-4">Valid until</dt>
+          <dd class="col-sm-8">
+            <span th:if="${entry.effectiveUntil != null}" th:text="${#temporals.format(entry.effectiveUntil, 'dd MMM yyyy')}">01 Dec 2026</span>
+            <span th:if="${entry.effectiveUntil == null}" class="text-body-secondary">No end date</span>
+          </dd>
+          <dt class="col-sm-4">Created by</dt>
+          <dd class="col-sm-8" th:text="${entry.createdBy.fullName}">Administrator</dd>
+        </dl>
+      </div>
+      <div class="card-footer d-flex gap-2 flex-wrap">
+        <a th:if="${!isTeacher}" th:href="@{/timetable/{id}/edit(id=${entry.id})}" class="btn btn-outline-secondary">
+          <i class="bi bi-pencil me-1"></i>Edit entry
+        </a>
+        <form th:if="${!isTeacher and entry.active}" th:action="@{/timetable/{id}/deactivate(id=${entry.id})}"
+              method="post" class="m-0">
+          <button type="submit" class="btn btn-outline-danger js-confirm"
+                  data-confirm="Deactivate this recurring class? The classes already generated and their attendance are kept.">
+            <i class="bi bi-x-circle me-1"></i>Deactivate
+          </button>
+        </form>
+        <a th:href="@{/timetable}" class="btn btn-outline-secondary">Back to timetable</a>
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

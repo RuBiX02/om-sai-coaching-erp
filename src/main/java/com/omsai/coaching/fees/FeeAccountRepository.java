@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 public interface FeeAccountRepository extends JpaRepository<FeeAccount, Long> {
@@ -27,6 +28,17 @@ public interface FeeAccountRepository extends JpaRepository<FeeAccount, Long> {
     Optional<FeeAccount> findWithDetails(@Param("id") Long id);
 
     boolean existsByStudentIdAndCourseIdAndAcademicYear(Long studentId, Long courseId, String academicYear);
+
+    /** The fee agreements of one student (one per course and year). */
+    @Query("""
+            select fa from FeeAccount fa
+            join fetch fa.course c
+            join fetch fa.enrollment e
+            join fetch e.batch b
+            where fa.student.id = :studentId
+            order by c.name, fa.academicYear
+            """)
+    List<FeeAccount> findByStudentId(@Param("studentId") Long studentId);
 
     Optional<FeeAccount> findByStudentIdAndCourseIdAndAcademicYear(Long studentId, Long courseId, String academicYear);
 
@@ -127,4 +139,21 @@ public interface FeeAccountRepository extends JpaRepository<FeeAccount, Long> {
               and fa.due_date < :today
             """, nativeQuery = true)
     long countOverdue(@Param("today") LocalDate today);
+
+    /**
+     * Total outstanding balance of the accounts that have an
+     * installment plan. It must equal the sum of the remaining
+     * installment balances of those accounts - the reconciliation
+     * invariant of the installment module.
+     */
+    @Query(value = """
+            select coalesce(sum((fa.gross_fee - fa.discount_amount) - coalesce(pt.total, 0)), 0)
+            from fee_accounts fa
+            left join (select fee_account_id, sum(amount) as total
+                       from payments
+                       where status = 'RECEIVED'
+                       group by fee_account_id) pt on pt.fee_account_id = fa.id
+            where exists (select 1 from fee_installments i where i.fee_account_id = fa.id)
+            """, nativeQuery = true)
+    BigDecimal outstandingOfAccountsWithPlans();
 }

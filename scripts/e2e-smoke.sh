@@ -2,23 +2,33 @@
 # End-to-end smoke test for Om Sai Coaching ERP (Phases 1 and 2).
 #
 # Prerequisites:
-#   - Application running on :8080 with the dev admin bootstrapped
-#     (admin@omsai.local / DevAdmin#2026#Pass by default).
-#   - PostgreSQL dev database reachable on 127.0.0.1:5433 (creds in DB_*).
+#   - Application running on :8080 with a bootstrapped dev administrator
+#     (sign-in name passed as OMSAI_ADMIN_EMAIL, default admin@omsai.local).
+#   - PostgreSQL reachable, with credentials supplied through the
+#     environment - no credentials are stored in this script:
+#       OMSAI_DB_PASSWORD  password of the local PostgreSQL user
+#       OMSAI_ADMIN_PASS   password of the bootstrapped dev administrator
 #   - curl installed.
 #
 # The script creates uniquely-prefixed data (suffix = run timestamp), so
 # it can be re-run against the same database.
+#
+# The script and the running application MUST look at the same database.
+# The script therefore detects it: after the first record has been
+# created through the running application, that record is looked up in
+# the candidate databases and the one that holds it is used from then on.
+# Set DB_NAME explicitly to skip the detection.
 set -u
 BASE=${BASE:-http://127.0.0.1:8080}
 PSQL_BIN=/usr/lib/postgresql/18/bin/psql
 DB_URL_HOST=127.0.0.1
 DB_PORT=5433
-DB_USER=tojo
-DB_NAME=omsai
-DB_PASS=omsai_dev
-ADMIN_EMAIL=admin@omsai.local
-ADMIN_PASS='DevAdmin#2026#Pass'
+DB_USER=${DB_USER:-tojo}
+DB_NAME=${DB_NAME:-}
+DB_CANDIDATES=${DB_CANDIDATES:-"omsai omsai_demo"}
+DB_PASS=${OMSAI_DB_PASSWORD:?set OMSAI_DB_PASSWORD - the password of the local PostgreSQL user}
+ADMIN_EMAIL=${OMSAI_ADMIN_EMAIL:-admin@omsai.local}
+ADMIN_PASS=${OMSAI_ADMIN_PASS:?set OMSAI_ADMIN_PASS - the password of the bootstrapped dev administrator}
 
 TS=$(date +%Y%m%d%H%M%S)
 WORK=/tmp/opencode/e2e
@@ -49,6 +59,33 @@ say() { printf '\033[1;34m== %s\033[0m\n' "$*"; }
 dbq() {
   PGPASSWORD=$DB_PASS "$PSQL_BIN" -h "$DB_URL_HOST" -p "$DB_PORT" -U "$DB_USER" \
     -d "$DB_NAME" -t -A -X -v ON_ERROR_STOP=1 -c "$1"
+}
+
+# A query against a named database (used while the real one is unknown).
+dbq_in() {
+  PGPASSWORD=$DB_PASS "$PSQL_BIN" -h "$DB_URL_HOST" -p "$DB_PORT" -U "$DB_USER" \
+    -d "$1" -t -A -X -v ON_ERROR_STOP=1 -c "$2"
+}
+
+# Determines which database the running application really uses: the
+# record that was just created through it is looked up in the candidates.
+# The script and the application must never look at different databases.
+detect_db() {  # detect_db <marker-sql>
+  local candidate
+  if [ -n "$DB_NAME" ]; then
+    return 0
+  fi
+  for candidate in ${=DB_CANDIDATES}; do
+    if [ -n "$(dbq_in "$candidate" "$1" 2>/dev/null)" ]; then
+      DB_NAME=$candidate
+      say "the running application uses the database '$DB_NAME'"
+      return 0
+    fi
+  done
+  echo "Could not determine which database the running application uses." >&2
+  echo "  Tried: $DB_CANDIDATES" >&2
+  echo "  Set DB_NAME explicitly if the application uses another one." >&2
+  exit 1
 }
 
 # page(): GET an authenticated page into page.html, print status code
@@ -128,8 +165,9 @@ ck "admin login accepted (302)" "$([ "$CODE" = 302 ] && echo 1 || echo 0)"
 T=$(tok /dashboard)
 ck "csrf token available after login" "$([ -n "$T" ] && echo 1 || echo 0)"
 
-# invalid credentials
-out=$(freshlogin jar2 "$ADMIN_EMAIL" "TotallyWrongPass1")
+# invalid credentials - a dedicated (non-existing) address, so the admin
+# account is never counted towards the rate limit of a repeated run
+out=$(freshlogin jar2 "e2e.wrong.$TS@omsai.local" "TotallyWrongPass1")
 ck "bad password redirects to /login?error" "$(has "${out#*|}" "/login?error" && echo 1 || echo 0)"
 
 # anonymous request
@@ -147,6 +185,11 @@ post_url=$(go -d "_csrf=$T" --data-urlencode "name=E2E Subject $TS" \
 SUBJ_URL=${post_url#*|}
 ck "subject created (redirect to detail)" "$(has "$SUBJ_URL" "/subjects/" && echo 1 || echo 0)"
 SUBJID=${SUBJ_URL##*/}
+
+# From here on the script and the application must read the same
+# database: the subject that was just created through the application
+# tells which one it is.
+detect_db "select id from subjects where name = 'E2E Subject $TS'"
 
 post_url=$(go -d "_csrf=$T" -d "description=" --data-urlencode "durationMonths=6" \
   --data-urlencode "category=E2E" --data-urlencode "name=E2E Course A $TS" "$BASE/courses") || true
@@ -683,6 +726,227 @@ tcode=$(curl -s -b tjar -o tpage.html -w '%{http_code}' "$BASE/sessions/$ASID/pr
 ck "teacher blocked from another teacher's printable sheet (403)" "$([ "$tcode" = 403 ] && echo 1 || echo 0)"
 tcode=$(curl -s -b tjar -o tpage.html -w '%{http_code}' "$BASE/sessions/$SID/print")
 ck "teacher may print the sheet of their own subject (200)" "$([ "$tcode" = 200 ] && echo 1 || echo 0)"
+
+# ================================================================ K5: installment plans
+say "installment plans and allocation"
+icode=$(page "/fees/$FA/installments")
+ck "installment plan form renders" "$([ "$icode" = 200 ] && has "$(cat page.html)" "Installment plan" && echo 1 || echo 0)"
+
+# a schedule that does not add up to the net fee is rejected
+goflash -d "_csrf=$T" -d "amount=10000" -d "dueDate=2026-10-01" -d "installmentNumber=1" \
+  -d "amount=5000" -d "dueDate=2026-11-01" -d "installmentNumber=2" \
+  "$BASE/fees/$FA/installments" >/dev/null
+ck "schedule that does not add up to the net fee rejected" \
+  "$(has "$(cat post.html)" "must add up to exactly the net fee" && echo 1 || echo 0)"
+ck "rejected schedule left no installment behind" \
+  "$([ "$(dbq "select count(*) from fee_installments where fee_account_id=$FA")" = 0 ] && echo 1 || echo 0)"
+
+# the valid schedule: two installments of 10000 on a net fee of 20000
+goflash -d "_csrf=$T" -d "amount=10000" -d "dueDate=2026-10-01" -d "installmentNumber=1" \
+  -d "amount=10000" -d "dueDate=2026-11-01" -d "installmentNumber=2" \
+  "$BASE/fees/$FA/installments" >/dev/null
+ck "installment plan created" "$(has "$(cat post.html)" "Installment plan created." && echo 1 || echo 0)"
+ck "two installments stored" \
+  "$([ "$(dbq "select count(*) from fee_installments where fee_account_id=$FA")" = 2 ] && echo 1 || echo 0)"
+
+# the payment that was received before the plan is allocated to it
+ck "existing payment allocated to the first installment" \
+  "$([ "$(dbq "select coalesce(sum(pa.amount),0) from payment_allocations pa
+        join payments p on p.id = pa.payment_id
+        where pa.installment_id = (select id from fee_installments where fee_account_id=$FA and installment_number=1)
+          and p.status = 'RECEIVED'")" = 5000.00 ] && echo 1 || echo 0)"
+ck "the plan did not change the agreed net fee" \
+  "$([ "$(dbq "select gross_fee - discount_amount from fee_accounts where id=$FA")" = 20000.00 ] && echo 1 || echo 0)"
+
+fcode=$(page "/fees/$FA")
+ck "fee account shows the installment schedule" \
+  "$([ "$fcode" = 200 ] && has "$(cat page.html)" "Installment plan" && echo 1 || echo 0)"
+
+# a new payment is allocated oldest due date first
+post_url=$(go -d "_csrf=$T" -d "feeAccountId=$FA" -d "amount=7000" \
+  --data-urlencode "paymentDate=2026-09-28" -d "paymentMethod=CASH" \
+  --data-urlencode "remarks=E2E installment payment $TS" "$BASE/payments") || true
+PID3=$(dbq "select id from payments where fee_account_id=$FA order by id desc limit 1")
+ck "payment recorded against the planned agreement" \
+  "$([ -n "$PID3" ] && [ "$(dbq "select status from payments where id=$PID3")" = RECEIVED ] && echo 1 || echo 0)"
+ck "the new payment fills the first installment (10000)" \
+  "$([ "$(dbq "select coalesce(sum(pa.amount),0) from payment_allocations pa
+        join payments p on p.id = pa.payment_id
+        where pa.installment_id = (select id from fee_installments where fee_account_id=$FA and installment_number=1)
+          and p.status = 'RECEIVED'")" = 10000.00 ] && echo 1 || echo 0)"
+ck "the rest of the payment goes to the second installment (2000)" \
+  "$([ "$(dbq "select coalesce(sum(pa.amount),0) from payment_allocations pa
+        join payments p on p.id = pa.payment_id
+        where pa.installment_id = (select id from fee_installments where fee_account_id=$FA and installment_number=2)
+          and p.status = 'RECEIVED'")" = 2000.00 ] && echo 1 || echo 0)"
+ck "the installment balances reconcile with the agreement (8000.00)" \
+  "$([ "$(dbq "select coalesce(sum(fi.amount - coalesce(pa.paid,0)),0) from fee_installments fi
+        left join (select pa.installment_id, sum(pa.amount) as paid from payment_allocations pa
+                   join payments p on p.id = pa.payment_id where p.status = 'RECEIVED'
+                   group by pa.installment_id) pa on pa.installment_id = fi.id
+        where fi.fee_account_id = $FA")" = 8000.00 ] && echo 1 || echo 0)"
+
+# the reports
+ocode=$(page "/installments")
+ck "installment overview renders" "$([ "$ocode" = 200 ] && has "$(cat page.html)" "Total outstanding" && echo 1 || echo 0)"
+ucode=$(page "/installments/upcoming")
+ck "upcoming installments report renders" \
+  "$([ "$ucode" = 200 ] && has "$(cat page.html)" "E2E Student Two" && echo 1 || echo 0)"
+dcode=$(page "/installments/overdue")
+ck "overdue installments report renders" "$([ "$dcode" = 200 ] && echo 1 || echo 0)"
+
+# voiding an allocated payment returns the balance
+goflash -d "_csrf=$T" --data-urlencode "reason=E2E installment void $TS" "$BASE/payments/$PID3/void" >/dev/null
+ck "voided payment reported" "$(has "$(cat post.html)" "voided. The outstanding balance has been recalculated." && echo 1 || echo 0)"
+ck "the voided payment stops counting towards the installments (5000)" \
+  "$([ "$(dbq "select coalesce(sum(pa.amount),0) from payment_allocations pa
+        join payments p on p.id = pa.payment_id
+        where pa.installment_id = (select id from fee_installments where fee_account_id=$FA and installment_number=1)
+          and p.status = 'RECEIVED'")" = 5000.00 ] && echo 1 || echo 0)"
+ck "the allocations of the voided payment are kept for the audit trail" \
+  "$([ "$(dbq "select count(*) from payment_allocations pa join payments p on p.id = pa.payment_id
+        where pa.payment_id = $PID3 and p.status = 'VOIDED'")" -ge 1 ] && echo 1 || echo 0)"
+
+# teachers are not allowed anywhere near the installment module
+tcode=$(curl -s -b tjar -o tpage.html -w '%{http_code}' "$BASE/installments")
+ck "teacher blocked from the installment overview (403)" "$([ "$tcode" = 403 ] && echo 1 || echo 0)"
+tcode=$(curl -s -b tjar -o tpage.html -w '%{http_code}' "$BASE/installments/upcoming")
+ck "teacher blocked from the upcoming report (403)" "$([ "$tcode" = 403 ] && echo 1 || echo 0)"
+tcode=$(curl -s -b tjar -o tpage.html -w '%{http_code}' "$BASE/installments/overdue")
+ck "teacher blocked from the overdue report (403)" "$([ "$tcode" = 403 ] && echo 1 || echo 0)"
+tcode=$(curl -s -b tjar -o tpage.html -w '%{http_code}' "$BASE/fees/$FA/installments")
+ck "teacher blocked from the plan form (403)" "$([ "$tcode" = 403 ] && echo 1 || echo 0)"
+tcsrf2=$(curl -s -b tjar -o tpage.html "$BASE/sessions/new"
+  grep -o 'name="_csrf" value="[^"]*"' tpage.html | head -1 | sed 's/.*value="//;s/"$//')
+tcode=$(curl -s -b tjar -c tjar -o tpost.html -w '%{http_code}' \
+  -d "amount=10000" -d "dueDate=2026-10-01" -d "installmentNumber=1" \
+  -d "amount=10000" -d "dueDate=2026-11-01" -d "installmentNumber=2" \
+  --data-urlencode "_csrf=$tcsrf2" "$BASE/fees/$FA/installments")
+ck "teacher blocked from creating a plan (403)" "$([ "$tcode" = 403 ] && echo 1 || echo 0)"
+
+# ================================================================ P1: timetable, examinations and the student portal
+say "timetable, examinations and the student portal"
+
+# --- a recurring class -------------------------------------------------------
+# Its own batch, so a repeated smoke run never meets its own schedule.
+post_url=$(go -d "_csrf=$T" -d "courseId=$C1" --data-urlencode "academicYear=2026-27" \
+  --data-urlencode "name=E2E Timetable Batch $TS" --data-urlencode "startDate=2026-09-01" \
+  "$BASE/batches") || true
+TB_URL=${post_url#*|}
+TB=${TB_URL##*/}
+ck "timetable batch created" "$(has "$TB_URL" "/batches/" && echo 1 || echo 0)"
+CS1=$(dbq "select course_subject_id from batch_subjects where batch_id=$B1 limit 1")
+goflash -d "_csrf=$T" -d "courseSubjectId=$CS1" "$BASE/batches/$TB/subjects" >/dev/null
+BSID2=$(dbq "select id from batch_subjects where batch_id=$TB order by id limit 1")
+ck "the timetable batch has a class assignment" "$([ -n "$BSID2" ] && echo 1 || echo 0)"
+MONDAY="2026-09-07"
+tcode=$(page "/timetable/new")
+ck "timetable form renders" "$([ "$tcode" = 200 ] && has "$(cat page.html)" "New recurring class" && echo 1 || echo 0)"
+
+goflash -d "_csrf=$T" -d "batchSubjectId=$BSID2" -d "dayOfWeek=MONDAY" -d "startTime=09:00" \
+  -d "endTime=10:00" --data-urlencode "classroom=Room E2E $TS" --data-urlencode "effectiveFrom=$MONDAY" \
+  "$BASE/timetable" >/dev/null
+ck "timetable entry created" "$(has "$(cat post.html)" "Timetable entry created." && echo 1 || echo 0)"
+TID=$(dbq "select id from timetable_entries where batch_subject_id=$BSID2 order by id desc limit 1")
+ck "timetable entry stored" "$([ -n "$TID" ] && echo 1 || echo 0)"
+
+# a second class at the same time in the same batch must be refused
+goflash -d "_csrf=$T" -d "batchSubjectId=$BSID2" -d "dayOfWeek=MONDAY" -d "startTime=09:30" \
+  -d "endTime=10:30" --data-urlencode "classroom=Room E2E 2 $TS" --data-urlencode "effectiveFrom=$MONDAY" \
+  "$BASE/timetable" >/dev/null
+ck "overlapping timetable entry rejected" "$(has "$(cat post.html)" "already has a class on MONDAY" && echo 1 || echo 0)"
+ck "the refused entry was not stored" \
+  "$([ "$(dbq "select count(*) from timetable_entries where batch_subject_id=$BSID2")" = 1 ] && echo 1 || echo 0)"
+
+# the weekly timetable shows the class
+tcode=$(page "/timetable")
+ck "weekly timetable lists the class" \
+  "$([ "$tcode" = 200 ] && has "$(cat page.html)" "Room E2E $TS" && echo 1 || echo 0)"
+
+# --- generating the classes ---------------------------------------------------
+goflash -d "_csrf=$T" --data-urlencode "from=$MONDAY" --data-urlencode "to=$MONDAY" \
+  "$BASE/timetable/generate" >/dev/null
+ck "classes generated from the timetable" "$(has "$(cat post.html)" "Generated 1 class session(s)" && echo 1 || echo 0)"
+GEN=$(dbq "select id from class_sessions where batch_subject_id=$BSID2 and session_date='$MONDAY' limit 1")
+ck "the generated class exists" "$([ -n "$GEN" ] && echo 1 || echo 0)"
+
+goflash -d "_csrf=$T" --data-urlencode "from=$MONDAY" --data-urlencode "to=$MONDAY" \
+  "$BASE/timetable/generate" >/dev/null
+ck "a second generation does not duplicate the class" \
+  "$([ "$(dbq "select count(*) from class_sessions where batch_subject_id=$BSID2 and session_date='$MONDAY'")" = 1 ] && echo 1 || echo 0)"
+
+# --- an examination and its marks ---------------------------------------------
+goflash -d "_csrf=$T" -d "batchSubjectId=$BSID" --data-urlencode "title=E2E exam $TS" \
+  --data-urlencode "examinationDate=$MONDAY" -d "maximumMarks=100" "$BASE/examinations" >/dev/null
+ck "examination created as a draft" "$(has "$(cat post.html)" "Examination created as a draft." && echo 1 || echo 0)"
+EXAM=$(dbq "select id from examinations where batch_subject_id=$BSID order by id desc limit 1")
+ck "examination stored" "$([ -n "$EXAM" ] && echo 1 || echo 0)"
+
+# a mark above the maximum is refused
+E2ENR=$(dbq "select id from enrollments where student_id=$S2 and batch_id=$B1 order by id limit 1")
+goflash -d "_csrf=$T" -d "status_$E2ENR=PRESENT" -d "marks_$E2ENR=150" "$BASE/examinations/$EXAM/marks" >/dev/null
+ck "a mark above the maximum is refused" "$(has "$(cat post.html)" "above the maximum" && echo 1 || echo 0)"
+
+goflash -d "_csrf=$T" -d "status_$E2ENR=PRESENT" -d "marks_$E2ENR=80" "$BASE/examinations/$EXAM/marks" >/dev/null
+ck "the marks are recorded" "$(has "$(cat post.html)" "Saved 1 result(s)." && echo 1 || echo 0)"
+ck "the result is stored" \
+  "$([ "$(dbq "select count(*) from examination_results where examination_id=$EXAM")" = 1 ] && echo 1 || echo 0)"
+
+# a teacher may not publish
+tcsrf3=$(curl -s -b tjar -o tpage.html "$BASE/examinations/new"
+  grep -o 'name="_csrf" value="[^"]*"' tpage.html | head -1 | sed 's/.*value="//;s/"$//')
+out=$(curl -s -b tjar -c tjar -o tpost.html -w '%{http_code}|%{redirect_url}' \
+  -d "batchSubjectId=$BSID" --data-urlencode "title=E2E teacher exam $TS" \
+  --data-urlencode "examinationDate=$MONDAY" -d "maximumMarks=50" \
+  --data-urlencode "_csrf=$tcsrf3" "$BASE/examinations")
+ck "teacher creates an examination for their own class" "$(has "${out#*|}" "/examinations/" && echo 1 || echo 0)"
+TEXAM=$(dbq "select id from examinations where title='E2E teacher exam $TS' limit 1")
+tcode=$(curl -s -b tjar -o tpost.html -w '%{http_code}' \
+  -d "_csrf=$tcsrf3" "$BASE/examinations/$TEXAM/publish")
+ck "a teacher cannot publish the results (403)" "$([ "$tcode" = 403 ] && echo 1 || echo 0)"
+
+# the administrator publishes
+goflash -d "_csrf=$T" "$BASE/examinations/$EXAM/publish" >/dev/null
+ck "the administrator publishes the results" "$(has "$(cat post.html)" "Examination published." && echo 1 || echo 0)"
+ck "the result is published" \
+  "$([ "$(dbq "select published from examination_results where examination_id=$EXAM")" = t ] && echo 1 || echo 0)"
+
+# --- the student portal -------------------------------------------------------
+SCODE=$(dbq "select student_code from students where id=$S2")
+STU_EMAIL="e2e.student.$TS@omsai.local"
+goflash -d "_csrf=$T" --data-urlencode "fullName=E2E Student Portal" -d "email=$STU_EMAIL" \
+  -d "role=STUDENT" -d "studentId=$S2" --data-urlencode "password=E2EStudentPortal#2026" \
+  "$BASE/users" >/dev/null
+ck "student portal account created" "$(has "$(cat post.html)" "Account created for" && echo 1 || echo 0)"
+ck "the account is linked to the student" \
+  "$([ "$(dbq "select count(*) from students where id=$S2 and user_account_id is not null")" = 1 ] && echo 1 || echo 0)"
+
+# a second account for the same student must be refused
+goflash -d "_csrf=$T" --data-urlencode "fullName=E2E Student Portal 2" \
+  -d "email=e2e.student2.$TS@omsai.local" -d "role=STUDENT" -d "studentId=$S2" \
+  --data-urlencode "password=E2EStudentPortal#2026" "$BASE/users" >/dev/null
+ck "a second account for the same student is refused" \
+  "$(has "$(cat post.html)" "already has a portal account" && echo 1 || echo 0)"
+
+out=$(freshlogin sjar "$STU_EMAIL" "E2EStudentPortal#2026")
+ck "the student logs in" "$([ "${out%%|*}" = 302 ] && echo 1 || echo 0)"
+sredir=$(curl -s -b sjar -o /dev/null -w '%{redirect_url}' "$BASE/")
+ck "the student is sent to the portal" "$(has "$sredir" "/student" && echo 1 || echo 0)"
+
+scode=$(curl -s -b sjar -o spage.html -w '%{http_code}' "$BASE/student")
+ck "the student dashboard renders" "$([ "$scode" = 200 ] && has "$(cat spage.html)" "E2E Student Two" && echo 1 || echo 0)"
+scode=$(curl -s -b sjar -o spage.html -w '%{http_code}' "$BASE/student/results")
+ck "the student sees the published result" \
+  "$([ "$scode" = 200 ] && has "$(cat spage.html)" "80.00" && echo 1 || echo 0)"
+scode=$(curl -s -b sjar -o spage.html -w '%{http_code}' "$BASE/student/fees")
+ck "the student sees their own fees" \
+  "$([ "$scode" = 200 ] && has "$(cat spage.html)" "$SCODE" && echo 1 || echo 0)"
+scode=$(curl -s -b sjar -o spage.html -w '%{http_code}' "$BASE/fees")
+ck "the student is refused the fee management (403)" "$([ "$scode" = 403 ] && echo 1 || echo 0)"
+scode=$(curl -s -b sjar -o spage.html -w '%{http_code}' "$BASE/attendance/reports")
+ck "the student is refused the attendance reports (403)" "$([ "$scode" = 403 ] && echo 1 || echo 0)"
+scode=$(curl -s -b sjar -o spage.html -w '%{http_code}' "$BASE/users")
+ck "the student is refused the account management (403)" "$([ "$scode" = 403 ] && echo 1 || echo 0)"
 
 # ---------------------------------------------------------------- L: rate limiting
 say "login rate limiting"

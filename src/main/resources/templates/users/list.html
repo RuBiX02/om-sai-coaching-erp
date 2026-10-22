@@ -9,24 +9,33 @@
 
     <div th:replace="~{layout/fragments :: alerts()}"></div>
 
-    <div class="alert alert-light border small">
-      <i class="bi bi-info-circle me-1"></i>
-      Sign-in accounts are separate from teacher profiles. Create TEACHER accounts here and
-      link them to profiles on the teacher pages. The first administrator is created through the
-      documented bootstrap procedure (see README).
-    </div>
+    <header class="page-header">
+      <div>
+        <p class="page-eyebrow">
+          <i class="bi bi-person-gear" aria-hidden="true"></i><span>Administration</span>
+        </p>
+        <h2 class="page-title">Sign-in accounts</h2>
+        <p class="page-subtitle">
+          Sign-in accounts are separate from teacher profiles. Create TEACHER accounts here and
+          link them to profiles on the teacher pages. The first administrator is created through the
+          documented bootstrap procedure (see README).
+        </p>
+      </div>
+      <div class="filter-actions">
+        <a th:href="@{/users/new}" class="btn btn-primary">
+          <i class="bi bi-person-plus" aria-hidden="true"></i>New account
+        </a>
+      </div>
+    </header>
 
-    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-      <form th:action="@{/users}" method="get" class="d-flex gap-2">
-        <input type="search" class="form-control" placeholder="Search name or email"
+    <div class="filter-bar">
+      <form th:action="@{/users}" method="get" class="filter-form">
+        <input type="search" class="form-control filter-search" placeholder="Search name or email"
                name="q" th:value="${q}" aria-label="Search accounts"/>
         <button type="submit" class="btn btn-outline-primary">
-          <i class="bi bi-search me-1"></i>Search
+          <i class="bi bi-search" aria-hidden="true"></i>Search
         </button>
       </form>
-      <a th:href="@{/users/new}" class="btn btn-primary">
-        <i class="bi bi-person-plus me-1"></i>New account
-      </a>
     </div>
 
     <div class="card">
@@ -44,7 +53,7 @@
             </thead>
             <tbody>
             <tr th:each="user : ${users.content}">
-              <td th:text="${user.fullName}">Name</td>
+              <td class="fw-semibold" th:text="${user.fullName}">Name</td>
               <td th:text="${user.email}">email</td>
               <td>
                 <span th:if="${user.role.name() == 'ADMIN'}" class="badge text-bg-primary">Administrator</span>
@@ -81,7 +90,8 @@
             </tbody>
           </table>
           <div class="empty-state" th:if="${#lists.isEmpty(users.content)}">
-            <i class="bi bi-person-gear d-block mb-2"></i>No accounts found.
+            <i class="bi bi-person-gear d-block" aria-hidden="true"></i>
+            <span class="empty-title">No accounts found</span>
           </div>
         </div>
       </div>

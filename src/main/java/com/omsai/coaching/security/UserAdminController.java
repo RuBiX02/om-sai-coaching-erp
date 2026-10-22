@@ -45,6 +45,7 @@ public class UserAdminController {
     @GetMapping("/new")
     public String newForm(Model model) {
         model.addAttribute("form", new UserForm());
+        model.addAttribute("studentsWithoutAccount", userService.studentsWithoutAccount());
         return "users/form";
     }
 
@@ -54,6 +55,7 @@ public class UserAdminController {
                          Model model,
                          RedirectAttributes redirect) {
         if (binding.hasErrors()) {
+            model.addAttribute("studentsWithoutAccount", userService.studentsWithoutAccount());
             return "users/form";
         }
         try {
@@ -62,6 +64,7 @@ public class UserAdminController {
             return "redirect:/users";
         } catch (BusinessRuleException e) {
             model.addAttribute("errorMessage", e.getMessage());
+            model.addAttribute("studentsWithoutAccount", userService.studentsWithoutAccount());
             return "users/form";
         }
     }

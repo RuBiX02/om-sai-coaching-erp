@@ -9,9 +9,24 @@
 
     <div th:replace="~{layout/fragments :: alerts()}"></div>
 
-    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-      <form th:action="@{/sessions}" method="get" class="d-flex gap-2 flex-wrap">
-        <select th:if="${!isTeacher}" class="form-select w-auto" name="batchId" aria-label="Filter by batch">
+    <header class="page-header">
+      <div>
+        <p class="page-eyebrow">
+          <i class="bi bi-calendar2-check" aria-hidden="true"></i><span>Operations</span>
+        </p>
+        <h2 class="page-title">Class sessions</h2>
+        <p class="page-subtitle">Scheduled classes and their attendance status.</p>
+      </div>
+      <div class="filter-actions">
+        <a th:href="@{/sessions/new}" class="btn btn-primary">
+          <i class="bi bi-plus-lg" aria-hidden="true"></i>New session
+        </a>
+      </div>
+    </header>
+
+    <div class="filter-bar">
+      <form th:action="@{/sessions}" method="get" class="filter-form">
+        <select th:if="${!isTeacher}" class="form-select" name="batchId" aria-label="Filter by batch">
           <option value="">All batches</option>
           <option th:each="batch : ${batches}" th:value="${batch.id}"
                   th:text="${batch.name} + ' (' + ${batch.academicYear} + ')'"
@@ -21,19 +36,16 @@
                aria-label="From date" title="Sessions from"/>
         <input type="date" class="form-control" name="to" th:value="${to}"
                aria-label="To date" title="Sessions to"/>
-        <select class="form-select w-auto" name="status" aria-label="Filter by status">
+        <select class="form-select" name="status" aria-label="Filter by status">
           <option value="">All statuses</option>
           <option value="OPEN" th:selected="${statusFilter == 'OPEN'}">Open</option>
           <option value="COMPLETED" th:selected="${statusFilter == 'COMPLETED'}">Completed</option>
           <option value="CANCELLED" th:selected="${statusFilter == 'CANCELLED'}">Cancelled</option>
         </select>
         <button type="submit" class="btn btn-outline-primary">
-          <i class="bi bi-search me-1"></i>Filter
+          <i class="bi bi-search" aria-hidden="true"></i>Filter
         </button>
       </form>
-      <a th:href="@{/sessions/new}" class="btn btn-primary">
-        <i class="bi bi-plus-lg me-1"></i>New session
-      </a>
     </div>
 
     <div class="card">
@@ -53,15 +65,15 @@
             </thead>
             <tbody>
             <tr th:each="cs : ${sessions.content}">
-              <td th:text="${#temporals.format(cs.sessionDate, 'dd MMM yyyy')}">01 Apr 2026</td>
+              <td class="text-nowrap" th:text="${#temporals.format(cs.sessionDate, 'dd MMM yyyy')}">01 Apr 2026</td>
               <td><a th:href="@{/batches/{id}(id=${cs.batchSubject.batch.id})}"
-                     th:text="${cs.batchSubject.batch.name}">Batch</a></td>
+                     class="fw-semibold" th:text="${cs.batchSubject.batch.name}">Batch</a></td>
               <td th:text="${cs.batchSubject.courseSubject.subject.name}">Subject</td>
               <td>
                 <span th:if="${cs.batchSubject.teacher != null}" th:text="${cs.batchSubject.teacher.fullName}">Teacher</span>
                 <span th:if="${cs.batchSubject.teacher == null}" class="text-body-secondary">Unassigned</span>
               </td>
-              <td>
+              <td class="text-nowrap">
                 <span th:if="${cs.startTime != null}"
                       th:text="${#temporals.format(cs.startTime, 'HH:mm')} + (${cs.endTime != null} ? ' &ndash; ' + ${#temporals.format(cs.endTime, 'HH:mm')} : '')">10:00</span>
                 <span th:if="${cs.startTime == null}" class="text-body-secondary">&ndash;</span>
@@ -69,6 +81,8 @@
               <td class="text-center">
                 <span th:switch="${cs.status.name()}" class="badge"
                       th:classappend="${cs.isOpen} ? 'text-bg-success' : (${cs.isCompleted} ? 'text-bg-primary' : 'text-bg-secondary')">
+                  <i th:class="|bi ${cs.isOpen ? 'bi-play-circle-fill' : (cs.isCompleted ? 'bi-check-circle-fill' : 'bi-x-circle-fill')} me-1|"
+                     aria-hidden="true"></i>
                   <span th:case="'OPEN'">Open</span>
                   <span th:case="'COMPLETED'">Completed</span>
                   <span th:case="'CANCELLED'">Cancelled</span>
@@ -79,16 +93,17 @@
                   <i class="bi bi-eye"></i><span class="visually-hidden">View</span>
                 </a>
                 <a th:href="@{/sessions/{id}/attendance(id=${cs.id})}" class="btn btn-sm btn-outline-secondary"
-                   title="Attendance" th:if="${!cs.isCancelled}">
-                  <i class="bi bi-clipboard-check"></i><span class="visually-hidden">Attendance</span>
+                   title="Record attendance" th:if="${!cs.isCancelled}">
+                  <i class="bi bi-clipboard-check"></i><span class="visually-hidden">Record attendance</span>
                 </a>
               </td>
             </tr>
             </tbody>
           </table>
           <div class="empty-state" th:if="${#lists.isEmpty(sessions.content)}">
-            <i class="bi bi-calendar2-check d-block mb-2"></i>
-            No class sessions found. <a th:href="@{/sessions/new}">Schedule the first session</a>.
+            <i class="bi bi-calendar2-check d-block" aria-hidden="true"></i>
+            <span class="empty-title">No class sessions found</span>
+            <a th:href="@{/sessions/new}">Schedule the first session</a>.
           </div>
         </div>
       </div>

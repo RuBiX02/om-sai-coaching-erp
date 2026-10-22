@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('Generate class sessions')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('timetable')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('Generate class sessions', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <div class="row g-3">
+      <div class="col-lg-6">
+        <form th:action="@{/timetable/generate}" method="post" class="card">
+          <div class="card-header">
+            <i class="bi bi-magic me-2 table-thumb"></i>Generate the classes of a date range
+          </div>
+          <div class="card-body">
+            <p class="small text-body-secondary">
+              Every occurrence of the recurring timetable inside the range becomes an OPEN class
+              session, which can then be marked for attendance. The run is safe to repeat: a class
+              that already exists is never touched or duplicated, holidays and cancelled occurrences
+              are skipped, and completed classes with their attendance stay exactly as they are.
+            </p>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label for="from" class="form-label">From</label>
+                <input type="date" id="from" class="form-control" name="from" th:value="${from}"/>
+              </div>
+              <div class="col-md-6">
+                <label for="to" class="form-label">To</label>
+                <input type="date" id="to" class="form-control" name="to" th:value="${to}"/>
+              </div>
+            </div>
+          </div>
+          <div class="card-footer d-flex justify-content-end">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-magic me-1"></i>Generate classes
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="col-lg-6">
+        <div class="card h-100">
+          <div class="card-body small text-body-secondary">
+            <i class="bi bi-info-circle me-1"></i>
+            A generated class is a normal class session: it appears in the session list, the
+            teacher can mark its attendance and the attendance reports count it like any other
+            class. Only OPEN classes are generated - a class that was already completed is never
+            overwritten.
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

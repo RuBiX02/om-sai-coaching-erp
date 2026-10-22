@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<!--
+  Installment overview. The money figures come from
+  InstallmentService.overview()) - nothing is hardcoded. The band shows
+  four figures; note that the "plan" figure is a part of the total
+  outstanding balance, never an addition to it.
+-->
+<head th:replace="~{layout/fragments :: head('Installments')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('installments')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('Installments', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <header class="page-header">
+      <div>
+        <p class="page-eyebrow">
+          <i class="bi bi-calendar2-week" aria-hidden="true"></i><span>Finance</span>
+        </p>
+        <h2 class="page-title">Installments</h2>
+        <p class="page-subtitle">
+          The collection schedule: what is due, when, and how much of the
+          outstanding balance it covers.
+        </p>
+      </div>
+      <div class="filter-actions">
+        <span class="page-header-meta">
+          <i class="bi bi-list-check" aria-hidden="true"></i>
+          <span><span th:text="${overview.planCount}">0</span> scheduled agreement(s)</span>
+        </span>
+      </div>
+    </header>
+
+    <ul class="nav nav-pills mb-3">
+      <li class="nav-item">
+        <a class="nav-link active" th:href="@{/installments}">Overview</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" th:href="@{/installments/upcoming}">Upcoming</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" th:href="@{/installments/overdue}">Overdue</a>
+      </li>
+    </ul>
+
+    <section class="metric-band" aria-label="Installment summary">
+      <div class="metric-cell is-hero">
+        <div class="stat-label">Total outstanding</div>
+        <div class="stat-value is-money" th:text="${@money.money(overview.feeAccountOutstanding)}">₹ 0.00</div>
+        <div class="stat-hint">All fee agreements</div>
+      </div>
+      <div class="metric-cell">
+        <div class="stat-label">Covered by a plan</div>
+        <div class="stat-value is-money" th:text="${@money.money(overview.outstandingWithPlans)}">₹ 0.00</div>
+        <div class="stat-hint">Part of the total above, not extra</div>
+      </div>
+      <div class="metric-cell">
+        <div class="stat-label">Overdue balance</div>
+        <div class="stat-value is-money" th:text="${@money.money(overview.overdueBalance)}">₹ 0.00</div>
+        <div class="stat-hint">
+          <a th:href="@{/installments/overdue}">
+            <span th:text="${overview.overdueCount}">0</span> overdue installment(s)
+            <i class="bi bi-arrow-right" aria-hidden="true"></i>
+          </a>
+        </div>
+      </div>
+      <div class="metric-cell">
+        <div class="stat-label">Due within 7 days</div>
+        <div class="stat-value is-money" th:text="${@money.money(overview.dueInSevenDaysAmount)}">₹ 0.00</div>
+        <div class="stat-hint">
+          <span th:text="${overview.dueInSevenDays}">0</span> installment(s)
+          <span th:if="${overview.nextDueDate != null}">
+            · next due <span th:text="${#temporals.format(overview.nextDueDate, 'dd MMM yyyy')}">01 Jan 2026</span>
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="section-title">
+          <i class="bi bi-list-check" aria-hidden="true"></i>Next installments due
+        </span>
+        <a th:href="@{/installments/upcoming}" class="small">Full schedule</a>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" th:if="${!#lists.isEmpty(nextDue)}">
+            <thead class="table-light">
+            <tr>
+              <th>Student</th>
+              <th>Course</th>
+              <th class="text-center">#</th>
+              <th>Due date</th>
+              <th class="text-end">Scheduled</th>
+              <th class="text-end">Paid</th>
+              <th class="text-end">Remaining</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="row : ${nextDue}">
+              <td>
+                <div class="fw-semibold" th:text="${row.studentName}">Student</div>
+                <div class="small text-body-secondary font-monospace" th:text="${row.studentCode}">code</div>
+              </td>
+              <td th:text="${row.courseName}">Course</td>
+              <td class="text-center" th:text="${row.installmentNumber}">1</td>
+              <td th:text="${#temporals.format(row.dueDate, 'dd MMM yyyy')}">01 Jan 2026</td>
+              <td class="text-end" th:text="${@money.money(row.amount)}">₹ 10000.00</td>
+              <td class="text-end" th:text="${@money.money(row.paid)}">₹ 0.00</td>
+              <td class="text-end fw-semibold" th:text="${@money.money(row.amount - row.paid)}">₹ 10000.00</td>
+            </tr>
+            </tbody>
+          </table>
+          <div class="empty-state" th:if="${#lists.isEmpty(nextDue)}">
+            <i class="bi bi-calendar-check d-block" aria-hidden="true"></i>
+            <span class="empty-title">No installment is due</span>
+            Create an installment plan from a fee agreement to schedule the collection.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body small text-body-secondary">
+        <i class="bi bi-info-circle me-1"></i>
+        The installment balances are the same money as the fee agreements' outstanding balance,
+        split by due date - they are never added to it. Only payments that are actually received
+        count; a voided payment stops counting immediately.
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

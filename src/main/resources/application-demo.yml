@@ -1,0 +1,56 @@
+# ---------------------------------------------------------------------
+# Demo profile
+#
+# Activated with:  SPRING_PROFILES_ACTIVE=demo
+#
+# This profile runs the application against the dedicated, curated
+# DEMONSTRATION database and fills it with the demo dataset (the
+# Maharashtra coaching catalogue and the fictional sample identities).
+#
+# It is meant for demonstrations and for review. It changes NOTHING
+# about the business rules, the security rules or the production
+# profile:
+#
+#   * the production profile (application-prod.yml) is untouched and
+#     still pins app.demo.enabled to false, so a production database
+#     can never be seeded with demo data;
+#   * the demo seeder still refuses to write to any database other
+#     than the one named here;
+#   * the administrator account is created from the ENVIRONMENT, never
+#     from a password stored in this repository.
+#
+# Environment variables:
+#   DEMO_DB_URL         jdbc:postgresql://127.0.0.1:5433/omsai_demo
+#   DEMO_DB_USERNAME    the database user
+#   DEMO_DB_PASSWORD    the database password
+#   APP_ADMIN_EMAIL     the first administrator of the demo database
+#   APP_ADMIN_PASSWORD  its password (at least 12 characters)
+#
+# The demo database is separate from the development database
+# ("omsai"), which keeps the real development and client records.
+# ---------------------------------------------------------------------
+
+spring:
+  datasource:
+    url: ${DEMO_DB_URL:jdbc:postgresql://127.0.0.1:5433/omsai_demo}
+    username: ${DEMO_DB_USERNAME:tojo}
+    password: ${DEMO_DB_PASSWORD:}
+  thymeleaf:
+    cache: true
+
+app:
+  demo:
+    # The curated catalogue is written into the demo database on every
+    # start. The seeder is idempotent, so a repeated start creates
+    # nothing and changes nothing.
+    enabled: true
+    target-database: omsai_demo
+  bootstrap:
+    admin:
+      # Only used the very first time, when the demo database has no
+      # administrator yet. The password comes from the environment -
+      # no password is stored in this repository.
+      enabled: ${DEMO_BOOTSTRAP_ADMIN:true}
+      name: ${APP_ADMIN_NAME:Om Sai Administrator}
+      email: ${APP_ADMIN_EMAIL:admin@example.invalid}
+      password: ${APP_ADMIN_PASSWORD:}

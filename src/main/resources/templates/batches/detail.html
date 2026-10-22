@@ -41,7 +41,8 @@
             </a>
             <form th:action="@{/batches/{id}/status(id=${batch.id})}" method="post">
               <input type="hidden" name="active" th:value="${batch.active ? 'false' : 'true'}"/>
-              <button type="submit" class="btn btn-sm btn-outline-secondary">
+              <button type="submit" class="btn btn-sm btn-outline-secondary"
+                      th:title="${batch.active ? 'Deactivate batch' : 'Activate batch'}">
                 <i th:class="|bi ${batch.active ? 'bi-pause-circle me-1' : 'bi-play-circle me-1'}|"></i>
                 <span th:text="${batch.active ? 'Deactivate' : 'Activate'}">Deactivate</span>
               </button>
@@ -53,7 +54,7 @@
 
     <div class="row g-3">
       <!-- Subjects and teachers -->
-      <div class="col-xl-6">
+      <div class="col-xl-7">
         <div class="card h-100">
           <div class="card-header"><i class="bi bi-journals me-2 table-thumb"></i>Subjects taught in this batch</div>
           <div class="card-body p-0">
@@ -64,21 +65,15 @@
                   <th>Subject</th>
                   <th>Assigned teacher</th>
                   <th class="text-center">Update</th>
+                  <th class="text-end">Actions</th>
                 </tr>
                 </thead>
                 <tbody>
-                <tr th:each="bs : ${batchSubjects}">
+                <tr th:each="bs : ${batchSubjects}" th:classappend="${!bs.active} ? 'table-light opacity-75'">
                   <td>
                     <a th:href="@{/subjects/{id}(id=${bs.courseSubject.subject.id})}"
                        th:text="${bs.courseSubject.subject.name}">Mathematics</a>
-                    <form th:action="@{/batches/subjects/{id}/remove(id=${bs.id}, batchId=${batch.id})}"
-                          method="post" class="d-inline ms-1">
-                      <button type="submit" class="btn btn-sm btn-link text-danger p-0 js-confirm"
-                              data-confirm="Remove this subject from the batch? Enrollment history of students is not affected.">
-                        <i class="bi bi-bookmark-x small"></i>
-                        <span class="visually-hidden">Remove subject</span>
-                      </button>
-                    </form>
+                    <span class="badge text-bg-secondary ms-1" th:if="${!bs.active}">Deactivated</span>
                   </td>
                   <td>
                     <a th:href="@{/teachers/{id}(id=${bs.teacher.id})}" th:if="${bs.teacher != null}"
@@ -96,7 +91,7 @@
                   </td>
                   <td class="text-center">
                     <form th:action="@{/batches/subjects/{id}/teacher(id=${bs.id}, batchId=${batch.id})}" method="post" class="d-flex gap-1 justify-content-center">
-                      <select name="teacherId" class="form-select form-select-sm" required>
+                      <select name="teacherId" class="form-select form-select-sm w-min-9rem" required>
                         <option value="" disabled selected>Assign teacher…</option>
                         <option th:each="teacher : ${teachers}" th:value="${teacher.id}"
                                 th:text="${teacher.fullName}">Teacher</option>
@@ -105,6 +100,44 @@
                         <i class="bi bi-person-check"></i>
                       </button>
                     </form>
+                  </td>
+                  <td class="text-end">
+                    <!--
+                      A subject that has never been used has no history to
+                      protect and may be deleted. One that has been taught
+                      keeps its classes, attendance and results, so it is
+                      deactivated instead of being deleted.
+                    -->
+                    <form th:if="${usage[bs.id].removable}"
+                          th:action="@{/batches/subjects/{id}/remove(id=${bs.id}, batchId=${batch.id})}"
+                          method="post" class="d-inline">
+                      <button type="submit" class="btn btn-sm btn-link text-danger p-0 js-confirm" title="Remove subject"
+                              data-confirm="Remove this subject from the batch? It has never been used for a class, so no history is lost.">
+                        <i class="bi bi-bookmark-x small"></i>
+                        <span class="visually-hidden">Remove subject</span>
+                      </button>
+                    </form>
+                    <form th:if="${!usage[bs.id].removable and bs.active}"
+                          th:action="@{/batches/subjects/{id}/status(id=${bs.id}, batchId=${batch.id})}"
+                          method="post" class="d-inline">
+                      <input type="hidden" name="active" value="false"/>
+                      <button type="submit" class="btn btn-sm btn-outline-secondary js-confirm text-nowrap" title="Deactivate subject"
+                              data-confirm="Deactivate this subject in the batch? It will no longer be offered for new classes. Its existing classes, attendance and results are kept.">
+                        <i class="bi bi-pause-circle"></i>Deactivate subject
+                      </button>
+                    </form>
+                    <form th:if="${!usage[bs.id].removable and !bs.active}"
+                          th:action="@{/batches/subjects/{id}/status(id=${bs.id}, batchId=${batch.id})}"
+                          method="post" class="d-inline">
+                      <input type="hidden" name="active" value="true"/>
+                      <button type="submit" class="btn btn-sm btn-outline-secondary js-confirm text-nowrap" title="Activate subject"
+                              data-confirm="Activate this subject again? It can be scheduled for new classes again.">
+                        <i class="bi bi-play-circle"></i>Activate subject
+                      </button>
+                    </form>
+                    <div class="small text-body-secondary" th:if="${!usage[bs.id].removable and bs.active}">
+                      Cannot be removed: <span th:text="${usage[bs.id].describe()}">2 class sessions</span> depend on it.
+                    </div>
                   </td>
                 </tr>
                 </tbody>
@@ -133,14 +166,25 @@
             </form>
           </div>
           <div class="card-footer text-body-secondary small"
+               th:if="${!#lists.isEmpty(assignableSubjects)}">
+            A subject that was deactivated and is added again is simply reactivated - its classes and results are kept.
+          </div>
+          <div class="card-footer text-body-secondary small"
                th:if="${#lists.isEmpty(assignableSubjects) and #lists.isEmpty(batchSubjects)}">
             All subjects of the course are already assigned to this batch (or the course has no subjects yet).
+          </div>
+          <div class="card-footer text-body-secondary small"
+               th:if="${!#lists.isEmpty(batchSubjects)}">
+            <i class="bi bi-info-circle me-1"></i>
+            A subject with classes, a timetable entry or an examination can no longer be deleted - that history must
+            be preserved. Deactivate it instead: it is then no longer offered for new classes, while its classes,
+            attendance and results stay exactly where they are.
           </div>
         </div>
       </div>
 
       <!-- Enrolled students -->
-      <div class="col-xl-6">
+      <div class="col-xl-5">
         <div class="card h-100">
           <div class="card-header d-flex justify-content-between align-items-center">
             <span><i class="bi bi-people me-2 table-thumb"></i>Enrolled students</span>

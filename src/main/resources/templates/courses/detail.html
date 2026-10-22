@@ -69,8 +69,12 @@
           <div class="card-body p-0">
             <ul class="list-group list-group-flush" th:if="${!#lists.isEmpty(assignedSubjects)}">
               <li class="list-group-item d-flex justify-content-between align-items-center"
-                  th:each="cs : ${assignedSubjects}">
-                <a th:href="@{/subjects/{id}(id=${cs.subject.id})}" th:text="${cs.subject.name}">Mathematics</a>
+                  th:each="cs : ${assignedSubjects}"
+                  th:classappend="${!cs.subject.active} ? 'opacity-75'">
+                <span>
+                  <a th:href="@{/subjects/{id}(id=${cs.subject.id})}" th:text="${cs.subject.name}">Mathematics</a>
+                  <span class="badge text-bg-secondary ms-1" th:if="${!cs.subject.active}">Deactivated</span>
+                </span>
                 <form th:action="@{/courses/{id}/subjects/{csId}/remove(id=${course.id}, csId=${cs.id})}" method="post" class="m-0">
                   <button type="submit" class="btn btn-sm btn-outline-danger js-confirm"
                           data-confirm="Remove subject from this course? This does not affect teaching history unless the subject is assigned to a batch. (The removal is blocked if the subject is taught in a batch.)">

@@ -24,7 +24,9 @@ public class UserAccount extends Auditable {
 
     public enum Role {
         ADMIN,
-        TEACHER
+        TEACHER,
+        /** A student with a portal: sees only their own academic and financial information. */
+        STUDENT
     }
 
     @Id

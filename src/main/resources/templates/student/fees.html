@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<!--
+  Student portal: fee clarity. My agreements, my installment schedule and
+  my receipts - read-only, computed by the institute's financial logic.
+-->
+<head th:replace="~{layout/fragments :: head('My fees')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('fees')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('My fees', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <header class="page-header">
+      <div>
+        <p class="page-eyebrow">
+          <i class="bi bi-mortarboard" aria-hidden="true"></i><span>Student portal</span>
+        </p>
+        <h2 class="page-title">My fees</h2>
+        <p class="page-subtitle">
+          <span th:text="${student.fullName}">Student</span> ·
+          <span th:text="${student.studentCode}" class="font-monospace">OMS-2026-00001</span>
+        </p>
+      </div>
+    </header>
+
+    <section class="metric-band" aria-label="My fee summary">
+      <div class="metric-cell is-hero">
+        <div class="stat-label">Outstanding in total</div>
+        <div class="stat-value is-money" th:text="${@money.money(outstanding)}">₹ 0.00</div>
+        <div class="stat-hint">Across all my agreements</div>
+      </div>
+      <div class="metric-cell">
+        <div class="stat-label">Fee agreements</div>
+        <div class="stat-value" th:text="${#lists.size(accounts)}">0</div>
+        <div class="stat-hint">One per enrolled course</div>
+      </div>
+      <div class="metric-cell">
+        <div class="stat-label">Scheduled installments</div>
+        <div class="stat-value" th:text="${#lists.size(installments)}">0</div>
+        <div class="stat-hint">Across my agreements</div>
+      </div>
+      <div class="metric-cell">
+        <div class="stat-label">Receipts issued</div>
+        <div class="stat-value" th:text="${#lists.size(payments)}">0</div>
+        <div class="stat-hint">Recorded by the institute</div>
+      </div>
+    </section>
+
+    <div class="card mb-3" th:each="account : ${accounts}">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="section-title">
+          <i class="bi bi-cash-coin" aria-hidden="true"></i><span th:text="${account.course.name}">Course</span>
+          <span class="text-body-secondary small fw-normal" th:text="'· ' + ${account.academicYear}">year</span>
+        </span>
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-sm-4">Gross fee</dt>
+          <dd class="col-sm-8" th:text="${@money.money(account.grossFee)}">₹ 0.00</dd>
+          <dt class="col-sm-4">Discount</dt>
+          <dd class="col-sm-8" th:text="${@money.money(account.discountAmount)}">₹ 0.00</dd>
+          <dt class="col-sm-4">Agreed fee</dt>
+          <dd class="col-sm-8 fw-semibold" th:text="${@money.money(account.netFee())}">₹ 0.00</dd>
+        </dl>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-header">
+        <span class="section-title">
+          <i class="bi bi-calendar2-week" aria-hidden="true"></i>My installment schedule
+        </span>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" th:if="${!#lists.isEmpty(installments)}">
+            <thead class="table-light">
+            <tr>
+              <th class="text-center">#</th>
+              <th>Due date</th>
+              <th class="text-end">Scheduled</th>
+              <th class="text-end">Paid</th>
+              <th class="text-end">Remaining</th>
+              <th class="text-center">Status</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="view : ${installments}">
+              <td class="text-center" th:text="${view.installment().installmentNumber}">1</td>
+              <td class="text-nowrap" th:text="${#temporals.format(view.installment().dueDate, 'dd MMM yyyy')}">01 Jan 2026</td>
+              <td class="text-end" th:text="${@money.money(view.installment().amount)}">₹ 0.00</td>
+              <td class="text-end" th:text="${@money.money(view.paid())}">₹ 0.00</td>
+              <td class="text-end fw-semibold" th:text="${@money.money(view.remaining())}">₹ 0.00</td>
+              <td class="text-center">
+                <span class="badge"
+                      th:classappend="${view.status().name() == 'PAID'} ? 'text-bg-success'
+                        : (${view.status().name() == 'OVERDUE'} ? 'text-bg-danger'
+                        : (${view.status().name() == 'PARTIALLY_PAID'} ? 'text-bg-warning' : 'text-bg-secondary'))"
+                      th:text="${view.status().name()}">UPCOMING</span>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+          <div class="empty-state" th:if="${#lists.isEmpty(installments)}">
+            <i class="bi bi-info-circle d-block" aria-hidden="true"></i>
+            <span class="empty-title">No installment schedule</span>
+            Your fee agreement is not divided into installments — it is paid as one agreed amount.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="section-title">
+          <i class="bi bi-receipt" aria-hidden="true"></i>My payments
+        </span>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" th:if="${!#lists.isEmpty(payments)}">
+            <thead class="table-light">
+            <tr>
+              <th>Receipt</th>
+              <th>Date</th>
+              <th class="text-end">Amount</th>
+              <th>Method</th>
+              <th class="text-center">Status</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="payment : ${payments}">
+              <td><span class="font-monospace small" th:text="${payment.receiptNumber}">OMS-RCP-2026-000001</span></td>
+              <td class="text-nowrap" th:text="${#temporals.format(payment.paymentDate, 'dd MMM yyyy')}">01 Jan 2026</td>
+              <td class="text-end fw-semibold" th:text="${@money.money(payment.amount)}">₹ 0.00</td>
+              <td th:text="${payment.paymentMethod}">CASH</td>
+              <td class="text-center">
+                <span class="badge" th:classappend="${payment.status.name() == 'RECEIVED'} ? 'text-bg-success' : 'text-bg-secondary'">
+                  <i th:class="|bi ${payment.status.name() == 'RECEIVED' ? 'bi-check-circle-fill' : 'bi-slash-circle'} me-1|"
+                     aria-hidden="true"></i>
+                  <span th:text="${payment.status}">RECEIVED</span>
+                </span>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+          <div class="empty-state" th:if="${#lists.isEmpty(payments)}">
+            <i class="bi bi-inbox d-block" aria-hidden="true"></i>
+            <span class="empty-title">No payment has been recorded yet</span>
+          </div>
+        </div>
+      </div>
+      <div class="card-footer small text-body-secondary">
+        <i class="bi bi-shield-lock me-1"></i>
+        Payments are recorded by the institute. A student cannot change, void or reallocate them here.
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

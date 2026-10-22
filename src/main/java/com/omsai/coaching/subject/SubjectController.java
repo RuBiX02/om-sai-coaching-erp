@@ -70,7 +70,49 @@ public class SubjectController {
         Subject subject = subjectService.get(id);
         model.addAttribute("subject", subject);
         model.addAttribute("courseSubjects", subjectService.coursesOf(subject));
+        model.addAttribute("courseCount", subjectService.courseCount(id));
+        model.addAttribute("batchCount", subjectService.batchAssignmentCount(id));
         return "subjects/detail";
+    }
+
+    /**
+     * Deactivates or reactivates a subject. Deactivating keeps every
+     * course relationship and every historical record; it only takes
+     * the subject out of the pickers, so it cannot be assigned to a new
+     * course any more.
+     */
+    @PostMapping("/{id}/status")
+    public String toggleStatus(@PathVariable Long id,
+                               @RequestParam boolean active,
+                               RedirectAttributes redirect) {
+        try {
+            subjectService.setActive(id, active);
+            redirect.addFlashAttribute("successMessage", active
+                    ? "Subject activated again. It can be assigned to courses."
+                    : "Subject deactivated. Its courses, batches and classes are kept, "
+                            + "and it is no longer offered for new courses.");
+        } catch (BusinessRuleException e) {
+            redirect.addFlashAttribute("errorMessage", e.getMessage());
+        }
+        return "redirect:/subjects/" + id;
+    }
+
+    /**
+     * Deletes a subject that was never used. A subject that is already
+     * part of a course is refused with an explanation - deactivating it
+     * keeps the teaching history.
+     */
+    @PostMapping("/{id}/delete")
+    public String delete(@PathVariable Long id, RedirectAttributes redirect) {
+        try {
+            subjectService.delete(id);
+            redirect.addFlashAttribute("successMessage",
+                    "Subject deleted. It was never used by a course, so nothing was lost.");
+            return "redirect:/subjects";
+        } catch (BusinessRuleException e) {
+            redirect.addFlashAttribute("errorMessage", e.getMessage());
+            return "redirect:/subjects/" + id;
+        }
     }
 
     @GetMapping("/{id}/edit")

@@ -5,6 +5,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.ZoneId;
 
@@ -41,5 +42,15 @@ public class BusinessClock {
     /** The current instant (for audit timestamps). */
     public Instant now() {
         return Instant.now();
+    }
+
+    /**
+     * The current date and time in the business timezone. Used for
+     * day-dependent presentation (for example the greeting on the
+     * dashboard), so the screen always agrees with the institute's
+     * calendar rather than with the server's default zone.
+     */
+    public LocalDateTime nowLocal() {
+        return LocalDateTime.now(zoneId);
     }
 }

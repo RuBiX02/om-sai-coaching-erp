@@ -32,13 +32,16 @@ public class PaymentService {
 
     private final PaymentRepository paymentRepository;
     private final FeeAccountRepository feeAccountRepository;
+    private final InstallmentService installmentService;
     private final BusinessClock businessClock;
 
     public PaymentService(PaymentRepository paymentRepository,
                           FeeAccountRepository feeAccountRepository,
+                          InstallmentService installmentService,
                           BusinessClock businessClock) {
         this.paymentRepository = paymentRepository;
         this.feeAccountRepository = feeAccountRepository;
+        this.installmentService = installmentService;
         this.businessClock = businessClock;
     }
 
@@ -52,6 +55,11 @@ public class PaymentService {
      * Records a payment (full or partial) against a fee account.
      * Locks the account row so two concurrent payments cannot both be
      * accepted against the same balance; rejects overpayments.
+     *
+     * <p>When the account has an installment plan, the payment is
+     * allocated to the installments (earliest due date first) inside
+     * this very transaction: the payment and its allocations are
+     * committed together or not at all.</p>
      */
     @Transactional
     public Payment record(PaymentForm form, UserAccount receivedByUser) {
@@ -73,7 +81,11 @@ public class PaymentService {
         payment.setRemarks(form.getRemarks());
         payment.setStatus(Payment.Status.RECEIVED);
         payment.setReceivedBy(receivedByUser);
-        return paymentRepository.save(payment);
+        Payment saved = paymentRepository.save(payment);
+        // The allocation belongs to the same transaction: if the payment
+        // cannot be allocated completely, the payment is rolled back too.
+        installmentService.allocatePayment(saved);
+        return saved;
     }
 
     /**
@@ -81,6 +93,12 @@ public class PaymentService {
      * voiding is transactional and immediately updates the computed
      * outstanding balance; the voided payment stays visible in the
      * history marked VOIDED. Duplicate voids are rejected.
+     *
+     * <p>Installment plans need no extra work here: the allocations of
+     * a voided payment are kept (audit history) but stop counting,
+     * because only allocations of RECEIVED payments are effective. The
+     * installment balances and their statuses are derived again from
+     * the remaining data.</p>
      */
     @Transactional
     public Payment voidPayment(Long paymentId, String reason, UserAccount voidedByUser) {

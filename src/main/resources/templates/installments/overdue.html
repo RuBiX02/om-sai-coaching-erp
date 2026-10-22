@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('Overdue installments')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('installments')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('Overdue installments', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <ul class="nav nav-pills mb-3">
+      <li class="nav-item">
+        <a class="nav-link" th:href="@{/installments}">Overview</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" th:href="@{/installments/upcoming}">Upcoming</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link active" th:href="@{/installments/overdue}">Overdue</a>
+      </li>
+    </ul>
+
+    <form th:action="@{/installments/overdue}" method="get"
+          class="d-flex gap-2 mb-3 flex-wrap align-items-end" aria-label="Installment filters">
+      <div>
+        <label for="q" class="form-label mb-0 small">Student</label>
+        <input type="search" id="q" class="form-control" placeholder="Name or code"
+               name="q" th:value="${q}" aria-label="Search by student name or code"/>
+      </div>
+      <div>
+        <label for="courseId" class="form-label mb-0 small">Course</label>
+        <select id="courseId" class="form-select" name="courseId">
+          <option value="">All courses</option>
+          <option th:each="course : ${courses}" th:value="${course.id}" th:text="${course.name}"
+                  th:selected="${courseId != null and courseId == course.id}">Course</option>
+        </select>
+      </div>
+      <div>
+        <label for="academicYear" class="form-label mb-0 small">Year</label>
+        <input type="text" id="academicYear" class="form-control w-max-9rem" placeholder="2026-27"
+               name="academicYear" th:value="${academicYear}" aria-label="Academic year"/>
+      </div>
+      <button type="submit" class="btn btn-primary"><i class="bi bi-search me-1"></i>Show</button>
+    </form>
+
+    <div class="card">
+      <div class="card-header">
+        <i class="bi bi-exclamation-triangle me-2 table-thumb"></i>Overdue installments
+        <span class="text-body-secondary small"
+              th:text="' · as of ' + ${#temporals.format(today, 'dd MMM yyyy')}">date</span>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" th:if="${!#lists.isEmpty(rows.content)}">
+            <thead class="table-light">
+            <tr>
+              <th>Student</th>
+              <th>Course</th>
+              <th>Year</th>
+              <th class="text-center">#</th>
+              <th>Due date</th>
+              <th class="text-center">Days late</th>
+              <th class="text-end">Scheduled</th>
+              <th class="text-end">Paid</th>
+              <th class="text-end">Remaining</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="row : ${rows.content}">
+              <td>
+                <div th:text="${row.studentName}">Student</div>
+                <div class="small text-body-secondary" th:text="${row.studentCode}">code</div>
+              </td>
+              <td th:text="${row.courseName}">Course</td>
+              <td th:text="${row.academicYear}">2026-27</td>
+              <td class="text-center" th:text="${row.installmentNumber}">1</td>
+              <td th:text="${#temporals.format(row.dueDate, 'dd MMM yyyy')}">01 Jan 2026</td>
+              <td class="text-center">
+                <span class="badge text-bg-danger" th:text="${row.daysOverdue}">0</span>
+              </td>
+              <td class="text-end" th:text="${@money.money(row.amount)}">10000</td>
+              <td class="text-end" th:text="${@money.money(row.paid)}">0</td>
+              <td class="text-end fw-semibold" th:text="${@money.money(row.amount - row.paid)}">10000</td>
+            </tr>
+            </tbody>
+          </table>
+          <div class="empty-state" th:if="${#lists.isEmpty(rows.content)}">
+            <i class="bi bi-emoji-smile d-block mb-2"></i>
+            No installment is overdue. Every scheduled installment with a balance is still within its due date.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div th:replace="~{layout/fragments :: pager(${rows}, ${pagerUrl})}"></div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

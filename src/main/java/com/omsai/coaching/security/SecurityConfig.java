@@ -42,7 +42,10 @@ public class SecurityConfig {
                                 "/favicon.ico", "/favicon.svg", "/login", "/error/**").permitAll()
                         .requestMatchers("/").authenticated()
                         .requestMatchers("/sessions/**").hasAnyRole("ADMIN", "TEACHER")
+                        .requestMatchers("/timetable/**").hasAnyRole("ADMIN", "TEACHER")
+                        .requestMatchers("/examinations/**").hasAnyRole("ADMIN", "TEACHER")
                         .requestMatchers("/teacher/**").hasRole("TEACHER")
+                        .requestMatchers("/student/**").hasRole("STUDENT")
                         .anyRequest().hasRole("ADMIN")
                 )
                 .formLogin(form -> form

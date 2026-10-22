@@ -1,11 +1,15 @@
 package com.omsai.coaching.student;
 
 import com.omsai.coaching.common.Auditable;
+import com.omsai.coaching.security.UserAccount;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -53,8 +57,27 @@ public class Student extends Auditable {
     @Column(nullable = false)
     private boolean active = true;
 
+    /**
+     * The sign-in account of the student portal, if this student has
+     * one. The link is one-to-one and the database keeps it that way
+     * (unique index on students.user_account_id): a student profile
+     * belongs to at most one account and an account to at most one
+     * student.
+     */
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_account_id")
+    private UserAccount userAccount;
+
     public Long getId() {
         return id;
+    }
+
+    public UserAccount getUserAccount() {
+        return userAccount;
+    }
+
+    public void setUserAccount(UserAccount userAccount) {
+        this.userAccount = userAccount;
     }
 
     public String getStudentCode() {

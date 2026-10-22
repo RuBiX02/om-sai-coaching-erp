@@ -98,6 +98,12 @@ public abstract class BrowserTestBase {
 
     @Autowired
     protected Fixtures fixtures;
+
+    @Autowired
+    protected com.omsai.coaching.security.UserService userService;
+
+    @Autowired
+    protected com.omsai.coaching.fees.FeeAccountService feeAccountService;
     @Autowired
     protected JdbcTemplate jdbc;
 
@@ -363,6 +369,25 @@ public abstract class BrowserTestBase {
         return batchSubject;
     }
 
+    /**
+     * A STUDENT account linked to a student profile (the portal login).
+     * The account is tracked, so the suite removes it again.
+     */
+    protected com.omsai.coaching.security.UserAccount trackedStudentAccount(
+            Student student, String emailPrefix) {
+        com.omsai.coaching.security.UserForm form =
+                new com.omsai.coaching.security.UserForm();
+        form.setFullName(student.getFullName());
+        form.setEmail(emailPrefix + "." + Math.abs(System.nanoTime() % 1_000_000_000L)
+                + "@omsai.local");
+        form.setRole("STUDENT");
+        form.setPassword(fixtures.safePassword());
+        form.setStudentId(student.getId());
+        com.omsai.coaching.security.UserAccount account = userService.create(form);
+        trackedUserIds.add(account.getId());
+        return account;
+    }
+
     protected Student trackedStudent(String fullName) {
         Student student = fixtures.student(fullName);
         trackedStudentIds.add(student.getId());
@@ -381,6 +406,13 @@ public abstract class BrowserTestBase {
         return user;
     }
 
+    /** An administrator account (tracked, so the suite cleans it up). */
+    protected UserAccount trackedAdminUser(String emailPrefix) {
+        UserAccount user = fixtures.adminUser(emailPrefix);
+        trackedUserIds.add(user.getId());
+        return user;
+    }
+
     protected Teacher trackedTeacherProfile(UserAccount user, String fullName) {
         Teacher teacher = fixtures.teacherLinkedTo(user, fullName);
         trackedTeacherIds.add(teacher.getId());
@@ -395,13 +427,35 @@ public abstract class BrowserTestBase {
         // enrollments → batch_subjects → teachers → user_accounts →
         // course_subjects → students → batches → subjects → courses.
         if (!trackedBatchSubjectIds.isEmpty()) {
+            // The examination results and the timetable entries reference
+            // the assignment, so they have to go before it.
+            jdbc.batchUpdate("DELETE FROM examination_results WHERE examination_id IN "
+                    + "(SELECT id FROM examinations WHERE batch_subject_id = ?)",
+                    asParams(trackedBatchSubjectIds));
+            jdbc.batchUpdate("DELETE FROM examinations WHERE batch_subject_id = ?",
+                    asParams(trackedBatchSubjectIds));
+            jdbc.batchUpdate("DELETE FROM calendar_exceptions WHERE timetable_entry_id IN "
+                    + "(SELECT id FROM timetable_entries WHERE batch_subject_id = ?)",
+                    asParams(trackedBatchSubjectIds));
+            jdbc.batchUpdate("DELETE FROM timetable_entries WHERE batch_subject_id = ?",
+                    asParams(trackedBatchSubjectIds));
             jdbc.batchUpdate("DELETE FROM attendance WHERE class_session_id IN "
                     + "(SELECT id FROM class_sessions WHERE batch_subject_id = ?)",
                     asParams(trackedBatchSubjectIds));
             jdbc.batchUpdate("DELETE FROM class_sessions WHERE batch_subject_id = ?",
                     asParams(trackedBatchSubjectIds));
         }
+        for (Long id : trackedUserIds) {
+            jdbc.update("UPDATE students SET user_account_id = null WHERE user_account_id = ?", id);
+            jdbc.update("DELETE FROM calendar_exceptions WHERE created_by = ?", id);
+        }
         for (Long id : trackedStudentIds) {
+            // Installments and their allocations reference the payments
+            // and the fee account, so they have to go first.
+            jdbc.update("DELETE FROM payment_allocations WHERE fee_account_id IN "
+                    + "(SELECT id FROM fee_accounts WHERE student_id = ?)", id);
+            jdbc.update("DELETE FROM fee_installments WHERE fee_account_id IN "
+                    + "(SELECT id FROM fee_accounts WHERE student_id = ?)", id);
             jdbc.update("DELETE FROM payments WHERE fee_account_id IN "
                     + "(SELECT id FROM fee_accounts WHERE student_id = ?)", id);
             jdbc.update("DELETE FROM fee_accounts WHERE student_id = ?", id);

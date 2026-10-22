@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('Timetable entry')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('timetable')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('Timetable entry', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <form th:if="${entry == null}" th:action="@{/timetable}" method="post"
+          class="card mb-3" th:object="${form}">
+      <div class="card-header">
+        <i class="bi bi-calendar-plus me-2 table-thumb"></i>New recurring class
+      </div>
+      <div class="card-body">
+        <p class="text-body-secondary small">
+          The class (batch subject) carries the batch, the course, the subject and the teacher.
+          A schedule that would double book the teacher, the batch or the classroom is refused.
+        </p>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label for="batchSubjectId" class="form-label">Class (batch subject)</label>
+            <select id="batchSubjectId" class="form-select" th:field="*{batchSubjectId}">
+              <option value="">Choose a class…</option>
+              <option th:each="assignment : ${assignments}" th:value="${assignment.id}"
+                      th:text="${assignment.batch.name} + ' · ' + ${assignment.courseSubject.subject.name} + ' · ' + ${assignment.batch.course.name}"
+                      th:selected="${assignment.id == form.batchSubjectId}">Assignment</option>
+            </select>
+            <div class="text-danger small mt-1" th:if="${#fields.hasErrors('batchSubjectId')}"
+                 th:errors="*{batchSubjectId}">Error</div>
+          </div>
+          <div class="col-md-3">
+            <label for="dayOfWeek" class="form-label">Weekday</label>
+            <select id="dayOfWeek" class="form-select" th:field="*{dayOfWeek}">
+              <option th:each="day : ${days}" th:value="${day}" th:text="${day}">MONDAY</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label for="classroom" class="form-label">Classroom</label>
+            <input type="text" id="classroom" class="form-control" th:field="*{classroom}"
+                   placeholder="Room 1"/>
+          </div>
+          <div class="col-md-3">
+            <label for="startTime" class="form-label">Start time</label>
+            <input type="time" id="startTime" class="form-control" th:field="*{startTime}"/>
+            <div class="text-danger small mt-1" th:if="${#fields.hasErrors('startTime')}"
+                 th:errors="*{startTime}">Error</div>
+          </div>
+          <div class="col-md-3">
+            <label for="endTime" class="form-label">End time</label>
+            <input type="time" id="endTime" class="form-control" th:field="*{endTime}"/>
+            <div class="text-danger small mt-1" th:if="${#fields.hasErrors('endTime')}"
+                 th:errors="*{endTime}">Error</div>
+          </div>
+          <div class="col-md-3">
+            <label for="effectiveFrom" class="form-label">Valid from</label>
+            <input type="date" id="effectiveFrom" class="form-control" th:field="*{effectiveFrom}"/>
+            <div class="text-danger small mt-1" th:if="${#fields.hasErrors('effectiveFrom')}"
+                 th:errors="*{effectiveFrom}">Error</div>
+          </div>
+          <div class="col-md-3">
+            <label for="effectiveUntil" class="form-label">Valid until (optional)</label>
+            <input type="date" id="effectiveUntil" class="form-control" th:field="*{effectiveUntil}"/>
+          </div>
+          <div class="col-md-6">
+            <label for="topic" class="form-label">Topic (optional)</label>
+            <input type="text" id="topic" class="form-control" th:field="*{topic}"
+                   placeholder="What this class is about"/>
+          </div>
+        </div>
+      </div>
+      <div class="card-footer d-flex gap-2 justify-content-end">
+        <a th:href="@{/timetable}" class="btn btn-outline-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary">
+          <i class="bi bi-check2-circle me-1"></i>Create timetable entry
+        </button>
+      </div>
+    </form>
+
+    <form th:if="${entry != null}" th:action="@{/timetable/{id}(id=${entry.id})}" method="post"
+          class="card mb-3" th:object="${form}">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-pencil me-2 table-thumb"></i>Edit recurring class</span>
+        <span class="small text-body-secondary">
+          Classes that were already generated and their attendance are not changed.
+        </span>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label for="batchSubjectId" class="form-label">Class (batch subject)</label>
+            <select id="batchSubjectId" class="form-select" th:field="*{batchSubjectId}">
+              <option th:each="assignment : ${assignments}" th:value="${assignment.id}"
+                      th:text="${assignment.batch.name} + ' · ' + ${assignment.courseSubject.subject.name} + ' · ' + ${assignment.batch.course.name}"
+                      th:selected="${assignment.id == form.batchSubjectId}">Assignment</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label for="dayOfWeek" class="form-label">Weekday</label>
+            <select id="dayOfWeek" class="form-select" th:field="*{dayOfWeek}">
+              <option th:each="day : ${days}" th:value="${day}" th:text="${day}">MONDAY</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label for="classroom" class="form-label">Classroom</label>
+            <input type="text" id="classroom" class="form-control" th:field="*{classroom}"/>
+          </div>
+          <div class="col-md-3">
+            <label for="startTime" class="form-label">Start time</label>
+            <input type="time" id="startTime" class="form-control" th:field="*{startTime}"/>
+          </div>
+          <div class="col-md-3">
+            <label for="endTime" class="form-label">End time</label>
+            <input type="time" id="endTime" class="form-control" th:field="*{endTime}"/>
+          </div>
+          <div class="col-md-3">
+            <label for="effectiveFrom" class="form-label">Valid from</label>
+            <input type="date" id="effectiveFrom" class="form-control" th:field="*{effectiveFrom}"/>
+          </div>
+          <div class="col-md-3">
+            <label for="effectiveUntil" class="form-label">Valid until (optional)</label>
+            <input type="date" id="effectiveUntil" class="form-control" th:field="*{effectiveUntil}"/>
+          </div>
+          <div class="col-md-6">
+            <label for="topic" class="form-label">Topic (optional)</label>
+            <input type="text" id="topic" class="form-control" th:field="*{topic}"/>
+          </div>
+        </div>
+      </div>
+      <div class="card-footer d-flex gap-2 justify-content-end">
+        <a th:href="@{/timetable/{id}(id=${entry.id})}" class="btn btn-outline-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary">
+          <i class="bi bi-check2-circle me-1"></i>Save changes
+        </button>
+      </div>
+    </form>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

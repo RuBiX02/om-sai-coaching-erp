@@ -1,90 +1,987 @@
-/* Om Sai Coaching ERP - application styling on top of Bootstrap */
+/* ==========================================================================
+   Om Sai Coaching ERP — design system (v2, "light academic operations")
+   --------------------------------------------------------------------------
+   One stylesheet layered on top of Bootstrap 5.3 drives the whole product.
+   Design direction: a light, calm academic operations platform with a white
+   navigation rail on a cool grey canvas, deep-ink typography (self-hosted
+   Inter), soft-blue primary actions and a restrained saffron accent.
+
+   Content Security Policy: the application runs with `style-src 'self'`,
+   therefore no inline `style` attributes and no inline <style> blocks are
+   used anywhere - all rules live in this file.
+   ========================================================================== */
+
+/* ---- self-hosted Inter (latin subset, 4 weights) ------------------------ */
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/inter-latin-400-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("../fonts/inter-latin-500-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("../fonts/inter-latin-600-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../fonts/inter-latin-700-normal.woff2") format("woff2");
+}
 
 :root {
-  --omsai-sidebar-width: 15.5rem;
-  --omsai-navy: #14306b;
-  --omsai-navy-strong: #0d224d;
+  /* ---- brand ---------------------------------------------------------- */
+  --omsai-ink: #18243b;            /* deep ink: headings, sidebar text      */
+  --omsai-blue: #3659e3;           /* primary action                        */
+  --omsai-blue-deep: #2b49c4;      /* hover                                 */
+  --omsai-blue-ink: #23409f;       /* active/pressed                        */
+  --omsai-blue-soft: #edf2ff;      /* subtle blue surface                   */
+  --omsai-blue-line: #d8e0fb;
+  --omsai-saffron: #f4a62a;        /* the warm brand accent - used sparingly */
+  --omsai-saffron-soft: #fef3dc;
+
+  /* ---- surfaces ------------------------------------------------------- */
+  --omsai-bg: #f5f6fa;
+  --omsai-surface: #ffffff;
+  --omsai-surface-2: #f8f9fc;
+  --omsai-surface-3: #eef1f6;
+
+  /* ---- text ----------------------------------------------------------- */
+  --omsai-text: #172033;
+  --omsai-muted: #667085;
+  --omsai-faint: #98a2b3;
+
+  /* ---- lines ---------------------------------------------------------- */
+  --omsai-border: #e3e7ef;
+  --omsai-border-strong: #cdd4e0;
+
+  /* ---- status --------------------------------------------------------- */
+  --omsai-success: #16803d;
+  --omsai-success-soft: #e4f4e8;
+  --omsai-success-line: #c2e4cb;
+  --omsai-warning: #b7791f;
+  --omsai-warning-soft: #fbf1dc;
+  --omsai-warning-line: #efdcae;
+  --omsai-danger: #c62828;
+  --omsai-danger-soft: #fbe9e9;
+  --omsai-danger-line: #f1c3c3;
+  --omsai-info: #2f4fbd;
+  --omsai-info-soft: #edf2ff;
+
+  /* ---- typography ----------------------------------------------------- */
+  --omsai-font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --omsai-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas,
+    "Liberation Mono", monospace;
+  --omsai-fs-xs: 0.72rem;
+  --omsai-fs-sm: 0.8125rem;
+  --omsai-fs-base: 0.9063rem;
+  --omsai-fs-lg: 1rem;
+  --omsai-fs-xl: 1.1875rem;
+  --omsai-fs-2xl: 1.5rem;
+  --omsai-fs-3xl: 1.75rem;
+
+  /* ---- radii ---------------------------------------------------------- */
+  --omsai-radius-sm: 0.5rem;
+  --omsai-radius: 0.625rem;
+  --omsai-radius-lg: 0.875rem;
+  --omsai-radius-xl: 1.125rem;
+  --omsai-radius-pill: 999px;
+
+  /* ---- elevation (restrained) ----------------------------------------- */
+  --omsai-shadow-xs: 0 1px 2px rgba(23, 32, 51, 0.05);
+  --omsai-shadow-sm: 0 1px 2px rgba(23, 32, 51, 0.05),
+    0 2px 8px rgba(23, 32, 51, 0.05);
+  --omsai-shadow-md: 0 4px 10px rgba(23, 32, 51, 0.06),
+    0 12px 32px rgba(23, 32, 51, 0.08);
+  --omsai-shadow-focus: 0 0 0 3px rgba(54, 89, 227, 0.22);
+
+  /* ---- layout --------------------------------------------------------- */
+  --omsai-sidebar-width: 15rem;    /* 240px light rail */
+  --omsai-sidebar-rail: 4.5rem;    /* 72px icon rail   */
+  --omsai-sidebar-current: var(--omsai-sidebar-width);
+  --omsai-topbar-height: 3.75rem;
+
+  /* ---- bootstrap bridge ------------------------------------------------ */
+  --bs-body-font-family: var(--omsai-font);
+  --bs-body-color: var(--omsai-text);
+  --bs-body-bg: var(--omsai-bg);
+  --bs-border-color: var(--omsai-border);
+  --bs-border-radius: var(--omsai-radius);
+  --bs-link-color: var(--omsai-blue);
+  --bs-link-hover-color: var(--omsai-blue-deep);
+  --bs-emphasis-color: var(--omsai-ink);
+  --bs-secondary-color: var(--omsai-muted);
+  --bs-primary: var(--omsai-blue);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--omsai-border-strong) transparent;
 }
 
 body {
-  background: #f5f7fb;
+  background: var(--omsai-bg);
+  color: var(--omsai-text);
+  font-family: var(--omsai-font);
+  font-size: var(--omsai-fs-base);
+  line-height: 1.55;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "cv05" 1, "ss01" 1;
 }
 
-/* ----- shell ------------------------------------------------------- */
+h1, h2, h3, h4, h5, h6,
+.h1, .h2, .h3, .h4, .h5, .h6 {
+  color: var(--omsai-ink);
+  font-weight: 650;
+  letter-spacing: -0.014em;
+}
+
+a {
+  text-decoration: none;
+  color: var(--omsai-blue);
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+.text-body-secondary {
+  color: var(--omsai-muted) !important;
+}
+
+/* ==========================================================================
+   Focus - always visible, never removed
+   ========================================================================== */
+
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--omsai-blue);
+  outline-offset: 2px;
+  border-radius: var(--omsai-radius-sm);
+}
+
+/* ==========================================================================
+   Buttons
+   ========================================================================== */
+
+.btn {
+  --bs-btn-border-radius: var(--omsai-radius);
+  --bs-btn-font-weight: 600;
+  --bs-btn-padding-x: 0.9rem;
+  --bs-btn-padding-y: 0.42rem;
+  --bs-btn-font-size: var(--omsai-fs-base);
+  letter-spacing: 0.005em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  transition: background-color 0.15s ease, border-color 0.15s ease,
+    color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn-sm {
+  --bs-btn-padding-x: 0.66rem;
+  --bs-btn-padding-y: 0.26rem;
+  --bs-btn-font-size: var(--omsai-fs-sm);
+  --bs-btn-border-radius: var(--omsai-radius-sm);
+}
+
+.btn-lg {
+  --bs-btn-padding-y: 0.6rem;
+  --bs-btn-font-size: var(--omsai-fs-lg);
+}
+
+.btn-primary {
+  --bs-btn-color: #fff;
+  --bs-btn-bg: var(--omsai-blue);
+  --bs-btn-border-color: var(--omsai-blue);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: var(--omsai-blue-deep);
+  --bs-btn-hover-border-color: var(--omsai-blue-deep);
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: var(--omsai-blue-ink);
+  --bs-btn-active-border-color: var(--omsai-blue-ink);
+  --bs-btn-focus-shadow-rgb: 54, 89, 227;
+  --bs-btn-disabled-bg: #a7b4e8;
+  --bs-btn-disabled-border-color: #a7b4e8;
+  box-shadow: var(--omsai-shadow-xs);
+}
+
+.btn-outline-primary {
+  --bs-btn-color: var(--omsai-blue);
+  --bs-btn-border-color: var(--omsai-blue-line);
+  --bs-btn-bg: #fff;
+  --bs-btn-hover-color: var(--omsai-blue-deep);
+  --bs-btn-hover-bg: var(--omsai-blue-soft);
+  --bs-btn-hover-border-color: #b6c4f7;
+  --bs-btn-active-color: var(--omsai-blue-ink);
+  --bs-btn-active-bg: var(--omsai-blue-line);
+  --bs-btn-active-border-color: #b6c4f7;
+  --bs-btn-focus-shadow-rgb: 54, 89, 227;
+  --bs-btn-disabled-color: #a3aecb;
+  --bs-btn-disabled-bg: #fff;
+  --bs-btn-disabled-border-color: var(--omsai-border);
+}
+
+.btn-outline-secondary {
+  --bs-btn-color: #4a5568;
+  --bs-btn-border-color: var(--omsai-border-strong);
+  --bs-btn-bg: #fff;
+  --bs-btn-hover-color: var(--omsai-ink);
+  --bs-btn-hover-bg: var(--omsai-surface-2);
+  --bs-btn-hover-border-color: #aeb7c9;
+  --bs-btn-active-color: var(--omsai-ink);
+  --bs-btn-active-bg: var(--omsai-surface-3);
+  --bs-btn-active-border-color: #aeb7c9;
+  --bs-btn-focus-shadow-rgb: 102, 112, 133;
+}
+
+.btn-outline-light {
+  --bs-btn-color: #fff;
+  --bs-btn-border-color: rgba(255, 255, 255, 0.45);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: rgba(255, 255, 255, 0.14);
+  --bs-btn-hover-border-color: rgba(255, 255, 255, 0.7);
+}
+
+.btn-link {
+  --bs-btn-color: var(--omsai-blue);
+  --bs-btn-hover-color: var(--omsai-blue-deep);
+  text-decoration: none;
+  padding-inline: 0.35rem;
+}
+
+.btn-link:hover {
+  text-decoration: underline;
+}
+
+.btn:focus-visible {
+  box-shadow: var(--omsai-shadow-focus);
+  outline: none;
+}
+
+/* ==========================================================================
+   Forms
+   ========================================================================== */
+
+.form-label {
+  font-size: var(--omsai-fs-sm);
+  font-weight: 600;
+  color: #33405c;
+  margin-bottom: 0.3rem;
+}
+
+.form-control,
+.form-select {
+  border-color: var(--omsai-border-strong);
+  border-radius: var(--omsai-radius);
+  color: var(--omsai-text);
+  font-size: var(--omsai-fs-base);
+  padding: 0.44rem 0.72rem;
+  background-color: #fff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.form-control::placeholder {
+  color: var(--omsai-faint);
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--omsai-blue);
+  box-shadow: var(--omsai-shadow-focus);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  background: var(--omsai-surface-2);
+  color: var(--omsai-muted);
+}
+
+.form-text {
+  color: var(--omsai-muted);
+  font-size: var(--omsai-fs-xs);
+}
+
+.input-group-text {
+  background: var(--omsai-surface-2);
+  border-color: var(--omsai-border-strong);
+  color: var(--omsai-muted);
+  font-size: var(--omsai-fs-sm);
+}
+
+.form-check-input {
+  border-color: var(--omsai-border-strong);
+}
+
+.form-check-input:checked {
+  background-color: var(--omsai-blue);
+  border-color: var(--omsai-blue);
+}
+
+.form-check-input:focus {
+  border-color: var(--omsai-blue);
+  box-shadow: var(--omsai-shadow-focus);
+}
+
+.required-label::after {
+  content: " *";
+  color: var(--omsai-danger);
+  font-weight: 700;
+}
+
+.form-text-char-hint {
+  font-size: var(--omsai-fs-xs);
+}
+
+.is-invalid {
+  border-color: var(--omsai-danger) !important;
+}
+
+.invalid-feedback {
+  color: var(--omsai-danger);
+  font-size: var(--omsai-fs-xs);
+}
+
+/* ==========================================================================
+   Cards - panels with quiet borders, hairline separators
+   ========================================================================== */
+
+.card {
+  --bs-card-border-color: var(--omsai-border);
+  --bs-card-border-radius: var(--omsai-radius-lg);
+  --bs-card-bg: var(--omsai-surface);
+  --bs-card-cap-padding-x: 1.1rem;
+  --bs-card-cap-padding-y: 0.8rem;
+  box-shadow: var(--omsai-shadow-xs);
+}
+
+.card-header {
+  background: var(--omsai-surface);
+  border-bottom-color: var(--omsai-border);
+  font-weight: 600;
+  padding: 0.8rem 1.1rem;
+  color: var(--omsai-ink);
+  border-radius: var(--omsai-radius-lg) var(--omsai-radius-lg) 0 0 !important;
+}
+
+.card-body {
+  padding: 1.1rem 1.2rem;
+}
+
+.card-footer {
+  background: var(--omsai-surface);
+  border-top-color: var(--omsai-border);
+  padding: 0.7rem 1.1rem;
+}
+
+.card-header + .card-body {
+  padding-top: 0.9rem;
+}
+
+/* ==========================================================================
+   Tables - compact, quiet headers, tabular numerals
+   ========================================================================== */
+
+.table {
+  --bs-table-bg: transparent;
+  --bs-table-color: var(--omsai-text);
+  --bs-table-border-color: var(--omsai-border);
+  --bs-table-striped-bg: #fafbff;
+  --bs-table-hover-bg: #f7f9fe;
+  font-size: var(--omsai-fs-base);
+  margin-bottom: 0;
+}
+
+.table > :not(caption) > * > * {
+  padding: 0.66rem 0.85rem;
+  vertical-align: middle;
+}
+
+.table thead th,
+.table-light > thead th,
+.table thead.table-light th {
+  background: var(--omsai-surface-2);
+  border-bottom: 1px solid var(--omsai-border);
+  color: var(--omsai-muted);
+  font-size: var(--omsai-fs-xs);
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding-block: 0.55rem;
+}
+
+.table > tbody > tr > * {
+  border-bottom-color: var(--omsai-border);
+}
+
+.table-hover > tbody > tr:hover > * {
+  --bs-table-bg-state: var(--bs-table-hover-bg);
+  color: var(--omsai-text);
+}
+
+.table td.text-end,
+.table th.text-end {
+  font-variant-numeric: tabular-nums;
+}
+
+.table-thumb {
+  color: var(--omsai-blue);
+  margin-right: 0.4rem;
+}
+
+.table-responsive {
+  scrollbar-width: thin;
+}
+
+/* ==========================================================================
+   Badges - soft tint with a hairline border; icons carry the meaning
+   ========================================================================== */
+
+.badge {
+  font-weight: 600;
+  font-size: var(--omsai-fs-xs);
+  letter-spacing: 0.015em;
+  padding: 0.34em 0.62em;
+  border-radius: var(--omsai-radius-pill);
+  border: 1px solid transparent;
+  line-height: 1.35;
+}
+
+.text-bg-success {
+  background: var(--omsai-success-soft) !important;
+  color: var(--omsai-success) !important;
+  border-color: var(--omsai-success-line);
+}
+
+.text-bg-secondary {
+  background: var(--omsai-surface-3) !important;
+  color: #4d5a75 !important;
+  border-color: var(--omsai-border-strong);
+}
+
+.text-bg-primary {
+  background: var(--omsai-info-soft) !important;
+  color: var(--omsai-info) !important;
+  border-color: var(--omsai-blue-line);
+}
+
+.text-bg-warning {
+  background: var(--omsai-warning-soft) !important;
+  color: var(--omsai-warning) !important;
+  border-color: var(--omsai-warning-line);
+}
+
+.text-bg-danger {
+  background: var(--omsai-danger-soft) !important;
+  color: var(--omsai-danger) !important;
+  border-color: var(--omsai-danger-line);
+}
+
+/* ==========================================================================
+   Alerts, dropdowns, pagination, modals
+   ========================================================================== */
+
+.alert {
+  border-radius: var(--omsai-radius-lg);
+  border-width: 1px;
+  font-size: var(--omsai-fs-base);
+  padding: 0.75rem 1rem;
+}
+
+.alert-success {
+  background: var(--omsai-success-soft);
+  border-color: var(--omsai-success-line);
+  color: #14522d;
+}
+
+.alert-danger {
+  background: var(--omsai-danger-soft);
+  border-color: var(--omsai-danger-line);
+  color: #7c1d1d;
+}
+
+.alert-warning {
+  background: var(--omsai-warning-soft);
+  border-color: var(--omsai-warning-line);
+  color: #74400e;
+}
+
+.alert-info {
+  background: var(--omsai-info-soft);
+  border-color: var(--omsai-blue-line);
+  color: #25409e;
+}
+
+.dropdown-menu {
+  border-color: var(--omsai-border);
+  border-radius: var(--omsai-radius-lg);
+  box-shadow: var(--omsai-shadow-md);
+  font-size: var(--omsai-fs-base);
+  padding: 0.4rem;
+}
+
+.dropdown-item {
+  border-radius: var(--omsai-radius-sm);
+  padding: 0.45rem 0.7rem;
+}
+
+.dropdown-item:active,
+.dropdown-item:hover {
+  background: var(--omsai-surface-2);
+  color: var(--omsai-ink);
+}
+
+.dropdown-header {
+  font-size: var(--omsai-fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--omsai-muted);
+}
+
+.pagination {
+  --bs-pagination-border-color: transparent;
+  --bs-pagination-border-radius: var(--omsai-radius-sm);
+  --bs-pagination-color: #4a5568;
+  --bs-pagination-hover-color: var(--omsai-blue-deep);
+  --bs-pagination-hover-bg: var(--omsai-blue-soft);
+  --bs-pagination-focus-color: var(--omsai-blue-deep);
+  --bs-pagination-focus-bg: var(--omsai-blue-soft);
+  --bs-pagination-active-bg: var(--omsai-blue);
+  --bs-pagination-active-border-color: var(--omsai-blue);
+  --bs-pagination-disabled-color: var(--omsai-faint);
+  --bs-pagination-disabled-bg: transparent;
+  --bs-pagination-disabled-border-color: transparent;
+  gap: 0.2rem;
+}
+
+.pagination .page-link {
+  font-size: var(--omsai-fs-sm);
+  font-weight: 550;
+  padding: 0.3rem 0.62rem;
+  border: none;
+  border-radius: var(--omsai-radius-sm) !important;
+}
+
+.pagination .page-item.active .page-link {
+  font-weight: 650;
+}
+
+.breadcrumb {
+  --bs-breadcrumb-divider-color: var(--omsai-muted);
+  font-size: var(--omsai-fs-sm);
+  margin-bottom: 0;
+}
+
+.breadcrumb-item + .breadcrumb-item::before {
+  color: var(--omsai-muted);
+}
+
+.modal-content {
+  border: none;
+  border-radius: var(--omsai-radius-lg);
+  box-shadow: var(--omsai-shadow-md);
+}
+
+.modal-header,
+.modal-footer {
+  border-color: var(--omsai-border);
+}
+
+/* ==========================================================================
+   Application shell - light rail + slim top bar
+   ========================================================================== */
 
 .app-body {
   display: flex;
   min-height: 100vh;
-}
-
-.app-sidebar {
-  width: var(--omsai-sidebar-width);
-  flex: 0 0 var(--omsai-sidebar-width);
-  border-right: 1px solid rgba(0, 0, 0, .08);
-}
-
-.app-sidebar-body {
-  padding-bottom: 1rem;
-}
-
-.brand {
-  padding: 1rem 1.25rem;
-  color: var(--omsai-navy-strong);
-  font-weight: 600;
-  gap: .5rem;
-  align-items: center;
-}
-
-.brand .bi {
-  font-size: 1.4rem;
-  color: var(--omsai-navy);
-}
-
-.brand-mini {
-  font-weight: 600;
-  color: var(--omsai-navy-strong);
-}
-
-.app-nav-link {
-  color: #40485d;
-  border-radius: .5rem;
-  padding: .5rem .75rem;
-  align-items: center;
-}
-
-.app-nav-link:hover {
-  background: rgba(20, 48, 107, .07);
-  color: var(--omsai-navy-strong);
-}
-
-.app-nav-link.active {
-  background: var(--omsai-navy);
-  color: #fff;
-}
-
-.app-nav-link.active .bi {
-  color: #c9d6f2;
-}
-
-/* ----- top bar ------------------------------------------------------ */
-
-.app-topbar {
-  background: #fff;
-  border-bottom: 1px solid rgba(0, 0, 0, .08);
-  padding: .6rem 1.25rem;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.app-content {
-  padding: 1.25rem;
+  background: var(--omsai-bg);
 }
 
 .app-main {
   flex: 1 1 auto;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-content {
+  padding: 1.6rem 1.9rem 2.6rem;
+  width: 100%;
+  flex: 1 1 auto;
+}
+
+/* ---- sidebar ---------------------------------------------------------- */
+
+.app-sidebar {
+  width: var(--omsai-sidebar-width);
+  flex: 0 0 var(--omsai-sidebar-width);
+  /* Bootstrap's responsive offcanvas forces `background-color: transparent
+     !important` from 992px upwards, so the surface colour is restated here. */
+  background-color: var(--omsai-surface) !important;
+  color: var(--omsai-text);
+  border-right: 1px solid var(--omsai-border);
+  display: flex;
+  flex-direction: column;
+  transition: width 0.2s ease, flex-basis 0.2s ease;
+}
+
+.app-sidebar-body {
+  padding-bottom: 1rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1 1 auto;
+  padding-inline: 0.65rem;
+}
+
+.app-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.95rem 0.85rem;
+  border-bottom: 1px solid var(--omsai-border);
+  color: var(--omsai-ink);
+  min-height: var(--omsai-topbar-height);
+}
+
+.app-brand .brand-mark {
+  width: 2.15rem;
+  height: 2.15rem;
+  flex: 0 0 auto;
+  border-radius: 0.6rem;
+}
+
+.app-brand .brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  min-width: 0;
+}
+
+.app-brand .brand-name {
+  font-weight: 700;
+  font-size: 0.92rem;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  color: var(--omsai-ink);
+}
+
+.app-brand .brand-sub {
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.13em;
+  color: var(--omsai-faint);
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.brand-mini {
+  font-weight: 700;
+  color: var(--omsai-ink);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.brand-mini .bi {
+  color: var(--omsai-saffron);
+}
+
+.app-nav {
+  padding-top: 0.9rem;
+}
+
+.nav-group + .nav-group {
+  margin-top: 1.15rem;
+}
+
+.nav-group-title {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+  color: var(--omsai-faint);
+  font-weight: 700;
+  padding: 0 0.7rem 0.35rem;
+}
+
+.app-nav-link {
+  color: #3d4a63;
+  border-radius: var(--omsai-radius);
+  padding: 0.42rem 0.66rem;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.86rem;
+  font-weight: 550;
+  position: relative;
+  margin-block: 0.08rem;
+  transition: background-color 0.14s ease, color 0.14s ease;
+}
+
+.app-nav-link i,
+.app-nav-link .bi {
+  font-size: 1rem;
+  width: 1.2rem;
+  text-align: center;
+  flex: 0 0 auto;
+  color: #7d8aa5;
+  transition: color 0.14s ease;
+}
+
+.app-nav-link:hover {
+  background: var(--omsai-surface-2);
+  color: var(--omsai-ink);
+  text-decoration: none;
+}
+
+.app-nav-link:hover i,
+.app-nav-link:hover .bi {
+  color: var(--omsai-ink);
+}
+
+.app-nav-link.active {
+  background: var(--omsai-blue-soft);
+  color: var(--omsai-blue-ink);
+  font-weight: 650;
+}
+
+.app-nav-link.active i,
+.app-nav-link.active .bi {
+  color: var(--omsai-blue);
+}
+
+/* The saffron marker that makes the active item recognisably ours. */
+.app-nav-link.active::before {
+  content: "";
+  position: absolute;
+  left: -0.65rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0.2rem;
+  height: 1.15rem;
+  border-radius: var(--omsai-radius-pill);
+  background: var(--omsai-saffron);
+}
+
+.app-nav-link:focus-visible {
+  outline: 2px solid var(--omsai-blue);
+  outline-offset: 1px;
+}
+
+.app-sidebar-footer {
+  border-top: 1px solid var(--omsai-border);
+  padding: 0.55rem 0.65rem;
+}
+
+.sidebar-collapse-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  background: transparent;
+  border: none;
+  color: var(--omsai-muted);
+  border-radius: var(--omsai-radius);
+  padding: 0.42rem 0.6rem;
+  font-size: var(--omsai-fs-sm);
+  font-weight: 550;
+  transition: background-color 0.14s ease, color 0.14s ease;
+}
+
+.sidebar-collapse-btn:hover {
+  background: var(--omsai-surface-2);
+  color: var(--omsai-ink);
+}
+
+.sidebar-collapse-btn:focus-visible {
+  outline: 2px solid var(--omsai-blue);
+  outline-offset: 1px;
+}
+
+/* Collapsed icon rail (desktop only) */
+body.sidebar-collapsed {
+  --omsai-sidebar-current: var(--omsai-sidebar-rail);
+}
+
+body.sidebar-collapsed .app-sidebar {
+  width: var(--omsai-sidebar-rail);
+  flex-basis: var(--omsai-sidebar-rail);
+}
+
+body.sidebar-collapsed .app-brand .brand-text,
+body.sidebar-collapsed .nav-group-title,
+body.sidebar-collapsed .app-nav-link span,
+body.sidebar-collapsed .sidebar-collapse-btn span {
+  display: none;
+}
+
+body.sidebar-collapsed .app-brand {
+  justify-content: center;
+  padding-inline: 0.5rem;
+}
+
+body.sidebar-collapsed .app-nav-link {
+  justify-content: center;
+  padding-inline: 0.5rem;
+}
+
+body.sidebar-collapsed .sidebar-collapse-btn {
+  justify-content: center;
+}
+
+body.sidebar-collapsed .app-nav-link::after {
+  content: attr(data-label);
+  position: absolute;
+  left: calc(100% + 0.55rem);
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--omsai-ink);
+  color: #fff;
+  padding: 0.26rem 0.6rem;
+  border-radius: var(--omsai-radius-sm);
+  font-size: var(--omsai-fs-sm);
+  font-weight: 550;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  box-shadow: var(--omsai-shadow-md);
+  transition: opacity 0.15s ease;
+  z-index: 20;
+}
+
+body.sidebar-collapsed .app-nav-link:hover::after,
+body.sidebar-collapsed .app-nav-link:focus-visible::after {
+  opacity: 1;
+}
+
+body.sidebar-collapsed .app-nav-link.active::before {
+  left: 50%;
+  transform: translate(-50%, 10px);
+  width: 1.1rem;
+  height: 0.18rem;
+  top: auto;
+  bottom: 0.05rem;
+}
+
+/* ---- top bar ---------------------------------------------------------- */
+
+.app-topbar {
+  background: var(--omsai-surface);
+  border-bottom: 1px solid var(--omsai-border);
+  min-height: var(--omsai-topbar-height);
+  padding: 0.55rem 1.9rem;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.app-topbar h1 {
+  font-size: 0.98rem;
+  font-weight: 650;
+  margin: 0;
+  color: var(--omsai-ink);
+}
+
+.app-topbar .hamburger {
+  border: none;
+  background: transparent;
+  color: var(--omsai-muted);
+  font-size: 1.15rem;
+  padding: 0.25rem 0.45rem;
+  border-radius: var(--omsai-radius-sm);
+}
+
+.app-topbar .hamburger:hover {
+  background: var(--omsai-surface-2);
+  color: var(--omsai-ink);
+}
+
+.topbar-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.2rem 0.3rem 0.2rem 0.35rem;
+  border: 1px solid var(--omsai-border);
+  border-radius: var(--omsai-radius-pill);
+  background: var(--omsai-surface);
+}
+
+.topbar-avatar {
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 50%;
+  background: var(--omsai-blue-soft);
+  color: var(--omsai-blue-ink);
+  border: 1px solid var(--omsai-blue-line);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  flex: 0 0 auto;
+}
+
+.topbar-user {
+  font-size: var(--omsai-fs-sm);
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--omsai-ink);
+}
+
+.topbar-role {
+  font-size: 0.64rem;
+  color: var(--omsai-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+
+.topbar-signout {
+  border: 1px solid var(--omsai-border);
+  background: var(--omsai-surface);
+  color: #4a5568;
+  border-radius: var(--omsai-radius-pill);
+  padding: 0.28rem 0.75rem;
+  font-size: var(--omsai-fs-sm);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: background-color 0.14s ease, color 0.14s ease,
+    border-color 0.14s ease;
+}
+
+.topbar-signout:hover {
+  background: var(--omsai-danger-soft);
+  border-color: var(--omsai-danger-line);
+  color: var(--omsai-danger);
+}
+
+.topbar-signout:focus-visible {
+  outline: 2px solid var(--omsai-blue);
+  outline-offset: 2px;
 }
 
 /* Offcanvas behaviour on small screens (Bootstrap offcanvas-lg) */
@@ -95,61 +992,780 @@ body {
     height: 100vh;
     transform: none;
     visibility: visible !important;
-    background: #fff;
-    z-index: 5;
+    background-color: var(--omsai-surface) !important;
+    z-index: 40;
   }
 }
 
-/* ----- cards / tables ----------------------------------------------- */
+@media (max-width: 991.98px) {
+  .app-sidebar {
+    background-color: var(--omsai-surface) !important;
+    width: var(--omsai-sidebar-width);
+    border-right: none;
+  }
 
-.stat-card .stat-icon {
-  font-size: 1.6rem;
-  color: var(--omsai-navy);
+  .offcanvas-lg.app-sidebar .app-brand {
+    padding-bottom: 0.85rem;
+  }
 }
 
-.stat-card .stat-value {
-  font-size: 1.7rem;
+/* ==========================================================================
+   Page header - one composition for every module
+   ========================================================================== */
+
+.page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.4rem;
+}
+
+.page-eyebrow {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: var(--omsai-muted);
+  margin-bottom: 0.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.page-eyebrow .bi {
+  color: var(--omsai-saffron);
+  font-size: 0.85rem;
+}
+
+.page-title {
+  font-size: var(--omsai-fs-3xl);
+  font-weight: 700;
+  margin: 0 0 0.3rem;
+  letter-spacing: -0.022em;
+  color: var(--omsai-ink);
+}
+
+.page-subtitle {
+  color: var(--omsai-muted);
+  font-size: var(--omsai-fs-base);
+  margin: 0;
+  max-width: 46rem;
+}
+
+.page-header-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: var(--omsai-fs-sm);
+  font-weight: 550;
+  color: var(--omsai-muted);
+  background: var(--omsai-surface);
+  border: 1px solid var(--omsai-border);
+  border-radius: var(--omsai-radius-pill);
+  padding: 0.36rem 0.8rem;
+  white-space: nowrap;
+}
+
+.page-header-meta .bi {
+  color: var(--omsai-saffron);
+}
+
+/* ==========================================================================
+   Metric band - one cohesive panel, hairline-divided cells
+   ========================================================================== */
+
+.metric-band {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  background: var(--omsai-surface);
+  border: 1px solid var(--omsai-border);
+  border-radius: var(--omsai-radius-lg);
+  box-shadow: var(--omsai-shadow-xs);
+  overflow: hidden;
+  margin-bottom: 1.4rem;
+}
+
+.metric-cell {
+  padding: 1.05rem 1.25rem 1.1rem;
+  min-width: 0;
+  position: relative;
+}
+
+/* vertical hairlines between columns */
+.metric-cell:not(:nth-child(4n + 1)) {
+  border-left: 1px solid var(--omsai-border);
+}
+
+/* horizontal hairline between the two rows */
+.metric-cell:nth-child(n + 5) {
+  border-top: 1px solid var(--omsai-border);
+}
+
+.metric-cell .stat-label {
+  font-size: var(--omsai-fs-sm);
+  font-weight: 550;
+  color: var(--omsai-muted);
+  margin: 0 0 0.15rem;
+}
+
+.metric-cell .stat-value {
+  font-size: 1.65rem;
   font-weight: 700;
   line-height: 1.1;
+  color: var(--omsai-ink);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
 
-.table-thumb .bi {
-  color: var(--omsai-navy);
-  margin-right: .35rem;
+.metric-cell .stat-hint {
+  font-size: var(--omsai-fs-xs);
+  color: var(--omsai-faint);
+  margin-top: 0.2rem;
 }
 
-.table > :not(caption) > * > * {
-  padding: .55rem .6rem;
+/* the finance hero cell */
+.metric-cell.is-hero {
+  background: linear-gradient(180deg, #fdFBf4 0%, #fff 70%);
 }
+
+.metric-cell.is-hero .stat-value {
+  color: var(--omsai-blue);
+  font-size: 1.8rem;
+}
+
+.metric-cell.is-hero::after {
+  content: "";
+  position: absolute;
+  inset: auto 1.25rem 0 1.25rem;
+  height: 0.14rem;
+  border-radius: var(--omsai-radius-pill) var(--omsai-radius-pill) 0 0;
+  background: var(--omsai-saffron);
+  opacity: 0.85;
+}
+
+/* status chips inside metric hints */
+.metric-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  font-size: var(--omsai-fs-xs);
+  font-weight: 600;
+  border-radius: var(--omsai-radius-pill);
+  padding: 0.05rem 0.5rem;
+}
+
+.metric-chip.is-danger {
+  color: var(--omsai-danger);
+  background: var(--omsai-danger-soft);
+}
+
+.metric-chip.is-ok {
+  color: var(--omsai-success);
+  background: var(--omsai-success-soft);
+}
+
+/* ==========================================================================
+   Stat cards (used by portals and module summaries)
+   ========================================================================== */
+
+.stat-card {
+  overflow: hidden;
+}
+
+.stat-card .card-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+}
+
+.stat-icon {
+  font-size: 1.3rem;
+  color: var(--omsai-blue);
+  width: 2.45rem;
+  height: 2.45rem;
+  border-radius: var(--omsai-radius);
+  background: var(--omsai-blue-soft);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.stat-icon.is-saffron {
+  color: var(--omsai-saffron);
+  background: var(--omsai-saffron-soft);
+}
+
+.stat-icon.is-navy {
+  color: var(--omsai-ink);
+  background: var(--omsai-surface-3);
+}
+
+.stat-icon.is-success {
+  color: var(--omsai-success);
+  background: var(--omsai-success-soft);
+}
+
+.stat-value {
+  font-size: var(--omsai-fs-2xl);
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--omsai-ink);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.stat-value.is-money {
+  font-size: var(--omsai-fs-xl);
+}
+
+.stat-label {
+  font-size: var(--omsai-fs-sm);
+  color: var(--omsai-muted);
+  font-weight: 550;
+  margin-top: 0.1rem;
+}
+
+.stat-hint {
+  font-size: var(--omsai-fs-xs);
+  color: var(--omsai-muted);
+  margin-top: 0.2rem;
+}
+
+.stat-card .card-footer {
+  font-size: var(--omsai-fs-sm);
+  background: transparent;
+  border-top: 1px solid var(--omsai-border);
+}
+
+.stat-card .card-footer a {
+  color: var(--omsai-blue);
+  font-weight: 600;
+}
+
+/* Compact metric strip used inside a single summary card */
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem 1.4rem;
+}
+
+.metric-item {
+  min-width: 0;
+}
+
+.metric-item .stat-value {
+  font-size: var(--omsai-fs-xl);
+}
+
+.metric-item .stat-label {
+  margin-top: 0.05rem;
+}
+
+/* A single-column variant of the metric grid, used where a card is narrow. */
+.metric-grid-stacked {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.1rem;
+}
+
+/* ==========================================================================
+   Schedule timeline - today's classes on a time rail
+   ========================================================================== */
+
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.timeline-item {
+  display: grid;
+  grid-template-columns: 3.6rem 1rem 1fr auto;
+  gap: 0 0.6rem;
+  align-items: start;
+  padding: 0.72rem 0.25rem;
+  border-bottom: 1px solid var(--omsai-border);
+}
+
+.timeline-item:last-child {
+  border-bottom: none;
+}
+
+.timeline-time {
+  font-size: var(--omsai-fs-sm);
+  font-weight: 650;
+  color: var(--omsai-ink);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  padding-top: 0.1rem;
+  white-space: nowrap;
+}
+
+.timeline-time .timeline-end {
+  display: block;
+  font-weight: 500;
+  color: var(--omsai-faint);
+  font-size: var(--omsai-fs-xs);
+}
+
+.timeline-marker {
+  position: relative;
+  height: 100%;
+  min-height: 2.2rem;
+}
+
+.timeline-marker::before {
+  content: "";
+  position: absolute;
+  top: 0.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0.52rem;
+  height: 0.52rem;
+  border-radius: 50%;
+  background: var(--omsai-blue);
+  box-shadow: 0 0 0 3px var(--omsai-blue-soft);
+}
+
+.timeline-item.is-completed .timeline-marker::before {
+  background: var(--omsai-success);
+  box-shadow: 0 0 0 3px var(--omsai-success-soft);
+}
+
+.timeline-item.is-cancelled .timeline-marker::before {
+  background: var(--omsai-faint);
+  box-shadow: 0 0 0 3px var(--omsai-surface-3);
+}
+
+.timeline-marker::after {
+  content: "";
+  position: absolute;
+  top: 1.15rem;
+  bottom: -0.72rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1px;
+  background: var(--omsai-border);
+}
+
+.timeline-item:last-child .timeline-marker::after {
+  display: none;
+}
+
+.timeline-body {
+  min-width: 0;
+  padding-top: 0.02rem;
+}
+
+.timeline-title {
+  font-weight: 600;
+  color: var(--omsai-ink);
+  font-size: var(--omsai-fs-base);
+  line-height: 1.3;
+}
+
+.timeline-sub {
+  font-size: var(--omsai-fs-sm);
+  color: var(--omsai-muted);
+  margin-top: 0.05rem;
+}
+
+.timeline-side {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  white-space: nowrap;
+  padding-top: 0.05rem;
+}
+
+/* ==========================================================================
+   Attention panel - the things that need an administrator
+   ========================================================================== */
+
+.attention-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.8rem 0.4rem;
+  border-bottom: 1px solid var(--omsai-border);
+  color: var(--omsai-text);
+  text-decoration: none;
+  transition: background-color 0.14s ease;
+}
+
+.attention-item:last-child {
+  border-bottom: none;
+}
+
+.attention-item:hover {
+  background: var(--omsai-surface-2);
+  text-decoration: none;
+  color: var(--omsai-text);
+}
+
+.attention-item.is-danger .attention-icon {
+  color: var(--omsai-danger);
+  background: var(--omsai-danger-soft);
+}
+
+.attention-item.is-warning .attention-icon {
+  color: var(--omsai-warning);
+  background: var(--omsai-warning-soft);
+}
+
+.attention-item.is-ok .attention-icon {
+  color: var(--omsai-success);
+  background: var(--omsai-success-soft);
+}
+
+.attention-item.is-neutral .attention-icon {
+  color: var(--omsai-blue);
+  background: var(--omsai-blue-soft);
+}
+
+.attention-icon {
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: var(--omsai-radius);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  flex: 0 0 auto;
+}
+
+.attention-body {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.attention-title {
+  display: block;
+  font-weight: 600;
+  color: var(--omsai-ink);
+  font-size: var(--omsai-fs-base);
+  line-height: 1.3;
+}
+
+.attention-sub {
+  display: block;
+  font-size: var(--omsai-fs-sm);
+  color: var(--omsai-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.attention-chev {
+  color: var(--omsai-faint);
+  flex: 0 0 auto;
+}
+
+/* ==========================================================================
+   Quick actions
+   ========================================================================== */
+
+.quick-action {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.66rem 0.75rem;
+  border: 1px solid var(--omsai-border);
+  border-radius: var(--omsai-radius);
+  background: var(--omsai-surface);
+  color: var(--omsai-text);
+  transition: border-color 0.15s ease, background-color 0.15s ease,
+    box-shadow 0.15s ease;
+  text-decoration: none;
+  height: 100%;
+}
+
+.quick-action:hover {
+  text-decoration: none;
+  border-color: var(--omsai-blue-line);
+  background: #fbfcff;
+  box-shadow: var(--omsai-shadow-sm);
+  color: var(--omsai-ink);
+}
+
+.quick-action:focus-visible {
+  outline: 2px solid var(--omsai-blue);
+  outline-offset: 2px;
+}
+
+.quick-action .qa-icon {
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: var(--omsai-radius-sm);
+  background: var(--omsai-blue-soft);
+  color: var(--omsai-blue);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  font-size: 1rem;
+}
+
+.quick-action .qa-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.quick-action .qa-title {
+  font-weight: 600;
+  font-size: var(--omsai-fs-base);
+  line-height: 1.25;
+}
+
+.quick-action .qa-hint {
+  font-size: var(--omsai-fs-xs);
+  color: var(--omsai-muted);
+}
+
+.quick-action.is-primary .qa-icon {
+  background: var(--omsai-ink);
+  color: #fff;
+}
+
+/* ==========================================================================
+   Filter bar - the standard opening row of every list module
+   ========================================================================== */
+
+.filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.1rem;
+}
+
+.filter-form {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.filter-search {
+  min-width: 15rem;
+}
+
+.filter-form .form-control,
+.filter-form .form-select {
+  height: 2.35rem;
+  padding-block: 0.3rem;
+}
+
+.filter-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* ==========================================================================
+   Person rows - compact identity rows for recent activity lists
+   ========================================================================== */
+
+.person-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.72rem 0.35rem;
+  border-bottom: 1px solid var(--omsai-border);
+}
+
+.person-row:last-child {
+  border-bottom: none;
+}
+
+.person-avatar {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  background: var(--omsai-blue-soft);
+  color: var(--omsai-blue-ink);
+  border: 1px solid var(--omsai-blue-line);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  flex: 0 0 auto;
+}
+
+.person-body {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.person-name {
+  font-weight: 600;
+  color: var(--omsai-ink);
+  font-size: var(--omsai-fs-base);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.person-name a {
+  color: inherit;
+}
+
+.person-name a:hover {
+  color: var(--omsai-blue);
+}
+
+.person-meta {
+  font-size: var(--omsai-fs-sm);
+  color: var(--omsai-muted);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.person-side {
+  flex: 0 0 auto;
+  text-align: right;
+}
+
+/* ==========================================================================
+   Section headers
+   ========================================================================== */
+
+.section-title {
+  font-size: var(--omsai-fs-lg);
+  font-weight: 650;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--omsai-ink);
+}
+
+.section-title .bi {
+  color: var(--omsai-blue);
+}
+
+.section-subtitle {
+  color: var(--omsai-muted);
+  font-size: var(--omsai-fs-sm);
+  margin: 0.15rem 0 0;
+}
+
+/* ==========================================================================
+   Empty states - one language for "there is nothing here yet"
+   ========================================================================== */
 
 .empty-state {
   text-align: center;
-  padding: 2.5rem 1rem;
-  color: #6c757d;
+  padding: 2.4rem 1rem;
+  color: var(--omsai-muted);
 }
 
 .empty-state .bi {
-  font-size: 2rem;
-  color: #adb5bd;
+  font-size: 1.7rem;
+  color: var(--omsai-faint);
+  margin-bottom: 0.55rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.2rem;
+  height: 3.2rem;
+  border-radius: 50%;
+  background: var(--omsai-surface-2);
+  border: 1px solid var(--omsai-border);
 }
 
-/* ----- forms -------------------------------------------------------- */
-
-.required-label::after {
-  content: " *";
-  color: #b02a37;
+.empty-state .empty-title {
+  font-weight: 600;
+  color: var(--omsai-ink);
+  display: block;
+  font-size: var(--omsai-fs-base);
 }
 
-.form-text-char-hint {
-  font-size: .8rem;
+.empty-state .empty-action {
+  margin-top: 0.9rem;
 }
 
-/* Width helpers used instead of inline "style" attributes, which the
-   application's Content-Security-Policy (style-src 'self') blocks. */
+/* ==========================================================================
+   Login - a composed, centred sign-in moment
+   ========================================================================== */
+
+.login-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background:
+    radial-gradient(1100px 540px at 88% -12%, rgba(54, 89, 227, 0.32), transparent 62%),
+    radial-gradient(900px 520px at -12% 112%, rgba(244, 166, 42, 0.12), transparent 58%),
+    linear-gradient(180deg, #131e34 0%, #18243b 100%);
+}
+
+.login-column {
+  width: 100%;
+  max-width: 25.5rem;
+  margin-inline: auto;
+}
+
+.login-card {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--omsai-radius-xl);
+  box-shadow: 0 24px 70px rgba(9, 14, 26, 0.5);
+  position: relative;
+  overflow: hidden;
+}
+
+/* the saffron->blue hairline that brands the card */
+.login-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 0.2rem;
+  background: linear-gradient(90deg, var(--omsai-saffron) 0%, var(--omsai-blue) 55%);
+}
+
+.login-brand {
+  color: var(--omsai-ink);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.login-brand-mark {
+  width: 3.4rem;
+  height: 3.4rem;
+  margin: 0 auto;
+  border-radius: 0.9rem;
+  box-shadow: var(--omsai-shadow-md);
+}
+
+.login-footnote {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: var(--omsai-fs-sm);
+  text-align: center;
+  margin: 1.1rem auto 0;
+  max-width: 24rem;
+}
+
+/* ==========================================================================
+   Width helpers (the CSP forbids inline style attributes)
+   ========================================================================== */
 
 .w-max-9rem { max-width: 9rem; }
+.w-min-9rem { min-width: 9rem; }
 .w-min-14rem { min-width: 14rem; }
 .col-min-10rem { min-width: 10rem; }
+.min-w-0 { min-width: 0; }
 
 /* Positioned popover of the "void payment" control on the fee accounts. */
 .void-popover {
@@ -158,26 +1774,233 @@ body {
   max-width: 20rem;
 }
 
-/* ----- login -------------------------------------------------------- */
+/* ==========================================================================
+   Installment plan editor rows
+   ========================================================================== */
 
-.login-shell {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.installment-row {
+  display: grid;
+  grid-template-columns: 2.2rem 1fr 1fr auto;
+  gap: 0.6rem;
+  align-items: start;
+  padding: 0.55rem 0;
+  border-bottom: 1px dashed var(--omsai-border);
 }
 
-.login-card {
-  width: 100%;
-  max-width: 26rem;
-  border: 1px solid rgba(0, 0, 0, .08);
+.installment-row:last-child {
+  border-bottom: none;
 }
 
-.login-brand {
-  color: var(--omsai-navy-strong);
-  font-weight: 700;
+.installment-number {
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  color: var(--omsai-muted);
+  padding-top: 0.45rem;
 }
 
-.login-brand-big {
-  font-size: 2.4rem;
+.installment-amount .form-control,
+.installment-due .form-control {
+  max-width: 11rem;
+}
+
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+
+@media (max-width: 1199.98px) {
+  .app-content {
+    padding: 1.4rem 1.4rem 2.4rem;
+  }
+
+  .app-topbar {
+    padding-inline: 1.4rem;
+  }
+}
+
+@media (max-width: 991.98px) {
+  .app-content {
+    padding: 1.2rem 1.1rem 2.2rem;
+  }
+
+  .app-topbar {
+    padding-inline: 1.1rem;
+  }
+
+  .page-title {
+    font-size: var(--omsai-fs-2xl);
+  }
+
+  .metric-band {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* vertical hairlines: the right-hand cell of each pair carries the line */
+  .metric-band .metric-cell {
+    border-left: none;
+  }
+
+  .metric-band .metric-cell:nth-child(2n) {
+    border-left: 1px solid var(--omsai-border);
+  }
+
+  /* horizontal hairlines: every cell from the second row on */
+  .metric-band .metric-cell:nth-child(n + 3) {
+    border-top: 1px solid var(--omsai-border);
+  }
+
+  .timeline-item {
+    grid-template-columns: 3.2rem 0.8rem 1fr auto;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .app-content {
+    padding: 1rem 0.85rem 2rem;
+  }
+
+  .metric-band {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .metric-band .metric-cell {
+    border-left: none !important;
+    border-top: 1px solid var(--omsai-border);
+  }
+
+  .metric-band .metric-cell:first-child {
+    border-top: none;
+  }
+
+  .stat-card .card-body {
+    gap: 0.65rem;
+  }
+
+  .stat-value {
+    font-size: var(--omsai-fs-xl);
+  }
+
+  .stat-value.is-money {
+    font-size: var(--omsai-fs-lg);
+  }
+
+  .page-header-meta {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .table > :not(caption) > * > * {
+    padding: 0.55rem 0.6rem;
+  }
+
+  .timeline-item {
+    grid-template-columns: 2.9rem 0.7rem 1fr;
+  }
+
+  .timeline-side {
+    grid-column: 3;
+    padding-left: 0;
+    justify-content: flex-start;
+  }
+
+  .filter-search {
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+}
+
+/* Keep the identity readable on very small screens. */
+@media (max-width: 575.98px) {
+  .topbar-user,
+  .topbar-role {
+    display: none;
+  }
+
+  .topbar-signout span {
+    display: none;
+  }
+
+  .topbar-signout {
+    padding-inline: 0.55rem;
+  }
+}
+
+/* ==========================================================================
+   Filter pills - the mode rows of finance and report modules
+   ========================================================================== */
+
+.nav-pills {
+  gap: 0.3rem;
+}
+
+.nav-pills .nav-link {
+  color: #4a5568;
+  font-weight: 600;
+  font-size: var(--omsai-fs-sm);
+  border-radius: var(--omsai-radius-pill);
+  padding: 0.35rem 0.85rem;
+  border: 1px solid transparent;
+  transition: background-color 0.14s ease, color 0.14s ease;
+}
+
+.nav-pills .nav-link:hover {
+  background: var(--omsai-surface-2);
+  color: var(--omsai-ink);
+}
+
+.nav-pills .nav-link.active {
+  background: var(--omsai-blue-soft);
+  color: var(--omsai-blue-ink);
+  font-weight: 650;
+}
+
+.nav-pills .nav-link.active:hover {
+  background: var(--omsai-blue-line);
+  color: var(--omsai-blue-ink);
+}
+
+/* Extra badge tones used by account roles and light tags. */
+.text-bg-info {
+  background: var(--omsai-blue-soft) !important;
+  color: var(--omsai-info) !important;
+  border-color: var(--omsai-blue-line);
+}
+
+.text-bg-light {
+  background: var(--omsai-surface-2) !important;
+  color: #4d5a75 !important;
+  border-color: var(--omsai-border) !important;
+}
+
+/* ==========================================================================
+   Printing - receipts and attendance sheets carry their own stylesheets;
+   here we only make sure the shared controls stay out of the printout.
+   ========================================================================== */
+
+@media print {
+  .no-print,
+  .app-sidebar,
+  .app-topbar,
+  .app-alerts,
+  .btn {
+    display: none !important;
+  }
+}
+
+/* ==========================================================================
+   Accessibility
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.visually-hidden-focusable:not(:focus):not(:focus-within) {
+  position: absolute !important;
 }

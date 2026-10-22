@@ -16,7 +16,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Batch management pages, including subject and teacher assignment.
@@ -90,6 +92,7 @@ public class BatchController {
         model.addAttribute("assignableSubjects", batchService.assignableCourseSubjects(batch));
         model.addAttribute("teachers", batchService.activeTeachers());
         model.addAttribute("enrollments", batchService.enrollmentsOf(batch));
+        model.addAttribute("usage", usageByAssignment(batchService.subjectsOf(batch)));
         return "batches/detail";
     }
 
@@ -155,7 +158,30 @@ public class BatchController {
                                 RedirectAttributes redirect) {
         try {
             batchService.removeSubject(batchSubjectId);
-            redirect.addFlashAttribute("successMessage", "Subject removed from batch.");
+            redirect.addFlashAttribute("successMessage",
+                    "Subject removed from the batch. It was never used for any class, so nothing was lost.");
+        } catch (BusinessRuleException e) {
+            redirect.addFlashAttribute("errorMessage", e.getMessage());
+        }
+        return "redirect:/batches/" + batchId;
+    }
+
+    /**
+     * Deactivates or reactivates a subject assignment. Deactivating
+     * keeps the classes, attendance and results of the subject but takes
+     * it out of the pickers, so no new class can be scheduled for it.
+     */
+    @PostMapping("/subjects/{batchSubjectId}/status")
+    public String setSubjectStatus(@PathVariable Long batchSubjectId,
+                                   @RequestParam boolean active,
+                                   @RequestParam Long batchId,
+                                   RedirectAttributes redirect) {
+        try {
+            batchService.setSubjectActive(batchSubjectId, active);
+            redirect.addFlashAttribute("successMessage", active
+                    ? "Subject activated again. It can be scheduled for new classes."
+                    : "Subject deactivated. Its classes, attendance and results are kept, and no new class "
+                            + "can be scheduled for it.");
         } catch (BusinessRuleException e) {
             redirect.addFlashAttribute("errorMessage", e.getMessage());
         }
@@ -178,6 +204,20 @@ public class BatchController {
     }
 
     // ----- helpers ----------------------------------------------------------
+
+    /**
+     * The teaching history of every assignment of the batch, keyed by
+     * assignment id. The view uses it to show the right action: a
+     * subject that has never been used may be removed, a subject that
+     * has been taught may only be deactivated.
+     */
+    private Map<Long, BatchService.SubjectUsage> usageByAssignment(List<BatchSubject> assignments) {
+        Map<Long, BatchService.SubjectUsage> usage = new LinkedHashMap<>();
+        for (BatchSubject bs : assignments) {
+            usage.put(bs.getId(), batchService.usageOf(bs.getId()));
+        }
+        return usage;
+    }
 
     private static BatchForm fromBatch(Batch batch) {
         BatchForm form = new BatchForm();

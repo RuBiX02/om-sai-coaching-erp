@@ -73,7 +73,7 @@
     <div>
       <dt class="small">Received by</dt>
       <dd th:text="${payment.receivedBy.fullName}">Administrator</dd>
-      <dd class="text-body-secondary small" th:text="'Recorded ' + ${#temporals.formatISO(payment.createdAt)}">when</dd>
+      <dd class="text-body-secondary small" th:text="'Recorded ' + ${#temporals.format(payment.createdAt, 'dd MMM yyyy, HH:mm')}">when</dd>
     </div>
     <div class="text-end text-body-secondary small">
       <div>Omsai Coaching coaching institute</div>
@@ -125,7 +125,7 @@
   <div class="row g-4 mb-3">
     <div class="col-md-6">
       <dt>Voided</dt>
-      <dd th:text="${payment.voidedAt != null ? #temporals.formatISO(payment.voidedAt) : ''}">when</dd>
+      <dd th:text="${payment.voidedAt != null ? #temporals.format(payment.voidedAt, 'dd MMM yyyy, HH:mm') : ''}">when</dd>
       <dd class="text-body-secondary small" th:if="${payment.voidedBy != null}"
           th:text="'by ' + ${payment.voidedBy.fullName}">who</dd>
     </div>

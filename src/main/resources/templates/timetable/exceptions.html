@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('Holidays and exceptions')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('timetable')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('Holidays and exceptions', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <div class="row g-3">
+      <div class="col-lg-5">
+        <form th:action="@{/timetable/exceptions}" method="post" class="card" th:object="${form}">
+          <div class="card-header">
+            <i class="bi bi-calendar2-minus me-2 table-thumb"></i>Record an exception
+          </div>
+          <div class="card-body">
+            <p class="small text-body-secondary">
+              A holiday closes the institute, a cancelled occurrence cancels one class and a
+              rescheduling moves it to another date. The recurring schedule itself is never deleted.
+            </p>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label for="exceptionDate" class="form-label">Date</label>
+                <input type="date" id="exceptionDate" class="form-control" th:field="*{exceptionDate}"/>
+                <div class="text-danger small mt-1" th:if="${#fields.hasErrors('exceptionDate')}"
+                     th:errors="*{exceptionDate}">Error</div>
+              </div>
+              <div class="col-md-6">
+                <label for="kind" class="form-label">Kind</label>
+                <select id="kind" class="form-select" th:field="*{kind}">
+                  <option th:each="option : ${kinds}" th:value="${option}" th:text="${option}">HOLIDAY</option>
+                </select>
+              </div>
+              <div class="col-12">
+                <label for="timetableEntryId" class="form-label">Class (for a cancelled or rescheduled occurrence)</label>
+                <select id="timetableEntryId" class="form-select" th:field="*{timetableEntryId}">
+                  <option value="">— institute wide —</option>
+                  <option th:each="entry : ${entries}" th:value="${entry.id}"
+                          th:text="${entry.dayOfWeek} + ' ' + ${#temporals.format(entry.startTime, 'HH:mm')} + ' · ' + ${entry.batchSubject.courseSubject.subject.name} + ' · ' + ${entry.batchSubject.batch.name}"
+                          th:selected="${entry.id == form.timetableEntryId}">Entry</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label for="rescheduledTo" class="form-label">New date (for a rescheduling)</label>
+                <input type="date" id="rescheduledTo" class="form-control" th:field="*{rescheduledTo}"/>
+              </div>
+              <div class="col-md-6">
+                <label for="reason" class="form-label">Reason</label>
+                <input type="text" id="reason" class="form-control" th:field="*{reason}"
+                       placeholder="Why?"/>
+              </div>
+            </div>
+          </div>
+          <div class="card-footer d-flex justify-content-end">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-check2-circle me-1"></i>Record exception
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="col-lg-7">
+        <div class="card h-100">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-list-check me-2 table-thumb"></i>Recorded exceptions</span>
+            <span class="small text-body-secondary"
+                  th:text="${#temporals.format(from, 'dd MMM yyyy')} + ' – ' + ${#temporals.format(to, 'dd MMM yyyy')}">range</span>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0" th:if="${!#lists.isEmpty(exceptions)}">
+                <thead class="table-light">
+                <tr>
+                  <th>Date</th>
+                  <th>Kind</th>
+                  <th>Class</th>
+                  <th>Reason</th>
+                  <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="exception : ${exceptions}">
+                  <td th:text="${#temporals.format(exception.exceptionDate, 'dd MMM yyyy')}">01 Jan 2026</td>
+                  <td>
+                    <span class="badge"
+                          th:classappend="${exception.kind.name() == 'HOLIDAY'} ? 'text-bg-info'
+                            : (${exception.kind.name() == 'CANCELLED'} ? 'text-bg-secondary' : 'text-bg-warning')"
+                          th:text="${exception.kind}">HOLIDAY</span>
+                  </td>
+                  <td>
+                    <span th:if="${exception.timetableEntry != null}"
+                          th:text="${exception.timetableEntry.batchSubject.courseSubject.subject.name} + ' · ' + ${exception.timetableEntry.batchSubject.batch.name}">Class</span>
+                    <span th:if="${exception.timetableEntry == null}" class="text-body-secondary">Whole institute</span>
+                  </td>
+                  <td>
+                    <span th:if="${exception.reason != null}" th:text="${exception.reason}">Reason</span>
+                    <span th:if="${exception.rescheduledTo != null}"
+                          th:text="' → ' + ${#temporals.format(exception.rescheduledTo, 'dd MMM yyyy')}">moved</span>
+                    <span th:if="${exception.reason == null and exception.rescheduledTo == null}"
+                          class="text-body-secondary">–</span>
+                  </td>
+                  <td class="text-end">
+                    <form th:action="@{/timetable/exceptions/{id}/delete(id=${exception.id})}" method="post" class="m-0">
+                      <button type="submit" class="btn btn-sm btn-outline-danger js-confirm"
+                              data-confirm="Remove this exception?">
+                        <i class="bi bi-trash"></i><span class="visually-hidden">Remove exception</span>
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+                </tbody>
+              </table>
+              <div class="empty-state" th:if="${#lists.isEmpty(exceptions)}">
+                <i class="bi bi-calendar-check d-block mb-2"></i>
+                No holiday or exception is recorded in this period.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>
