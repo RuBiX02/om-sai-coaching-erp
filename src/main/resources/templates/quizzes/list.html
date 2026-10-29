@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('Quizzes')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('quizzes')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('Quizzes', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <header class="page-header">
+      <div>
+        <p class="page-eyebrow">
+          <i class="bi bi-ui-checks" aria-hidden="true"></i>
+          <span th:text="${staffAdmin} ? 'Academics' : 'My teaching'">Academics</span>
+        </p>
+        <h2 class="page-title">Quizzes</h2>
+        <p class="page-subtitle">
+          <span th:if="${staffAdmin}">Every quiz in the institute. Practice tests the students take from the portal.</span>
+          <span th:unless="${staffAdmin}">The practice quizzes of the classes you teach. You author and edit your own only.</span>
+        </p>
+      </div>
+      <div class="filter-actions">
+        <a th:href="@{/quizzes/new}" class="btn btn-primary">
+          <i class="bi bi-plus-lg" aria-hidden="true"></i>New quiz
+        </a>
+      </div>
+    </header>
+
+    <div class="card">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" th:if="${!#lists.isEmpty(quizzes)}">
+            <thead class="table-light">
+            <tr>
+              <th>Quiz</th>
+              <th>Subject</th>
+              <th>Batch</th>
+              <th class="text-center">Questions</th>
+              <th class="text-center">Duration</th>
+              <th>Created</th>
+              <th class="text-end">Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="quiz : ${quizzes}">
+              <td>
+                <div class="fw-semibold" th:text="${quiz.title}">Quiz title</div>
+                <div class="small text-body-secondary" th:if="${quiz.description != null}"
+                     th:text="${#strings.abbreviate(quiz.description, 120)}">What it covers.</div>
+              </td>
+              <td><span class="badge text-bg-info" th:text="${quiz.subjectName}">Subject</span></td>
+              <td class="small" th:text="${quiz.batch.name}">Batch</td>
+              <td class="text-center" th:text="${questionCount[quiz.id] != null ? questionCount[quiz.id] : 0}">0</td>
+              <td class="text-center text-nowrap" th:text="${quiz.durationMinutes} + ' min'">10 min</td>
+              <td class="text-nowrap small" th:text="${#temporals.format(quiz.createdAt, 'dd MMM yyyy')}">01 Jan 2026</td>
+              <td class="text-end">
+                <a th:href="@{/quizzes/{id}(id=${quiz.id})}" class="btn btn-sm btn-outline-secondary">
+                  <i class="bi bi-list-check" aria-hidden="true"></i>Questions
+                </a>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+          <div class="empty-state" th:if="${#lists.isEmpty(quizzes)}">
+            <i class="bi bi-ui-checks d-block" aria-hidden="true"></i>
+            <span class="empty-title">No quiz yet</span>
+            <span class="empty-sub" th:if="${staffAdmin}">Create one from any active class-subject assignment.</span>
+            <span class="empty-sub" th:unless="${staffAdmin}">Create one for a subject you teach.</span>
+            <a th:href="@{/quizzes/new}">Create the first quiz</a>.
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

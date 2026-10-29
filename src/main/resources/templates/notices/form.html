@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('New notice')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('notices')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('New notice', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <div class="row">
+      <div class="col-xl-7">
+        <form th:action="@{/notices}" th:object="${form}" method="post" novalidate>
+          <div class="card">
+            <div class="card-header"><i class="bi bi-megaphone me-2 table-thumb"></i>Notice details</div>
+            <div class="card-body">
+              <div class="mb-3">
+                <label for="title" class="form-label required-label">Title</label>
+                <input type="text" id="title" class="form-control" th:field="*{title}"
+                       placeholder="e.g. MHT-CET 2027 exam form — last date" aria-describedby="titleError"/>
+                <div class="text-danger small mt-1" id="titleError"
+                     th:if="${#fields.hasErrors('title')}" th:errors="*{title}">Error</div>
+              </div>
+              <div class="mb-3">
+                <label for="body" class="form-label required-label">Notice text</label>
+                <textarea id="body" rows="7" class="form-control" th:field="*{body}"
+                          placeholder="What the students need to know, with dates and room numbers where relevant."
+                          aria-describedby="bodyError"></textarea>
+                <div class="text-danger small mt-1" id="bodyError"
+                     th:if="${#fields.hasErrors('body')}" th:errors="*{body}">Error</div>
+              </div>
+              <div class="mb-3">
+                <span class="form-label d-block required-label">Who is it for?</span>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" id="audienceAll"
+                         th:field="*{audience}" value="ALL"/>
+                  <label class="form-check-label" for="audienceAll">
+                    Everybody — every student with a portal account
+                  </label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" id="audienceBatch"
+                         th:field="*{audience}" value="BATCH"/>
+                  <label class="form-check-label" for="audienceBatch">
+                    One batch — only the students enrolled in it
+                  </label>
+                </div>
+              </div>
+              <div class="mb-0">
+                <label for="batchId" class="form-label">Batch</label>
+                <select id="batchId" class="form-select" th:field="*{batchId}" aria-describedby="batchHint">
+                  <option value="">— choose the batch —</option>
+                  <option th:each="batch : ${batches}" th:value="${batch.id}"
+                          th:text="${batch.course.name} + ' · ' + ${batch.name}">Course · Batch</option>
+                </select>
+                <div class="form-text" id="batchHint">
+                  Used only when the notice addresses one batch; leave it on the dashed option for everybody.
+                </div>
+              </div>
+            </div>
+            <div class="card-footer d-flex gap-2">
+              <button type="submit" class="btn btn-primary">
+                <i class="bi bi-send me-1"></i>Publish notice
+              </button>
+              <a th:href="@{/notices}" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

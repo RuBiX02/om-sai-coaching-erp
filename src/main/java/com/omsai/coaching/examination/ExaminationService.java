@@ -149,6 +149,17 @@ public class ExaminationService {
         return examinationRepository.findForTeacher(teacherId);
     }
 
+    /**
+     * The published examinations of the given batches that are still
+     * ahead of the student portal (the exam schedule a student may
+     * prepare for). Draft and cancelled ones never reach the student.
+     */
+    @Transactional(readOnly = true)
+    public List<Examination> upcomingForBatches(java.util.Collection<Long> batchIds,
+                                                java.time.LocalDate today) {
+        return examinationRepository.findUpcomingForBatches(batchIds, today);
+    }
+
     // ----- marks -----------------------------------------------------------
 
     /** One result row of the marks-entry form. */

@@ -7,6 +7,7 @@ import com.omsai.coaching.enrollment.Enrollment;
 import com.omsai.coaching.fees.FeeAccount;
 import com.omsai.coaching.fees.FeeAccountForm;
 import com.omsai.coaching.fees.FeeAccountService;
+import com.omsai.coaching.fees.PaymentForm;
 import com.omsai.coaching.security.AppUserPrincipal;
 import com.omsai.coaching.security.UserAccount;
 import com.omsai.coaching.security.UserForm;
@@ -68,6 +69,9 @@ class PortalAccessWebTest {
 
     @Autowired
     private com.omsai.coaching.fees.PaymentRepository paymentRepository;
+
+    @Autowired
+    private com.omsai.coaching.fees.PaymentService paymentService;
 
     private UserAccount admin;
     private Student student;
@@ -160,7 +164,7 @@ class PortalAccessWebTest {
     void theStudentPortalShowsTheOwnRecords() throws Exception {
         for (String path : new String[]{"/student", "/student/timetable", "/student/attendance",
                 "/student/fees", "/student/results", "/student/profile",
-                "/student/resources", "/student/quizzes"}) {
+                "/student/resources", "/student/quizzes", "/student/notices"}) {
             mockMvc.perform(get(path).with(as(studentAccount))).andExpect(status().isOk());
         }
 
@@ -256,21 +260,45 @@ class PortalAccessWebTest {
         // the chosen options; the score is computed in the service.
         mockMvc.perform(post("/student/quizzes/" + ownQuiz.getId()).with(as(studentAccount))
                         .with(SecurityMockMvcRequestPostProcessors.csrf())
-                        .param("answers", "B").param("answers", "C"))
+                        .param("answers[0]", "B").param("answers[1]", "C"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/student/quizzes"));
+                .andExpect(redirectedUrl("/student/quizzes/" + ownQuiz.getId() + "/result"));
         assertThat(attemptRepository.count()).isEqualTo(1);
         com.omsai.coaching.student.QuizAttempt attempt = attemptRepository.findAll().get(0);
         assertThat(attempt.getCorrectCount()).isEqualTo(2);
         assertThat(attempt.getTotalCount()).isEqualTo(2);
+        // The chosen letters are kept for the review page.
+        assertThat(attempt.getAnswers()).isEqualTo("B,C");
+
+        // The review shows every question with the given and correct
+        // answers (only now, after the submission).
+        String review = mockMvc.perform(get("/student/quizzes/" + ownQuiz.getId() + "/result")
+                        .with(as(studentAccount)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertThat(review).contains("2 + 2 = ?").contains("Correct").contains("100%");
+        assertThat(review).doesNotContain("Incorrect");
 
         // A retake replaces the previous attempt (still exactly one row).
         mockMvc.perform(post("/student/quizzes/" + ownQuiz.getId()).with(as(studentAccount))
                         .with(SecurityMockMvcRequestPostProcessors.csrf())
-                        .param("answers", "A").param("answers", "A"))
+                        .param("answers[0]", "A").param("answers[1]", "A"))
                 .andExpect(status().is3xxRedirection());
         assertThat(attemptRepository.count()).isEqualTo(1);
         assertThat(attemptRepository.findAll().get(0).getCorrectCount()).isZero();
+
+        // An attempt from before the letters were stored must not invent
+        // a review: the page shows the score and says why the detail is
+        // missing.
+        com.omsai.coaching.student.QuizAttempt legacyAttempt =
+                attemptRepository.findAll().get(0);
+        legacyAttempt.setAnswers(null);
+        attemptRepository.saveAndFlush(legacyAttempt);
+        String legacy = mockMvc.perform(get("/student/quizzes/" + ownQuiz.getId() + "/result")
+                        .with(as(studentAccount)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertThat(legacy).contains("only the score")
+                .contains("Retake the quiz to get a full review")
+                .doesNotContain("Question by question");
     }
 
     @Test
@@ -311,6 +339,45 @@ class PortalAccessWebTest {
         // The payment is allocated to the installment plan immediately.
         assertThat(feeAccountService.outstandingOf(feeAccount))
                 .isEqualByComparingTo("9000");
+    }
+
+    @Test
+    void aStudentCanReprintTheirOwnReceiptButNoOtherStudents() throws Exception {
+        mockMvc.perform(post("/student/pay").with(as(studentAccount))
+                        .with(SecurityMockMvcRequestPostProcessors.csrf())
+                        .param("feeAccountId", String.valueOf(feeAccount.getId()))
+                        .param("amount", "5000")
+                        .param("paymentMethod", "CASH"))
+                .andExpect(status().is3xxRedirection());
+        com.omsai.coaching.fees.Payment own = paymentRepository.findAll().get(0);
+
+        String receipt = mockMvc.perform(get("/student/receipts/" + own.getId())
+                        .with(as(studentAccount)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertThat(receipt).contains(own.getReceiptNumber())
+                .contains(student.getFullName())
+                .contains("Print Receipt");
+
+        // A receipt of ANOTHER student's agreement is denied.
+        Course foreignCourse = fixtures.course("Receipt Foreign Course");
+        Batch foreignBatch = fixtures.batch(foreignCourse, "Evening");
+        Enrollment foreignEnrollment = fixtures.activeEnrollment(otherStudent, foreignBatch);
+        FeeAccountForm foreignForm = new FeeAccountForm();
+        foreignForm.setEnrollmentId(foreignEnrollment.getId());
+        foreignForm.setGrossFee(new BigDecimal("8000"));
+        FeeAccount foreignAccount = feeAccountService.create(foreignForm, admin);
+        PaymentForm foreignPaymentForm = new PaymentForm();
+        foreignPaymentForm.setFeeAccountId(foreignAccount.getId());
+        foreignPaymentForm.setAmount(new BigDecimal("1000"));
+        foreignPaymentForm.setPaymentDate(java.time.LocalDate.now());
+        foreignPaymentForm.setPaymentMethod(com.omsai.coaching.fees.Payment.Method.CASH);
+        com.omsai.coaching.fees.Payment foreign =
+                paymentService.record(foreignPaymentForm, admin);
+
+        mockMvc.perform(get("/student/receipts/" + foreign.getId()).with(as(studentAccount)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/student/receipts/" + own.getId()).with(as(admin)))
+                .andExpect(status().isForbidden());
     }
 
 

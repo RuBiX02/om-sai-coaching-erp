@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -82,4 +83,22 @@ public interface ExaminationRepository extends JpaRepository<Examination, Long> 
     List<Examination> findForBatch(@Param("batchId") Long batchId,
                                   @Param("from") LocalDate from,
                                   @Param("to") LocalDate to);
+
+    /**
+     * The published examinations still ahead for the given batches -
+     * the exam schedule shown to the student portal. Draft and
+     * cancelled examinations are never part of it.
+     */
+    @Query("""
+            select e from Examination e
+            join fetch e.batchSubject bs
+            join fetch bs.courseSubject cs
+            join fetch cs.subject s
+            where bs.batch.id in :batchIds
+              and e.status = com.omsai.coaching.examination.Examination.Status.PUBLISHED
+              and e.examinationDate >= :today
+            order by e.examinationDate, e.id
+            """)
+    List<Examination> findUpcomingForBatches(@Param("batchIds") Collection<Long> batchIds,
+                                             @Param("today") LocalDate today);
 }

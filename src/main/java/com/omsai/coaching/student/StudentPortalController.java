@@ -8,6 +8,8 @@ import com.omsai.coaching.fees.InstallmentService;
 import com.omsai.coaching.fees.Payment;
 import com.omsai.coaching.fees.PaymentForm;
 import com.omsai.coaching.fees.PaymentService;
+import com.omsai.coaching.notice.Announcement;
+import com.omsai.coaching.notice.NoticeService;
 import com.omsai.coaching.security.AppUserPrincipal;
 import com.omsai.coaching.security.UserAccount;
 import com.omsai.coaching.security.UserAccountRepository;
@@ -20,6 +22,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -31,6 +34,7 @@ import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * The student portal.
@@ -48,6 +52,7 @@ public class StudentPortalController {
     private final StudentPortalService portalService;
     private final StudentLearningService learningService;
     private final PaymentService paymentService;
+    private final NoticeService noticeService;
     private final UserAccountRepository userAccountRepository;
     private final UserService userService;
     private final PasswordEncoder passwordEncoder;
@@ -56,6 +61,7 @@ public class StudentPortalController {
     public StudentPortalController(StudentPortalService portalService,
                                    StudentLearningService learningService,
                                    PaymentService paymentService,
+                                   NoticeService noticeService,
                                    UserAccountRepository userAccountRepository,
                                    UserService userService,
                                    PasswordEncoder passwordEncoder,
@@ -63,6 +69,7 @@ public class StudentPortalController {
         this.portalService = portalService;
         this.learningService = learningService;
         this.paymentService = paymentService;
+        this.noticeService = noticeService;
         this.userAccountRepository = userAccountRepository;
         this.userService = userService;
         this.passwordEncoder = passwordEncoder;
@@ -88,6 +95,13 @@ public class StudentPortalController {
         model.addAttribute("results", results);
         model.addAttribute("todayClasses", portalService.timetableOn(student, businessClock.today()));
         model.addAttribute("nextInstallments", nextInstallments(accounts));
+        // The exam schedule, what was taught, and the latest notices:
+        model.addAttribute("upcomingExams",
+                portalService.upcomingExaminations(student, businessClock.today()));
+        model.addAttribute("recentTopics", learningService.recentTopics(student));
+        model.addAttribute("latestNotices",
+                noticeService.forStudent(portalService.activeBatchIds(student))
+                        .stream().limit(3).toList());
         model.addAttribute("today", businessClock.today());
         return "student/dashboard";
     }
@@ -239,7 +253,7 @@ public class StudentPortalController {
     /** Submit the answers; the server scores them. */
     @PostMapping("/quizzes/{id}")
     public String submitQuiz(@PathVariable Long id,
-                             @RequestParam(required = false) List<String> answers,
+                             @ModelAttribute("answerForm") QuizAnswersForm answerForm,
                              RedirectAttributes redirect) {
         Student student = portalService.studentOf(currentUser());
         Quiz quiz;
@@ -253,7 +267,8 @@ public class StudentPortalController {
         QuizAttempt attempt;
         try {
             attempt = learningService.submitAttempt(
-                    quiz, student, currentUser(), answers == null ? List.of() : answers);
+                    quiz, student, currentUser(),
+                    answerForm.getAnswers() == null ? List.of() : answerForm.getAnswers());
         } catch (BusinessRuleException e) {
             redirect.addFlashAttribute("errorMessage", e.getMessage());
             return "redirect:/student/quizzes";
@@ -261,7 +276,79 @@ public class StudentPortalController {
         redirect.addFlashAttribute("successMessage",
                 "You scored " + attempt.getCorrectCount() + " of " + attempt.getTotalCount()
                         + " (" + attempt.percentage() + "%).");
-        return "redirect:/student/quizzes";
+        return "redirect:/student/quizzes/" + quiz.getId() + "/result";
+    }
+
+    /** The review of the student's own submission for one quiz. */
+    @GetMapping("/quizzes/{id}/result")
+    public String quizResult(@PathVariable Long id, Model model,
+                             RedirectAttributes redirect) {
+        Student student = portalService.studentOf(currentUser());
+        Quiz quiz;
+        try {
+            quiz = learningService.quizFor(learningService.quizOf(id), student);
+        } catch (BusinessRuleException e) {
+            redirect.addFlashAttribute("errorMessage",
+                    "That quiz does not belong to your batches.");
+            return "redirect:/student/quizzes";
+        }
+        QuizAttempt attempt = learningService.attemptFor(quiz, student);
+        if (attempt == null) {
+            redirect.addFlashAttribute("errorMessage",
+                    "You have not attempted this quiz yet.");
+            return "redirect:/student/quizzes/" + id;
+        }
+        boolean reviewAvailable = attempt.getAnswers() != null
+                && !attempt.getAnswers().isBlank();
+        model.addAttribute("student", student);
+        model.addAttribute("quiz", quiz);
+        model.addAttribute("attempt", attempt);
+        model.addAttribute("reviewAvailable", reviewAvailable);
+        model.addAttribute("review",
+                reviewAvailable ? learningService.reviewOf(quiz, attempt) : List.of());
+        return "student/quiz-result";
+    }
+
+    // ==================== the notice board ====================
+
+    /** The notices addressed to this student (or to everybody). */
+    @GetMapping("/notices")
+    public String notices(Model model) {
+        UserAccount account = currentUser();
+        Student student = portalService.studentOf(account);
+        List<Long> batchIds = portalService.activeBatchIds(student);
+        List<Announcement> notices = noticeService.forStudent(batchIds);
+        // What was unread is remembered for the page highlight, and
+        // then everything shown is marked as read.
+        Set<Long> unreadIds = noticeService.unreadIds(batchIds, account.getId());
+        noticeService.markRead(notices.stream().map(Announcement::getId).toList(),
+                account.getId());
+        model.addAttribute("student", student);
+        model.addAttribute("notices", notices);
+        model.addAttribute("unreadIds", unreadIds);
+        return "student/notices";
+    }
+
+    // ==================== own payment receipts ====================
+
+    /**
+     * The printable reissue of one of the student's OWN receipts. The
+     * ownership check is the same one as the pay flow: the payment
+     * must sit on a fee agreement of this student, or the request is
+     * denied.
+     */
+    @GetMapping("/receipts/{id}")
+    public String receipt(@PathVariable Long id, Model model) {
+        Student student = portalService.studentOf(currentUser());
+        Payment payment = paymentService.getWithDetails(id);
+        Long owner = payment.getFeeAccount().getStudent().getId();
+        if (!owner.equals(student.getId())) {
+            throw new AccessDeniedException("That receipt does not belong to you.");
+        }
+        model.addAttribute("payment", payment);
+        model.addAttribute("outstandingNow",
+                portalService.outstandingOf(payment.getFeeAccount()));
+        return "student/receipt";
     }
 
     // ==================== paying fees from the portal ====================
@@ -417,5 +504,23 @@ public class StudentPortalController {
         }
         return userAccountRepository.findById(principal.id())
                 .orElseThrow(() -> new AccessDeniedException("Your account no longer exists."));
+    }
+
+    /**
+     * The option letters posted by the quiz form, one entry per question
+     * position ({@code answers[0]}, {@code answers[1]}, …). An
+     * unanswered question sends nothing, which binds as a null entry.
+     */
+    public static class QuizAnswersForm {
+
+        private List<String> answers;
+
+        public List<String> getAnswers() {
+            return answers;
+        }
+
+        public void setAnswers(List<String> answers) {
+            this.answers = answers;
+        }
     }
 }

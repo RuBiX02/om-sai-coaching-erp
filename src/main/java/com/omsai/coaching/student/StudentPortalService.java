@@ -159,6 +159,30 @@ public class StudentPortalService {
         return results;
     }
 
+    /**
+     * The published examinations still ahead of the student: what the
+     * office has announced and they should prepare for. Draft plans
+     * stay hidden - students never see an unpublished exam.
+     */
+    @Transactional(readOnly = true)
+    public List<com.omsai.coaching.examination.Examination> upcomingExaminations(
+            Student student, LocalDate today) {
+        List<Long> batchIds = activeBatchIds(student);
+        if (batchIds.isEmpty()) {
+            return List.of();
+        }
+        return examinationService.upcomingForBatches(batchIds, today);
+    }
+
+    /** The batch ids of the student's ACTIVE enrollments. */
+    public List<Long> activeBatchIds(Student student) {
+        return enrollmentsOf(student).stream()
+                .filter(enrollment -> enrollment.getStatus() == Enrollment.Status.ACTIVE)
+                .map(enrollment -> enrollment.getBatch().getId())
+                .distinct()
+                .toList();
+    }
+
     // ----- profile ----------------------------------------------------------
 
     /** Updates the fields a student may change themselves. */

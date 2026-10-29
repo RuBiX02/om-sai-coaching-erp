@@ -508,6 +508,10 @@ public class DemoDataSeeder implements CommandLineRunner {
             return;
         }
 
+        // The notice board is seeded on its own guard, so an existing
+        // learning pack still gets the demo notices exactly once.
+        int noticeRows = seedDemoNotices(batchId, adminId);
+
         long existingTimetable = jdbc.queryForObject(
                 "select count(*) from timetable_entries te "
                         + "join batch_subjects bs on bs.id = te.batch_subject_id "
@@ -610,10 +614,13 @@ public class DemoDataSeeder implements CommandLineRunner {
         // --- 4. two short quizzes ---------------------------------------
         if (jdbc.queryForObject("select count(*) from quizzes where batch_id = ?",
                 Long.class, batchId) == 0) {
+            Long physicsAssignment = assignmentIdOf(batchId, "Physics");
+            Long mathsAssignment = assignmentIdOf(batchId, "Mathematics");
             jdbc.update("""
-                    insert into quizzes (batch_id, title, subject_name, description, duration_minutes)
-                    values (?, ?, ?, ?, ?)
-                    """, batchId, "Kinematics quick check", "Physics",
+                    insert into quizzes (batch_id, batch_subject_id, title, subject_name,
+                        description, duration_minutes)
+                    values (?, ?, ?, ?, ?, ?)
+                    """, batchId, physicsAssignment, "Kinematics quick check", "Physics",
                     "Five multiple-choice questions on motion in one dimension — "
                             + "the opening chapter of the MHT-CET physics cycle.", 10);
             Long physicsQuizId = jdbc.queryForObject(
@@ -635,9 +642,10 @@ public class DemoDataSeeder implements CommandLineRunner {
                             "equal to its average speed", "zero", "v²/r", "2πr/t", "B"},
             });
             jdbc.update("""
-                    insert into quizzes (batch_id, title, subject_name, description, duration_minutes)
-                    values (?, ?, ?, ?, ?)
-                    """, batchId, "Quadratic equations — 5 sums", "Mathematics",
+                    insert into quizzes (batch_id, batch_subject_id, title, subject_name,
+                        description, duration_minutes)
+                    values (?, ?, ?, ?, ?, ?)
+                    """, batchId, mathsAssignment, "Quadratic equations — 5 sums", "Mathematics",
                     "Practice set on discriminants, roots and factorisation from the "
                             + "MHT-CET mathematics cycle.", 12);
             Long mathsQuizId = jdbc.queryForObject(
@@ -687,9 +695,53 @@ public class DemoDataSeeder implements CommandLineRunner {
         }
 
         LOG.info("Demo learning pack: {} timetable slot(s), {} past session(s) with "
-                        + "{} attendance row(s), {} resource(s) and {} quiz question group(s) "
-                        + "seeded for batch {}.",
-                timetableRows, sessionRows, attendanceRows, resourceRows, quizRows, batchId);
+                        + "{} attendance row(s), {} resource(s), {} quiz question group(s) and "
+                        + "{} notice(s) seeded for batch {}.",
+                timetableRows, sessionRows, attendanceRows, resourceRows, quizRows,
+                noticeRows, batchId);
+    }
+
+    /** The batch-subject assignment id of one subject in a batch, or null. */
+    private Long assignmentIdOf(Long batchId, String subject) {
+        List<Long> ids = jdbc.queryForList("""
+                select bs.id from batch_subjects bs
+                join course_subjects cs on cs.id = bs.course_subject_id
+                join subjects s on s.id = cs.subject_id
+                where bs.batch_id = ? and lower(s.name) = lower(?)
+                """, Long.class, batchId, subject);
+        return ids.isEmpty() ? null : ids.get(0);
+    }
+
+    /**
+     * Two demo notices on the board - one to everybody, one to the
+     * Target Batch - written once, guarded by the table's own count.
+     */
+    private int seedDemoNotices(Long batchId, Long adminId) {
+        if (jdbc.queryForObject("select count(*) from announcements", Long.class) > 0) {
+            return 0;
+        }
+        int rows = jdbc.update("""
+                insert into announcements (title, body, audience, batch_id,
+                    published_by, active)
+                values (?, ?, 'ALL', null, ?, true)
+                """, "MHT-CET 2027 — exam form window announced",
+                "The state CET cell has published the 2027 session dates. "
+                        + "Exam forms open on 1 December 2026 and close on 20 December 2026. "
+                        + "The office will fill the forms for the Target Batch in the first "
+                        + "week of December; carry a photocopy of your Aadhaar card.\n\n"
+                        + "— The office",
+                adminId);
+        rows += jdbc.update("""
+                insert into announcements (title, body, audience, batch_id,
+                    published_by, active)
+                values (?, ?, 'BATCH', ?, ?, true)
+                """, "Sunday mock test shifted to Room A-2",
+                "This Sunday's full-length mock test moves to Room A-2 on the first floor "
+                        + "(the ground-floor hall is being painted). Reporting time stays 9:00 am; "
+                        + "carry your own stationery and a water bottle.\n\n"
+                        + "— The office",
+                batchId, adminId);
+        return rows;
     }
 
     /** The weekly slots of a subject of the PCMB group. */

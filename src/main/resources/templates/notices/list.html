@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('Notice board')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('notices')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('Notice board', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <header class="page-header">
+      <div>
+        <p class="page-eyebrow">
+          <i class="bi bi-megaphone" aria-hidden="true"></i><span>Operations</span>
+        </p>
+        <h2 class="page-title">Notice board</h2>
+        <p class="page-subtitle">
+          What the institute tells the students: timings, exam forms, fee deadlines.
+          Published notices appear on the student portal immediately.
+        </p>
+      </div>
+      <div class="filter-actions">
+        <a th:href="@{/notices/new}" class="btn btn-primary">
+          <i class="bi bi-plus-lg" aria-hidden="true"></i>New notice
+        </a>
+      </div>
+    </header>
+
+    <div class="card">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" th:if="${!#lists.isEmpty(notices)}">
+            <thead class="table-light">
+            <tr>
+              <th>Notice</th>
+              <th>Audience</th>
+              <th>Published</th>
+              <th class="text-center">Status</th>
+              <th class="text-end">Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="notice : ${notices}" th:classappend="${!notice.active} ? 'table-light opacity-75'">
+              <td>
+                <div class="fw-semibold" th:text="${notice.title}">Notice title</div>
+                <div class="small text-body-secondary"
+                     th:text="${#strings.abbreviate(notice.body, 160)}"
+                     th:title="${notice.body}">First lines of the notice.</div>
+              </td>
+              <td>
+                <span class="badge text-bg-info" th:if="${notice.audience.name() == 'ALL'}">Everybody</span>
+                <span class="badge text-bg-secondary" th:if="${notice.audience.name() == 'BATCH'}"
+                      th:text="${notice.batch != null ? notice.batch.name : 'Batch'}">Batch</span>
+              </td>
+              <td class="text-nowrap small">
+                <div th:text="${#temporals.format(notice.publishedAt, 'dd MMM yyyy, HH:mm')}">01 Jan 2026, 09:00</div>
+                <div class="text-body-secondary" th:text="${notice.publishedBy.fullName}">Administrator</div>
+              </td>
+              <td class="text-center">
+                <span class="badge" th:classappend="${notice.active} ? 'text-bg-success' : 'text-bg-secondary'"
+                      th:text="${notice.active} ? 'Showing' : 'Withdrawn'">Showing</span>
+              </td>
+              <td class="text-end">
+                <form th:if="${notice.active}" th:action="@{/notices/{id}/withdraw(id=${notice.id})}"
+                      method="post" class="d-inline"
+                      data-confirm="Stop showing this notice on the student portal? The record stays here.">
+                  <button type="submit" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-eye-slash" aria-hidden="true"></i>Withdraw
+                  </button>
+                </form>
+                <span class="small text-body-secondary" th:if="${!notice.active}">—</span>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+          <div class="empty-state" th:if="${#lists.isEmpty(notices)}">
+            <i class="bi bi-megaphone d-block" aria-hidden="true"></i>
+            <span class="empty-title">No notice has been published yet</span>
+            <a th:href="@{/notices/new}">Publish the first notice</a>.
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

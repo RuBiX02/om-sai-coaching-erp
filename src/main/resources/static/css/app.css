@@ -2004,3 +2004,9 @@ body.sidebar-collapsed .app-nav-link.active::before {
 .visually-hidden-focusable:not(:focus):not(:focus-within) {
   position: absolute !important;
 }
+
+/* Notice bodies are typed as plain text; keep the author's line breaks
+   without any HTML from the notice ever being rendered. */
+.notice-body {
+  white-space: pre-line;
+}

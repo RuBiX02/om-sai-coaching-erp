@@ -144,6 +144,12 @@ tok() {
   grep -o 'name="_csrf" value="[^"]*"' tok.html | head -1 | sed 's/.*value="//;s/"$//'
 }
 
+# tokjar(): extract the CSRF token of ANOTHER session (for the student)
+tokjar() { # tokjar <jarfile> <path>
+  curl -s -b "$1" -c "$1" -o tok.html "$BASE$2"
+  grep -o 'name="_csrf" value="[^"]*"' tok.html | head -1 | sed 's/.*value="//;s/"$//'
+}
+
 # ---------------------------------------------------------------- wait for app
 say "waiting for application on $BASE"
 for i in {1..60}; do
@@ -911,6 +917,37 @@ ck "the administrator publishes the results" "$(has "$(cat post.html)" "Examinat
 ck "the result is published" \
   "$([ "$(dbq "select published from examination_results where examination_id=$EXAM")" = t ] && echo 1 || echo 0)"
 
+# --- the notice board and the quiz authoring ---------------------------------
+say "notice board and quiz authoring"
+goflash -d "_csrf=$T" --data-urlencode "title=E2E notice $TS" \
+  --data-urlencode "body=E2E notice body: the portal must show this sentence." \
+  -d "audience=ALL" "$BASE/notices" >/dev/null
+ck "administrator publishes a notice to everybody" \
+  "$(has "$(cat post.html)" "Notice published to every student" && echo 1 || echo 0)"
+NOTICE=$(dbq "select id from announcements where title='E2E notice $TS' limit 1")
+ck "the notice is stored" "$([ -n "$NOTICE" ] && echo 1 || echo 0)"
+
+BSID=$(dbq "select bs.id from batch_subjects bs join enrollments e on e.batch_id=bs.batch_id
+  where e.student_id=$S2 and e.status='ACTIVE' order by bs.id limit 1")
+ck "the smoke student's batch has a class-subject assignment" \
+  "$([ -n "$BSID" ] && echo 1 || echo 0)"
+goflash -d "_csrf=$T" -d "batchSubjectId=$BSID" --data-urlencode "title=E2E quiz $TS" \
+  -d "durationMinutes=10" "$BASE/quizzes" >/dev/null
+ck "administrator creates a quiz from the assignment" \
+  "$(has "$(cat post.html)" "Quiz created" && echo 1 || echo 0)"
+QUIZ=$(dbq "select id from quizzes where title='E2E quiz $TS' limit 1")
+ck "the quiz is stored with its subject from the assignment" \
+  "$([ -n "$QUIZ" ] && [ -n "$(dbq "select subject_name from quizzes where id=$QUIZ")" ] \
+    && echo 1 || echo 0)"
+goflash -d "_csrf=$T" --data-urlencode "questionText=E2E question: 2 + 2 = ?" \
+  -d "optionA=3" -d "optionB=4" -d "optionC=5" -d "optionD=6" -d "correctOption=B" \
+  "$BASE/quizzes/$QUIZ/questions" >/dev/null
+ck "administrator adds a question" \
+  "$(has "$(cat post.html)" "Question added." && echo 1 || echo 0)"
+ck "the question and its key are stored" \
+  "$([ "$(dbq "select correct_option from quiz_questions where quiz_id=$QUIZ")" = "B" ] \
+    && echo 1 || echo 0)"
+
 # --- the student portal -------------------------------------------------------
 SCODE=$(dbq "select student_code from students where id=$S2")
 STU_EMAIL="e2e.student.$TS@omsai.local"
@@ -941,6 +978,49 @@ ck "the student sees the published result" \
 scode=$(curl -s -b sjar -o spage.html -w '%{http_code}' "$BASE/student/fees")
 ck "the student sees their own fees" \
   "$([ "$scode" = 200 ] && has "$(cat spage.html)" "$SCODE" && echo 1 || echo 0)"
+scode=$(curl -s -b sjar -o spage.html -w '%{http_code}' "$BASE/student/receipts/$PID")
+ck "the student reprints their own receipt" \
+  "$([ "$scode" = 200 ] && has "$(cat spage.html)" "$RECEIPT" && echo 1 || echo 0)"
+
+scode=$(curl -s -b sjar -o spage.html -w '%{http_code}' "$BASE/student/notices")
+ck "the student notice board shows the notice" \
+  "$([ "$scode" = 200 ] && has "$(cat spage.html)" "E2E notice $TS" && echo 1 || echo 0)"
+ck "opening the board marks the notice read" \
+  "$([ "$(dbq "select count(*) from announcement_reads ar
+      join students s on s.user_account_id = ar.user_account_id
+      where ar.announcement_id = $NOTICE and s.id = $S2")" = 1 ] && echo 1 || echo 0)"
+scode=$(curl -s -b sjar -o spage.html -w '%{http_code}' "$BASE/student")
+ck "the dashboard shows the latest notice" \
+  "$([ "$scode" = 200 ] && has "$(cat spage.html)" "E2E notice $TS" && echo 1 || echo 0)"
+
+scode=$(curl -s -b sjar -o spage.html -w '%{http_code}' "$BASE/student/quizzes/$QUIZ")
+ck "the student opens the quiz without the key" \
+  "$([ "$scode" = 200 ] && has "$(cat spage.html)" "2 + 2 = ?" \
+    && ! has "$(cat spage.html)" "correctOption" && echo 1 || echo 0)"
+STOK=$(tokjar sjar "/student/quizzes/$QUIZ")
+out=$(curl -s -b sjar -c sjar -o qpost.html -w '%{http_code}|%{redirect_url}' \
+  -d "_csrf=$STOK" -d "answers[0]=B" "$BASE/student/quizzes/$QUIZ")
+ck "the student submits an answer" \
+  "$(has "${out#*|}" "/student/quizzes/$QUIZ/result" && echo 1 || echo 0)"
+scode=$(curl -s -b sjar -o spage.html -w '%{http_code}' "$BASE/student/quizzes/$QUIZ/result")
+ck "the review shows the question as correct" \
+  "$([ "$scode" = 200 ] && has "$(cat spage.html)" "E2E question: 2 + 2 = ?" \
+    && has "$(cat spage.html)" "Correct" && has "$(cat spage.html)" "100%" \
+    && echo 1 || echo 0)"
+scode=$(curl -s -b sjar -o spage.html -w '%{http_code}' "$BASE/quizzes")
+ck "the student is refused the staff quiz screens (403)" \
+  "$([ "$scode" = 403 ] && echo 1 || echo 0)"
+scode=$(curl -s -b sjar -o spage.html -w '%{http_code}' "$BASE/notices")
+ck "the student is refused the office notice board (403)" \
+  "$([ "$scode" = 403 ] && echo 1 || echo 0)"
+
+goflash -d "_csrf=$T" "$BASE/notices/$NOTICE/withdraw" >/dev/null
+ck "the administrator withdraws the notice" \
+  "$(has "$(cat post.html)" "no longer shows" && echo 1 || echo 0)"
+scode=$(curl -s -b sjar -o spage.html -w '%{http_code}' "$BASE/student/notices")
+ck "the withdrawn notice disappears from the portal" \
+  "$([ "$scode" = 200 ] && ! has "$(cat spage.html)" "E2E notice $TS" && echo 1 || echo 0)"
+
 scode=$(curl -s -b sjar -o spage.html -w '%{http_code}' "$BASE/fees")
 ck "the student is refused the fee management (403)" "$([ "$scode" = 403 ] && echo 1 || echo 0)"
 scode=$(curl -s -b sjar -o spage.html -w '%{http_code}' "$BASE/attendance/reports")

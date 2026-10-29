@@ -35,6 +35,16 @@ public class Quiz {
     @Column(name = "subject_name", nullable = false, length = 60)
     private String subjectName;
 
+    /**
+     * The batch-subject assignment this quiz was authored from, when it
+     * was written on the staff screens (the seeder backfills older
+     * rows where a matching assignment exists). This link is also what
+     * scopes a teacher: they manage the quizzes of their assignments.
+     */
+    @ManyToOne
+    @JoinColumn(name = "batch_subject_id")
+    private com.omsai.coaching.batch.BatchSubject batchSubject;
+
     @Column(length = 500)
     private String description;
 
@@ -82,6 +92,14 @@ public class Quiz {
 
     public void setSubjectName(String subjectName) {
         this.subjectName = subjectName;
+    }
+
+    public com.omsai.coaching.batch.BatchSubject getBatchSubject() {
+        return batchSubject;
+    }
+
+    public void setBatchSubject(com.omsai.coaching.batch.BatchSubject batchSubject) {
+        this.batchSubject = batchSubject;
     }
 
     public void setDescription(String description) {

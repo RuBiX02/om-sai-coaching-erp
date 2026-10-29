@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('Quiz questions')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('quizzes')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('Quiz questions', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <header class="page-header">
+      <div>
+        <p class="page-eyebrow">
+          <i class="bi bi-ui-checks" aria-hidden="true"></i>
+          <span th:text="${quiz.batch.course.name} + ' · ' + ${quiz.batch.name}">Course · Batch</span>
+        </p>
+        <h2 class="page-title" th:text="${quiz.title}">Quiz title</h2>
+        <p class="page-subtitle">
+          <span class="badge text-bg-info" th:text="${quiz.subjectName}">Subject</span>
+          <span th:text="${#lists.size(questions)} + ' question(s)'">0 question(s)</span> ·
+          <span th:text="${quiz.durationMinutes} + ' minutes'">10 minutes</span>
+          <span th:if="${quiz.description != null}" th:text="' — ' + ${quiz.description}">description</span>
+        </p>
+      </div>
+      <div class="filter-actions">
+        <a th:href="@{/quizzes}" class="btn btn-outline-secondary">
+          <i class="bi bi-arrow-left" aria-hidden="true"></i>All quizzes
+        </a>
+      </div>
+    </header>
+
+    <div class="card mb-3">
+      <div class="card-header">
+        <span class="section-title">
+          <i class="bi bi-list-check" aria-hidden="true"></i>Questions
+        </span>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table align-middle mb-0" th:if="${!#lists.isEmpty(questions)}">
+            <thead class="table-light">
+            <tr>
+              <th class="text-center">#</th>
+              <th>Question and options</th>
+              <th class="text-center">Key</th>
+              <th class="text-end">Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="question : ${questions}">
+              <td class="text-center fw-semibold" th:text="${question.position}">1</td>
+              <td>
+                <div class="fw-semibold" th:text="${question.questionText}">Question</div>
+                <div class="small text-body-secondary mt-1">
+                  <div th:classappend="${question.correctOption == 'A'} ? 'fw-semibold text-success' : ''">
+                    <span class="fw-semibold me-1">A.</span><span th:text="${question.optionA}">Option A</span>
+                    <i class="bi bi-check-lg" th:if="${question.correctOption == 'A'}" aria-label="Correct option"></i>
+                  </div>
+                  <div th:classappend="${question.correctOption == 'B'} ? 'fw-semibold text-success' : ''">
+                    <span class="fw-semibold me-1">B.</span><span th:text="${question.optionB}">Option B</span>
+                    <i class="bi bi-check-lg" th:if="${question.correctOption == 'B'}" aria-label="Correct option"></i>
+                  </div>
+                  <div th:classappend="${question.correctOption == 'C'} ? 'fw-semibold text-success' : ''">
+                    <span class="fw-semibold me-1">C.</span><span th:text="${question.optionC}">Option C</span>
+                    <i class="bi bi-check-lg" th:if="${question.correctOption == 'C'}" aria-label="Correct option"></i>
+                  </div>
+                  <div th:classappend="${question.correctOption == 'D'} ? 'fw-semibold text-success' : ''">
+                    <span class="fw-semibold me-1">D.</span><span th:text="${question.optionD}">Option D</span>
+                    <i class="bi bi-check-lg" th:if="${question.correctOption == 'D'}" aria-label="Correct option"></i>
+                  </div>
+                </div>
+              </td>
+              <td class="text-center">
+                <span class="badge text-bg-success" th:text="${question.correctOption}">B</span>
+              </td>
+              <td class="text-end">
+                <form th:action="@{/quizzes/{id}/questions/{qid}/remove(id=${quiz.id}, qid=${question.id})}"
+                      method="post" class="d-inline"
+                      data-confirm="Remove this question? The remaining questions are renumbered.">
+                  <button type="submit" class="btn btn-sm btn-outline-danger">
+                    <i class="bi bi-trash" aria-hidden="true"></i>Remove
+                  </button>
+                </form>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+          <div class="empty-state" th:if="${#lists.isEmpty(questions)}">
+            <i class="bi bi-patch-question d-block" aria-hidden="true"></i>
+            <span class="empty-title">No question in this quiz yet</span>
+            <span class="empty-sub">Add the first one with the form below.</span>
+          </div>
+        </div>
+      </div>
+      <div class="card-footer small text-body-secondary">
+        <i class="bi bi-eye-slash me-1"></i>
+        The correct options stay on the office screens and the scoring service —
+        the student page never receives them before a submission.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><i class="bi bi-plus-circle me-2"></i>Add a question</div>
+      <div class="card-body">
+        <form th:action="@{/quizzes/{id}/questions(id=${quiz.id})}" method="post">
+          <div class="mb-3">
+            <label for="questionText" class="form-label required-label">Question</label>
+            <textarea id="questionText" name="questionText" rows="2" class="form-control"
+                      maxlength="600" required
+                      placeholder="e.g. The slope of a velocity–time graph gives the"></textarea>
+          </div>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label for="optionA" class="form-label required-label">Option A</label>
+              <input type="text" id="optionA" name="optionA" class="form-control"
+                     maxlength="300" required/>
+            </div>
+            <div class="col-md-6">
+              <label for="optionB" class="form-label required-label">Option B</label>
+              <input type="text" id="optionB" name="optionB" class="form-control"
+                     maxlength="300" required/>
+            </div>
+            <div class="col-md-6">
+              <label for="optionC" class="form-label required-label">Option C</label>
+              <input type="text" id="optionC" name="optionC" class="form-control"
+                     maxlength="300" required/>
+            </div>
+            <div class="col-md-6">
+              <label for="optionD" class="form-label required-label">Option D</label>
+              <input type="text" id="optionD" name="optionD" class="form-control"
+                     maxlength="300" required/>
+            </div>
+            <div class="col-md-4">
+              <label for="correctOption" class="form-label required-label">Correct option</label>
+              <select id="correctOption" name="correctOption" class="form-select" required>
+                <option value="">— choose —</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+                <option value="D">D</option>
+              </select>
+            </div>
+          </div>
+          <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-plus-lg me-1"></i>Add question
+            </button>
+            <a th:href="@{/quizzes}" class="btn btn-outline-secondary">Done</a>
+          </div>
+        </form>
+      </div>
+      <div class="card-footer small text-body-secondary">
+        A quiz holds at most 50 questions. Students take the quiz in this order.
+      </div>
+    </div>
+
+  </main>
+</div>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

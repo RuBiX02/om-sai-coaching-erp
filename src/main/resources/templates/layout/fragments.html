@@ -53,6 +53,22 @@
         <i th:class="|bi ${icon}|" aria-hidden="true"></i><span th:text="${label}">Item</span>
       </a>
 
+      <!-- The same item, with the honest count of unread items beside it
+           (the notice board). No count renders when everything is read. -->
+      <a th:fragment="navitemUnread(item, label, icon, target, count)"
+         th:classappend="${active == item} ? 'active' : ''"
+         th:attr="aria-current=${active == item} ? 'page' : null, data-label=${label}"
+         class="nav-link app-nav-link d-flex align-items-center justify-content-between"
+         th:href="${target}">
+        <span class="d-inline-flex align-items-center gap-2">
+          <i th:class="|bi ${icon}|" aria-hidden="true"></i><span th:text="${label}">Item</span>
+        </span>
+        <span class="badge rounded-pill text-bg-danger"
+              th:if="${count != null and count > 0}"
+              th:text="${count}"
+              th:attr="aria-label=|${count} unread|">3</span>
+      </a>
+
       <!-- ================= student portal ================= -->
       <div th:if="${isStudent == true}">
         <div class="nav-group">
@@ -65,6 +81,10 @@
           <div th:replace="~{layout/fragments :: navitem('examinations', 'My results', 'bi-journal-check', @{/student/results})}"></div>
           <div th:replace="~{layout/fragments :: navitem('resources', 'Study resources', 'bi-journal-text', @{/student/resources})}"></div>
           <div th:replace="~{layout/fragments :: navitem('quizzes', 'Quizzes', 'bi-ui-checks', @{/student/quizzes})}"></div>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-title">From the institute</div>
+          <div th:replace="~{layout/fragments :: navitemUnread('notices', 'Notice board', 'bi-megaphone', @{/student/notices}, ${noticeUnread})}"></div>
         </div>
         <div class="nav-group">
           <div class="nav-group-title">My account</div>
@@ -83,6 +103,7 @@
           <div th:replace="~{layout/fragments :: navitem('sessions', 'Class sessions', 'bi-calendar2-check', @{/sessions})}"></div>
           <div th:replace="~{layout/fragments :: navitem('timetable', 'Timetable', 'bi-calendar-week', @{/timetable})}"></div>
           <div th:replace="~{layout/fragments :: navitem('examinations', 'Examinations', 'bi-journal-check', @{/examinations})}"></div>
+          <div th:replace="~{layout/fragments :: navitem('quizzes', 'Quizzes', 'bi-ui-checks', @{/quizzes})}"></div>
         </div>
       </div>
 
@@ -104,6 +125,7 @@
           <div th:replace="~{layout/fragments :: navitem('subjects', 'Subjects', 'bi-book', @{/subjects})}"></div>
           <div th:replace="~{layout/fragments :: navitem('batches', 'Batches', 'bi-collection', @{/batches})}"></div>
           <div th:replace="~{layout/fragments :: navitem('timetable', 'Timetable', 'bi-calendar-week', @{/timetable})}"></div>
+          <div th:replace="~{layout/fragments :: navitem('quizzes', 'Quizzes', 'bi-ui-checks', @{/quizzes})}"></div>
         </div>
 
         <div class="nav-group">
@@ -111,6 +133,7 @@
           <div th:replace="~{layout/fragments :: navitem('sessions', 'Class sessions', 'bi-calendar2-check', @{/sessions})}"></div>
           <div th:replace="~{layout/fragments :: navitem('attendance', 'Attendance reports', 'bi-clipboard-data', @{/attendance/reports})}"></div>
           <div th:replace="~{layout/fragments :: navitem('examinations', 'Examinations', 'bi-journal-check', @{/examinations})}"></div>
+          <div th:replace="~{layout/fragments :: navitem('notices', 'Notice board', 'bi-megaphone', @{/notices})}"></div>
         </div>
 
         <div class="nav-group">

@@ -134,6 +134,7 @@
               <th class="text-end">Amount</th>
               <th>Method</th>
               <th class="text-center">Status</th>
+              <th class="text-end">Reprint</th>
             </tr>
             </thead>
             <tbody>
@@ -148,6 +149,12 @@
                      aria-hidden="true"></i>
                   <span th:text="${payment.status}">RECEIVED</span>
                 </span>
+              </td>
+              <td class="text-end">
+                <a th:href="@{/student/receipts/{id}(id=${payment.id})}"
+                   class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener">
+                  <i class="bi bi-printer" aria-hidden="true"></i>Receipt
+                </a>
               </td>
             </tr>
             </tbody>

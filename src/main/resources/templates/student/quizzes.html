@@ -37,7 +37,7 @@
               <span th:text="${quiz.durationMinutes} + ' minutes'">10 minutes</span>
             </div>
           </div>
-          <div class="card-footer d-flex justify-content-between align-items-center">
+          <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
             <span th:if="${attemptByQuiz[quiz.id] != null}">
               <span class="badge text-bg-light">Last score</span>
               <span class="fw-semibold"
@@ -45,9 +45,17 @@
                       + ' (' + ${attemptByQuiz[quiz.id].percentage()} + '%)'">0 / 0 (0%)</span>
             </span>
             <span th:if="${attemptByQuiz[quiz.id] == null}" class="badge text-bg-success">Not attempted</span>
-            <a th:href="@{/student/quizzes/{id}(id=${quiz.id})}" class="btn btn-sm btn-outline-primary">
-              <i class="bi bi-play" aria-hidden="true"></i>Start quiz
-            </a>
+            <span class="d-flex gap-2">
+              <a th:if="${attemptByQuiz[quiz.id] != null}"
+                 th:href="@{/student/quizzes/{id}/result(id=${quiz.id})}"
+                 class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-search" aria-hidden="true"></i>Review
+              </a>
+              <a th:href="@{/student/quizzes/{id}(id=${quiz.id})}" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-play" aria-hidden="true"></i>
+                <span th:text="${attemptByQuiz[quiz.id] == null ? 'Start quiz' : 'Retake quiz'}">Start quiz</span>
+              </a>
+            </span>
           </div>
         </div>
       </div>

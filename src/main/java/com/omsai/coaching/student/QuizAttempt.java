@@ -45,6 +45,15 @@ public class QuizAttempt {
     @Column(name = "total_count", nullable = false)
     private int totalCount;
 
+    /**
+     * The normalized letters the student answered, one per question
+     * position, '-' for a skipped question ("A,B,-,D"). Kept on the
+     * attempt so the portal can review the submission later; older
+     * rows may have no recorded answers.
+     */
+    @Column(columnDefinition = "text")
+    private String answers;
+
     public Long getId() {
         return id;
     }
@@ -96,5 +105,13 @@ public class QuizAttempt {
 
     public void setTotalCount(int totalCount) {
         this.totalCount = totalCount;
+    }
+
+    public String getAnswers() {
+        return answers;
+    }
+
+    public void setAnswers(String answers) {
+        this.answers = answers;
     }
 }
