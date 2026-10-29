@@ -2,10 +2,11 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head th:replace="~{layout/fragments :: head('Payments')}"></head>
 <body class="app-body">
+<a class="visually-hidden-focusable skip-link" href="#main">Skip to content</a>
 <div th:replace="~{layout/fragments :: sidebar('payments')}"></div>
 <div class="app-main">
   <div th:replace="~{layout/fragments :: topbar('Payments', true)}"></div>
-  <main class="app-content">
+  <main class="app-content" id="main" tabindex="-1">
 
     <div th:replace="~{layout/fragments :: alerts()}"></div>
 
@@ -14,7 +15,7 @@
         <p class="page-eyebrow">
           <i class="bi bi-receipt" aria-hidden="true"></i><span>Finance</span>
         </p>
-        <h2 class="page-title">Payments</h2>
+        <h2 class="page-title">Payment ledger</h2>
         <p class="page-subtitle">Every receipt issued by the institute, including voided payments.</p>
       </div>
       <div class="filter-actions">

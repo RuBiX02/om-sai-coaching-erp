@@ -2,12 +2,28 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head th:replace="~{layout/fragments :: head('New quiz')}"></head>
 <body class="app-body">
+<a class="visually-hidden-focusable skip-link" href="#main">Skip to content</a>
 <div th:replace="~{layout/fragments :: sidebar('quizzes')}"></div>
 <div class="app-main">
   <div th:replace="~{layout/fragments :: topbar('New quiz', true)}"></div>
-  <main class="app-content">
+  <main class="app-content" id="main" tabindex="-1">
 
     <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <header class="page-header">
+      <div>
+        <p class="page-eyebrow">
+          <i class="bi bi-ui-checks" aria-hidden="true"></i><span>Academics</span>
+        </p>
+        <h2 class="page-title">Create a quiz</h2>
+        <p class="page-subtitle">Choose the class and the basic settings first; questions and answers are added on the next screen.</p>
+      </div>
+      <div class="filter-actions">
+        <a th:href="@{/quizzes}" class="btn btn-outline-secondary">
+          <i class="bi bi-arrow-left" aria-hidden="true"></i>All quizzes
+        </a>
+      </div>
+    </header>
 
     <div class="row">
       <div class="col-xl-7">

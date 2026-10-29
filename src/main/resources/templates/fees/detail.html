@@ -2,18 +2,32 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head th:replace="~{layout/fragments :: head('Fee account')}"></head>
 <body class="app-body">
+<a class="visually-hidden-focusable skip-link" href="#main">Skip to content</a>
 <div th:replace="~{layout/fragments :: sidebar('fees')}"></div>
 <div class="app-main">
   <div th:replace="~{layout/fragments :: topbar('Fee account', true)}"></div>
-  <main class="app-content">
+  <main class="app-content" id="main" tabindex="-1">
 
     <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <header class="page-header"
+            th:with="feeSubtitle=${account.course.name + ' · ' + account.academicYear}">
+      <div th:replace="~{layout/fragments :: pageHeading('cash-coin', 'Finance', ${account.student.fullName}, ${feeSubtitle})}"></div>
+      <div class="filter-actions">
+        <a th:href="@{/payments/new(feeAccountId=${account.id})}" class="btn btn-primary">
+          <i class="bi bi-cash-coin" aria-hidden="true"></i>Record payment
+        </a>
+        <a th:href="@{/payments}" class="btn btn-outline-secondary">
+          <i class="bi bi-receipt" aria-hidden="true"></i>All payments
+        </a>
+      </div>
+    </header>
 
     <div class="row g-3 mb-3">
       <div class="col-xl-8">
         <div class="card h-100">
           <div class="card-header d-flex justify-content-between align-items-center">
-            <span><i class="bi bi-cash-coin me-2 table-thumb"></i>Fee agreement</span>
+            <span><i class="bi bi-cash-coin me-2 table-thumb"></i>Agreement details</span>
             <span>
               <span class="badge"
                     th:classappend="${feeStatus == 'PAID'} ? 'text-bg-success' : (${feeStatus == 'PARTIALLY_PAID'} ? 'text-bg-warning' : 'text-bg-secondary')"
@@ -61,9 +75,6 @@
             </dl>
           </div>
           <div class="card-footer d-flex gap-2 flex-wrap">
-            <a th:href="@{/payments/new(feeAccountId=${account.id})}" class="btn btn-primary">
-              <i class="bi bi-cash-coin me-1"></i>Record payment
-            </a>
             <a th:href="@{/fees/{id}/edit(id=${account.id})}" class="btn btn-outline-secondary">
               <i class="bi bi-pencil me-1"></i>Edit agreement
             </a>
@@ -71,7 +82,6 @@
                class="btn btn-outline-secondary">
               <i class="bi bi-calendar2-week me-1"></i>Create installment plan
             </a>
-            <a th:href="@{/payments}" class="btn btn-outline-secondary">All payments</a>
           </div>
         </div>
       </div>
@@ -83,9 +93,9 @@
         <span th:if="${hasPlan}" class="small text-body-secondary">
           <span th:text="${installmentSummary.count}">0</span> installment(s) ·
           <span th:text="${installmentSummary.overdueCount}">0</span> overdue ·
-          scheduled <span th:text="${installmentSummary.scheduled}">0</span> ·
-          paid <span th:text="${installmentSummary.paid}">0</span> ·
-          remaining <span th:text="${installmentSummary.remaining}">0</span>
+          scheduled <span th:text="${@money.money(installmentSummary.scheduled)}">0</span> ·
+          paid <span th:text="${@money.money(installmentSummary.paid)}">0</span> ·
+          remaining <span th:text="${@money.money(installmentSummary.remaining)}">0</span>
           <span th:if="${installmentSummary.nextDueDate != null}">
             · next due <span th:text="${#temporals.format(installmentSummary.nextDueDate, 'dd MMM yyyy')}">01 Jan 2026</span>
           </span>
@@ -116,9 +126,9 @@
             <tr th:each="view : ${installments}">
               <td th:text="${view.installment().installmentNumber}">1</td>
               <td th:text="${#temporals.format(view.installment().dueDate, 'dd MMM yyyy')}">01 Jan 2026</td>
-              <td class="text-end" th:text="${view.installment().amount}">10000</td>
-              <td class="text-end" th:text="${view.paid}">0</td>
-              <td class="text-end fw-semibold" th:text="${view.remaining}">10000</td>
+              <td class="text-end" th:text="${@money.money(view.installment().amount)}">10000</td>
+              <td class="text-end" th:text="${@money.money(view.paid)}">0</td>
+              <td class="text-end fw-semibold" th:text="${@money.money(view.remaining)}">10000</td>
               <td class="text-center">
                 <span class="badge"
                       th:classappend="${view.status().name() == 'PAID'} ? 'text-bg-success'
@@ -132,9 +142,9 @@
             <tfoot class="table-light">
             <tr>
               <th colspan="2">Total</th>
-              <th class="text-end" th:text="${installmentSummary.scheduled}">0</th>
-              <th class="text-end" th:text="${installmentSummary.paid}">0</th>
-              <th class="text-end" th:text="${installmentSummary.remaining}">0</th>
+              <th class="text-end" th:text="${@money.money(installmentSummary.scheduled)}">0</th>
+              <th class="text-end" th:text="${@money.money(installmentSummary.paid)}">0</th>
+              <th class="text-end" th:text="${@money.money(installmentSummary.remaining)}">0</th>
               <th></th>
             </tr>
             </tfoot>

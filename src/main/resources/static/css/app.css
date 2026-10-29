@@ -148,6 +148,25 @@ body {
   font-feature-settings: "cv05" 1, "ss01" 1;
 }
 
+/* Keyboard users can jump straight past the navigation. */
+.skip-link {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 2000;
+  background: var(--omsai-ink);
+  color: #fff;
+  font-weight: 600;
+  padding: 0.55rem 0.9rem;
+  border-radius: var(--omsai-radius);
+  box-shadow: var(--omsai-shadow-sm);
+}
+
+.skip-link:focus-visible {
+  outline: 3px solid var(--omsai-saffron);
+  outline-offset: 2px;
+}
+
 h1, h2, h3, h4, h5, h6,
 .h1, .h2, .h3, .h4, .h5, .h6 {
   color: var(--omsai-ink);

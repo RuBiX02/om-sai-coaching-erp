@@ -2,12 +2,17 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head th:replace="~{layout/fragments :: head('Collections')}"></head>
 <body class="app-body">
+<a class="visually-hidden-focusable skip-link" href="#main">Skip to content</a>
 <div th:replace="~{layout/fragments :: sidebar('fees')}"></div>
 <div class="app-main">
   <div th:replace="~{layout/fragments :: topbar('Collection summary', true)}"></div>
-  <main class="app-content">
+  <main class="app-content" id="main" tabindex="-1">
 
     <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <header class="page-header">
+      <div th:replace="~{layout/fragments :: pageHeading('graph-up', 'Finance', 'Collections overview', 'Valid payments received in the selected date range. Voided payments are listed separately and never count towards collections.')}"></div>
+    </header>
 
     <form th:action="@{/fees/collections}" method="get" class="d-flex gap-2 mb-3 flex-wrap align-items-end"
           aria-label="Collection range">
@@ -28,7 +33,7 @@
           <div class="card-body d-flex align-items-center gap-3">
             <i class="bi bi-cash-stack stat-icon"></i>
             <div>
-              <div class="stat-value" th:text="${totalReceived}">0</div>
+              <div class="stat-value" th:text="${@money.money(totalReceived)}">0</div>
               <div class="text-body-secondary small">Total valid payments received in this range (voided excluded)</div>
             </div>
           </div>
@@ -50,7 +55,7 @@
               <tr th:each="row : ${methodTotals}">
                 <td th:text="${row.method}">CASH</td>
                 <td class="text-center" th:text="${row.paymentCount}">3</td>
-                <td class="text-end" th:text="${row.total}">4500</td>
+                <td class="text-end" th:text="${@money.money(row.total)}">4500</td>
               </tr>
               </tbody>
             </table>
@@ -64,7 +69,7 @@
         <div class="card h-100">
           <div class="card-body">
             <h2 class="h6 text-body-secondary mb-3">Voided payments (excluded above)</h2>
-            <div class="h4 mb-0" th:text="${voidedTotal}">0</div>
+            <div class="h4 mb-0" th:text="${@money.money(voidedTotal)}">0</div>
             <div class="small text-body-secondary mt-1">
               These were received, then voided with a recorded reason; they never count as collections.
             </div>

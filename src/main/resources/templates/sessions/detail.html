@@ -2,20 +2,31 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head th:replace="~{layout/fragments :: head('Class session')}"></head>
 <body class="app-body">
+<a class="visually-hidden-focusable skip-link" href="#main">Skip to content</a>
 <div th:replace="~{layout/fragments :: sidebar('sessions')}"></div>
 <div class="app-main">
   <div th:replace="~{layout/fragments :: topbar('Class session', true)}"></div>
-  <main class="app-content">
+  <main class="app-content" id="main" tabindex="-1">
 
     <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <header class="page-header"
+            th:with="sessionSubtitle=${cs.batchSubject.batch.name
+                + ' · ' + #temporals.format(cs.sessionDate, 'dd MMM yyyy')
+                + (cs.startTime == null ? '' : ', ' + #temporals.format(cs.startTime, 'HH:mm'))}">
+      <div th:replace="~{layout/fragments :: pageHeading('calendar2-check', 'Operations', ${cs.batchSubject.courseSubject.subject.name}, ${sessionSubtitle})}"></div>
+      <div class="filter-actions">
+        <a th:href="@{/sessions}" class="btn btn-outline-secondary">
+          <i class="bi bi-arrow-left" aria-hidden="true"></i>All sessions
+        </a>
+      </div>
+    </header>
 
     <div class="row g-3">
       <div class="col-xl-7 col-lg-12">
         <div class="card h-100">
           <div class="card-header d-flex justify-content-between align-items-center">
-            <span><i class="bi bi-calendar2-check me-2 table-thumb"></i>
-              <span th:text="${cs.batchSubject.courseSubject.subject.name}">Subject</span>
-            </span>
+            <span><i class="bi bi-calendar2-check me-2 table-thumb"></i>Session details</span>
             <span th:switch="${cs.status.name()}" class="badge"
                   th:classappend="${cs.isOpen} ? 'text-bg-success' : (${cs.isCompleted} ? 'text-bg-primary' : 'text-bg-secondary')">
               <span th:case="'OPEN'">Open</span>
@@ -85,7 +96,6 @@
             <a th:href="@{/sessions/{id}/print(id=${cs.id})}" class="btn btn-outline-secondary">
               <i class="bi bi-printer me-1"></i>Print attendance sheet
             </a>
-            <a th:href="@{/sessions}" class="btn btn-outline-secondary">Back to sessions</a>
           </div>
         </div>
       </div>

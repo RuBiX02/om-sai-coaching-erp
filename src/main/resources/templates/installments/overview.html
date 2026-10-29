@@ -8,10 +8,11 @@
 -->
 <head th:replace="~{layout/fragments :: head('Installments')}"></head>
 <body class="app-body">
+<a class="visually-hidden-focusable skip-link" href="#main">Skip to content</a>
 <div th:replace="~{layout/fragments :: sidebar('installments')}"></div>
 <div class="app-main">
   <div th:replace="~{layout/fragments :: topbar('Installments', true)}"></div>
-  <main class="app-content">
+  <main class="app-content" id="main" tabindex="-1">
 
     <div th:replace="~{layout/fragments :: alerts()}"></div>
 
@@ -20,7 +21,7 @@
         <p class="page-eyebrow">
           <i class="bi bi-calendar2-week" aria-hidden="true"></i><span>Finance</span>
         </p>
-        <h2 class="page-title">Installments</h2>
+        <h2 class="page-title">Installment overview</h2>
         <p class="page-subtitle">
           The collection schedule: what is due, when, and how much of the
           outstanding balance it covers.

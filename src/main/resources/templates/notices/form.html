@@ -2,12 +2,28 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head th:replace="~{layout/fragments :: head('New notice')}"></head>
 <body class="app-body">
+<a class="visually-hidden-focusable skip-link" href="#main">Skip to content</a>
 <div th:replace="~{layout/fragments :: sidebar('notices')}"></div>
 <div class="app-main">
   <div th:replace="~{layout/fragments :: topbar('New notice', true)}"></div>
-  <main class="app-content">
+  <main class="app-content" id="main" tabindex="-1">
 
     <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <header class="page-header">
+      <div>
+        <p class="page-eyebrow">
+          <i class="bi bi-megaphone" aria-hidden="true"></i><span>Operations</span>
+        </p>
+        <h2 class="page-title">Compose a notice</h2>
+        <p class="page-subtitle">Published notices appear on the student portal immediately. Choose the audience, or address the whole institute.</p>
+      </div>
+      <div class="filter-actions">
+        <a th:href="@{/notices}" class="btn btn-outline-secondary">
+          <i class="bi bi-arrow-left" aria-hidden="true"></i>Notice board
+        </a>
+      </div>
+    </header>
 
     <div class="row">
       <div class="col-xl-7">

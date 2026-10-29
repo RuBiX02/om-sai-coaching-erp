@@ -2,10 +2,11 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="en" th:with="pageTitle=${teacher != null ? 'Edit teacher profile' : 'New teacher profile'}">
 <head th:replace="~{layout/fragments :: head(${pageTitle})}"></head>
 <body class="app-body">
+<a class="visually-hidden-focusable skip-link" href="#main">Skip to content</a>
 <div th:replace="~{layout/fragments :: sidebar('teachers')}"></div>
 <div class="app-main">
   <div th:replace="~{layout/fragments :: topbar(${pageTitle}, true)}"></div>
-  <main class="app-content">
+  <main class="app-content" id="main" tabindex="-1">
 
     <div th:replace="~{layout/fragments :: alerts()}"></div>
 

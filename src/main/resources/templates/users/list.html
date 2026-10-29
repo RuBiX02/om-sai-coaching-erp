@@ -2,10 +2,11 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head th:replace="~{layout/fragments :: head('Accounts')}"></head>
 <body class="app-body">
+<a class="visually-hidden-focusable skip-link" href="#main">Skip to content</a>
 <div th:replace="~{layout/fragments :: sidebar('users')}"></div>
 <div class="app-main">
   <div th:replace="~{layout/fragments :: topbar('Sign-in accounts', true)}"></div>
-  <main class="app-content">
+  <main class="app-content" id="main" tabindex="-1">
 
     <div th:replace="~{layout/fragments :: alerts()}"></div>
 
@@ -14,7 +15,7 @@
         <p class="page-eyebrow">
           <i class="bi bi-person-gear" aria-hidden="true"></i><span>Administration</span>
         </p>
-        <h2 class="page-title">Sign-in accounts</h2>
+        <h2 class="page-title">Accounts &amp; access</h2>
         <p class="page-subtitle">
           Sign-in accounts are separate from teacher profiles. Create TEACHER accounts here and
           link them to profiles on the teacher pages. The first administrator is created through the

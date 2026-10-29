@@ -2,17 +2,29 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head th:replace="~{layout/fragments :: head('Examination')}"></head>
 <body class="app-body">
+<a class="visually-hidden-focusable skip-link" href="#main">Skip to content</a>
 <div th:replace="~{layout/fragments :: sidebar('examinations')}"></div>
 <div class="app-main">
   <div th:replace="~{layout/fragments :: topbar('Examination', true)}"></div>
-  <main class="app-content">
+  <main class="app-content" id="main" tabindex="-1">
 
     <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <header class="page-header"
+            th:with="examHeading=${examination == null ? 'New examination' : 'Edit examination'}">
+      <div th:replace="~{layout/fragments :: pageHeading('journal-plus', 'Academics', ${examHeading}, 'Choose the class, the date and the maximum marks. A new examination starts as a draft and is visible to students only after it is published.')}"></div>
+      <div class="filter-actions">
+        <a th:href="${examination == null} ? @{/examinations} : @{/examinations/{id}(id=${examination.id})}"
+           class="btn btn-outline-secondary">
+          <i class="bi bi-arrow-left" aria-hidden="true"></i>Back
+        </a>
+      </div>
+    </header>
 
     <form th:if="${examination == null}" th:action="@{/examinations}" method="post"
           class="card mb-3" th:object="${form}">
       <div class="card-header">
-        <i class="bi bi-journal-plus me-2 table-thumb"></i>New examination
+        <i class="bi bi-journal-plus me-2 table-thumb"></i>Examination details
       </div>
       <div class="card-body">
         <div class="row g-3">
@@ -64,7 +76,7 @@
     <form th:if="${examination != null}" th:action="@{/examinations/{id}(id=${examination.id})}" method="post"
           class="card mb-3" th:object="${form}">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-pencil me-2 table-thumb"></i>Edit examination</span>
+        <span><i class="bi bi-pencil me-2 table-thumb"></i>Examination details</span>
         <span class="badge text-bg-warning" th:text="${examination.status}">DRAFT</span>
       </div>
       <div class="card-body">

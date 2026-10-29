@@ -2,10 +2,11 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head th:replace="~{layout/fragments :: head('Notice board')}"></head>
 <body class="app-body">
+<a class="visually-hidden-focusable skip-link" href="#main">Skip to content</a>
 <div th:replace="~{layout/fragments :: sidebar('notices')}"></div>
 <div class="app-main">
   <div th:replace="~{layout/fragments :: topbar('Notice board', true)}"></div>
-  <main class="app-content">
+  <main class="app-content" id="main" tabindex="-1">
 
     <div th:replace="~{layout/fragments :: alerts()}"></div>
 
@@ -14,7 +15,7 @@
         <p class="page-eyebrow">
           <i class="bi bi-megaphone" aria-hidden="true"></i><span>Operations</span>
         </p>
-        <h2 class="page-title">Notice board</h2>
+        <h2 class="page-title">Published notices</h2>
         <p class="page-subtitle">
           What the institute tells the students: timings, exam forms, fee deadlines.
           Published notices appear on the student portal immediately.

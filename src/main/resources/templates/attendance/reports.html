@@ -2,18 +2,17 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head th:replace="~{layout/fragments :: head('Attendance reports')}"></head>
 <body class="app-body">
+<a class="visually-hidden-focusable skip-link" href="#main">Skip to content</a>
 <div th:replace="~{layout/fragments :: sidebar('attendance')}"></div>
 <div class="app-main">
   <div th:replace="~{layout/fragments :: topbar('Attendance reports', true)}"></div>
-  <main class="app-content">
+  <main class="app-content" id="main" tabindex="-1">
 
     <div th:replace="~{layout/fragments :: alerts()}"></div>
 
-    <p class="text-body-secondary">
-      Percentages use (present + late) ÷ (present + late + absent) × 100.
-      Excused records are excluded. Only completed sessions count; cancelled
-      and open sessions never enter a denominator.
-    </p>
+    <header class="page-header">
+      <div th:replace="~{layout/fragments :: pageHeading('clipboard-data', 'Operations', 'Attendance analytics', 'Percentages use (present + late) ÷ (present + late + absent) × 100. Excused records are excluded; only completed sessions count, never cancelled or open ones.')}"></div>
+    </header>
 
     <div class="row g-3">
       <div class="col-lg-6">

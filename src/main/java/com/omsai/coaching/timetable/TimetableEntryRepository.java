@@ -22,7 +22,15 @@ public interface TimetableEntryRepository extends JpaRepository<TimetableEntry, 
             join fetch cs.subject s
             left join fetch e.createdBy u
             where bs.id = :batchSubjectId
-            order by e.dayOfWeek, e.startTime
+            order by case e.dayOfWeek
+                when java.time.DayOfWeek.MONDAY then 1
+                when java.time.DayOfWeek.TUESDAY then 2
+                when java.time.DayOfWeek.WEDNESDAY then 3
+                when java.time.DayOfWeek.THURSDAY then 4
+                when java.time.DayOfWeek.FRIDAY then 5
+                when java.time.DayOfWeek.SATURDAY then 6
+                when java.time.DayOfWeek.SUNDAY then 7
+                else 8 end, e.startTime
             """)
     List<TimetableEntry> findForBatchSubject(@Param("batchSubjectId") Long batchSubjectId);
 
@@ -39,7 +47,15 @@ public interface TimetableEntryRepository extends JpaRepository<TimetableEntry, 
             join fetch cs.subject s
             left join fetch bs.teacher t
             left join fetch e.createdBy u
-            order by e.dayOfWeek, e.startTime, s.name
+            order by case e.dayOfWeek
+                when java.time.DayOfWeek.MONDAY then 1
+                when java.time.DayOfWeek.TUESDAY then 2
+                when java.time.DayOfWeek.WEDNESDAY then 3
+                when java.time.DayOfWeek.THURSDAY then 4
+                when java.time.DayOfWeek.FRIDAY then 5
+                when java.time.DayOfWeek.SATURDAY then 6
+                when java.time.DayOfWeek.SUNDAY then 7
+                else 8 end, e.startTime, s.name
             """)
     List<TimetableEntry> findAllWithContext();
 
@@ -93,7 +109,15 @@ public interface TimetableEntryRepository extends JpaRepository<TimetableEntry, 
             join fetch cs.subject s
             left join fetch bs.teacher t
             where bs.teacher.id = :teacherId
-            order by e.dayOfWeek, e.startTime
+            order by case e.dayOfWeek
+                when java.time.DayOfWeek.MONDAY then 1
+                when java.time.DayOfWeek.TUESDAY then 2
+                when java.time.DayOfWeek.WEDNESDAY then 3
+                when java.time.DayOfWeek.THURSDAY then 4
+                when java.time.DayOfWeek.FRIDAY then 5
+                when java.time.DayOfWeek.SATURDAY then 6
+                when java.time.DayOfWeek.SUNDAY then 7
+                else 8 end, e.startTime
             """)
     List<TimetableEntry> findForTeacher(@Param("teacherId") Long teacherId);
 
@@ -107,7 +131,15 @@ public interface TimetableEntryRepository extends JpaRepository<TimetableEntry, 
             join fetch cs.subject s
             left join fetch bs.teacher t
             where bs.batch.id = :batchId
-            order by e.dayOfWeek, e.startTime
+            order by case e.dayOfWeek
+                when java.time.DayOfWeek.MONDAY then 1
+                when java.time.DayOfWeek.TUESDAY then 2
+                when java.time.DayOfWeek.WEDNESDAY then 3
+                when java.time.DayOfWeek.THURSDAY then 4
+                when java.time.DayOfWeek.FRIDAY then 5
+                when java.time.DayOfWeek.SATURDAY then 6
+                when java.time.DayOfWeek.SUNDAY then 7
+                else 8 end, e.startTime
             """)
     List<TimetableEntry> findForBatch(@Param("batchId") Long batchId);
 
@@ -121,7 +153,15 @@ public interface TimetableEntryRepository extends JpaRepository<TimetableEntry, 
             join fetch cs.subject s
             left join fetch bs.teacher t
             where e.classroom = :classroom
-            order by e.dayOfWeek, e.startTime
+            order by case e.dayOfWeek
+                when java.time.DayOfWeek.MONDAY then 1
+                when java.time.DayOfWeek.TUESDAY then 2
+                when java.time.DayOfWeek.WEDNESDAY then 3
+                when java.time.DayOfWeek.THURSDAY then 4
+                when java.time.DayOfWeek.FRIDAY then 5
+                when java.time.DayOfWeek.SATURDAY then 6
+                when java.time.DayOfWeek.SUNDAY then 7
+                else 8 end, e.startTime
             """)
     List<TimetableEntry> findForClassroom(@Param("classroom") String classroom);
 

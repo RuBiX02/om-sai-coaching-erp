@@ -2,18 +2,29 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head th:replace="~{layout/fragments :: head('Examination')}"></head>
 <body class="app-body">
+<a class="visually-hidden-focusable skip-link" href="#main">Skip to content</a>
 <div th:replace="~{layout/fragments :: sidebar('examinations')}"></div>
 <div class="app-main">
   <div th:replace="~{layout/fragments :: topbar('Examination', true)}"></div>
-  <main class="app-content">
+  <main class="app-content" id="main" tabindex="-1">
 
     <div th:replace="~{layout/fragments :: alerts()}"></div>
 
+    <header class="page-header"
+            th:with="examSubtitle=${examination.batchSubject.courseSubject.subject.name
+                + ' · ' + examination.batchSubject.batch.name
+                + ' · ' + #temporals.format(examination.examinationDate, 'dd MMM yyyy')}">
+      <div th:replace="~{layout/fragments :: pageHeading('journal-text', 'Academics', ${examination.title}, ${examSubtitle})}"></div>
+      <div class="filter-actions">
+        <a th:href="@{/examinations}" class="btn btn-outline-secondary">
+          <i class="bi bi-arrow-left" aria-hidden="true"></i>All examinations
+        </a>
+      </div>
+    </header>
+
     <div class="card mb-3">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-journal-text me-2 table-thumb"></i>
-          <span th:text="${examination.title}">Unit test</span>
-        </span>
+        <span><i class="bi bi-journal-text me-2 table-thumb"></i>Examination details</span>
         <span class="badge"
               th:classappend="${examination.status.name() == 'PUBLISHED'} ? 'text-bg-success'
                 : (${examination.status.name() == 'CANCELLED'} ? 'text-bg-secondary' : 'text-bg-warning')"
@@ -68,7 +79,6 @@
             <i class="bi bi-x-circle me-1"></i>Cancel examination
           </button>
         </form>
-        <a th:href="@{/examinations}" class="btn btn-outline-secondary">All examinations</a>
       </div>
     </div>
 

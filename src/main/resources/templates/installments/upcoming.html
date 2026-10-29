@@ -2,12 +2,17 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head th:replace="~{layout/fragments :: head('Upcoming installments')}"></head>
 <body class="app-body">
+<a class="visually-hidden-focusable skip-link" href="#main">Skip to content</a>
 <div th:replace="~{layout/fragments :: sidebar('installments')}"></div>
 <div class="app-main">
   <div th:replace="~{layout/fragments :: topbar('Upcoming installments', true)}"></div>
-  <main class="app-content">
+  <main class="app-content" id="main" tabindex="-1">
 
     <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <header class="page-header">
+      <div th:replace="~{layout/fragments :: pageHeading('calendar2-week', 'Finance', 'Due soon', 'Installments that fall due in the coming days, with the student, the course and the remaining balance.')}"></div>
+    </header>
 
     <ul class="nav nav-pills mb-3">
       <li class="nav-item">

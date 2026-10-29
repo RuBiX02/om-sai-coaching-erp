@@ -2,12 +2,28 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head th:replace="~{layout/fragments :: head('Record a payment')}"></head>
 <body class="app-body">
+<a class="visually-hidden-focusable skip-link" href="#main">Skip to content</a>
 <div th:replace="~{layout/fragments :: sidebar('payments')}"></div>
 <div class="app-main">
   <div th:replace="~{layout/fragments :: topbar('Record a payment', true)}"></div>
-  <main class="app-content">
+  <main class="app-content" id="main" tabindex="-1">
 
     <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <header class="page-header">
+      <div>
+        <p class="page-eyebrow">
+          <i class="bi bi-cash-coin" aria-hidden="true"></i><span>Finance</span>
+        </p>
+        <h2 class="page-title">Receive payment</h2>
+        <p class="page-subtitle" th:text="${account.student.fullName + ' · ' + account.course.name}">Student · Course</p>
+      </div>
+      <div class="filter-actions">
+        <a th:href="@{/fees/{id}(id=${account.id})}" class="btn btn-outline-secondary">
+          <i class="bi bi-arrow-left" aria-hidden="true"></i>Back to fee account
+        </a>
+      </div>
+    </header>
 
     <div class="row">
       <div class="col-xl-7">
@@ -24,9 +40,9 @@
                 <dt class="col-sm-4">Academic year</dt>
                 <dd class="col-sm-8" th:text="${account.academicYear}">2026-27</dd>
                 <dt class="col-sm-4">Net fee</dt>
-                <dd class="col-sm-8" th:text="${account.netFee}">12000</dd>
+                <dd class="col-sm-8" th:text="${@money.money(account.netFee)}">12000</dd>
                 <dt class="col-sm-4">Outstanding right now</dt>
-                <dd class="col-sm-8 fw-bold" th:text="${outstanding}">12000</dd>
+                <dd class="col-sm-8 fw-bold" th:text="${@money.money(outstanding)}">12000</dd>
               </dl>
             </div>
           </div>

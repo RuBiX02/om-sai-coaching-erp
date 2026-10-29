@@ -20,6 +20,7 @@ import java.time.LocalTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 /**
  * Timetable rules: a valid recurring class is accepted, a double
@@ -93,6 +94,23 @@ class TimetableServiceTest {
         assertThat(entry.getStartTime()).isEqualTo(LocalTime.of(9, 0));
         assertThat(entry.isActive()).isTrue();
         assertThat(entry.getCreatedBy().getId()).isEqualTo(admin.getId());
+    }
+
+    @Test
+    void theScheduleIsOrderedFromMondayAndByStartTime() {
+        timetableService.create(form(DayOfWeek.FRIDAY, LocalTime.of(10, 0), LocalTime.of(11, 0),
+                "Room 1", monday, null), admin);
+        timetableService.create(form(DayOfWeek.MONDAY, LocalTime.of(11, 0), LocalTime.of(12, 0),
+                "Room 2", monday, null), admin);
+        timetableService.create(form(DayOfWeek.MONDAY, LocalTime.of(9, 0), LocalTime.of(10, 0),
+                "Room 3", monday, null), admin);
+
+        assertThat(timetableService.all())
+                .extracting(TimetableEntry::getDayOfWeek, TimetableEntry::getStartTime)
+                .containsExactly(
+                        tuple(DayOfWeek.MONDAY, LocalTime.of(9, 0)),
+                        tuple(DayOfWeek.MONDAY, LocalTime.of(11, 0)),
+                        tuple(DayOfWeek.FRIDAY, LocalTime.of(10, 0)));
     }
 
     @Test

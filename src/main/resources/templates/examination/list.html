@@ -2,23 +2,22 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head th:replace="~{layout/fragments :: head('Examinations')}"></head>
 <body class="app-body">
+<a class="visually-hidden-focusable skip-link" href="#main">Skip to content</a>
 <div th:replace="~{layout/fragments :: sidebar('examinations')}"></div>
 <div class="app-main">
   <div th:replace="~{layout/fragments :: topbar('Examinations', true)}"></div>
-  <main class="app-content">
+  <main class="app-content" id="main" tabindex="-1">
 
     <div th:replace="~{layout/fragments :: alerts()}"></div>
 
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-      <p class="text-body-secondary small mb-0">
-        <i class="bi bi-info-circle me-1"></i>
-        An examination belongs to one class. It is prepared as a draft, the marks are entered and
-        only an administrator publishes it - then the students see their result.
-      </p>
-      <a th:href="@{/examinations/new}" class="btn btn-primary">
-        <i class="bi bi-plus-lg me-1"></i>New examination
-      </a>
-    </div>
+    <header class="page-header">
+      <div th:replace="~{layout/fragments :: pageHeading('journal-check', 'Academics', 'Examination schedule', 'An examination belongs to one class. It is prepared as a draft, the marks are entered and only an administrator publishes it — then the students see their result.')}"></div>
+      <div class="filter-actions">
+        <a th:href="@{/examinations/new}" class="btn btn-primary">
+          <i class="bi bi-plus-lg" aria-hidden="true"></i>New examination
+        </a>
+      </div>
+    </header>
 
     <div class="card">
       <div class="card-body p-0">

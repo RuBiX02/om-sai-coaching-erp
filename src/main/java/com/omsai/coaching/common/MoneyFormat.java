@@ -20,6 +20,13 @@ public class MoneyFormat {
     /** The dash used for a value that does not exist. */
     private static final String NONE = "–";
 
+    /**
+     * A non-breaking space keeps the rupee sign attached to its amount,
+     * so a narrow table column never leaves the symbol alone on one
+     * line. It renders exactly like the normal {@code ₹ 12000.00} form.
+     */
+    private static final String NBSP = "\u00A0";
+
     /** Formats a monetary value, e.g. {@code ₹ 12000.00}. */
     public String money(Object value) {
         if (value == null) {
@@ -31,7 +38,7 @@ public class MoneyFormat {
         } catch (NumberFormatException e) {
             return value.toString();
         }
-        return "₹ " + amount.setScale(2, RoundingMode.HALF_UP).toPlainString();
+        return "₹" + NBSP + amount.setScale(2, RoundingMode.HALF_UP).toPlainString();
     }
 
     /** Formats a monetary value without the sign, e.g. {@code 12000.00}. */

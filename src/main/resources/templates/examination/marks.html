@@ -2,20 +2,29 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head th:replace="~{layout/fragments :: head('Enter marks')}"></head>
 <body class="app-body">
+<a class="visually-hidden-focusable skip-link" href="#main">Skip to content</a>
 <div th:replace="~{layout/fragments :: sidebar('examinations')}"></div>
 <div class="app-main">
   <div th:replace="~{layout/fragments :: topbar('Enter marks', true)}"></div>
-  <main class="app-content">
+  <main class="app-content" id="main" tabindex="-1">
 
     <div th:replace="~{layout/fragments :: alerts()}"></div>
 
+    <header class="page-header"
+            th:with="marksSubtitle=${examination.title
+                + ' · ' + examination.batchSubject.courseSubject.subject.name
+                + ' · ' + #temporals.format(examination.examinationDate, 'dd MMM yyyy')}">
+      <div th:replace="~{layout/fragments :: pageHeading('pencil-square', 'Academics', 'Marks entry', ${marksSubtitle})}"></div>
+      <div class="filter-actions">
+        <a th:href="@{/examinations/{id}(id=${examination.id})}" class="btn btn-outline-secondary">
+          <i class="bi bi-arrow-left" aria-hidden="true"></i>Back to examination
+        </a>
+      </div>
+    </header>
+
     <div class="card mb-3">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-pencil-square me-2 table-thumb"></i>
-          <span th:text="${examination.title}">Unit test</span>
-          <span class="text-body-secondary small"
-                th:text="' · ' + ${examination.batchSubject.courseSubject.subject.name} + ' · ' + ${#temporals.format(examination.examinationDate, 'dd MMM yyyy')}">· Subject · date</span>
-        </span>
+        <span><i class="bi bi-pencil-square me-2 table-thumb"></i>Roster marks</span>
         <span class="small text-body-secondary">
           Maximum marks: <strong th:text="${examination.maximumMarks}">100.00</strong>
         </span>
@@ -76,7 +85,6 @@
           </div>
         </div>
         <div class="card-footer d-flex gap-2 justify-content-end">
-          <a th:href="@{/examinations/{id}(id=${examination.id})}" class="btn btn-outline-secondary">Back</a>
           <button type="submit" class="btn btn-primary" th:if="${!#lists.isEmpty(rows)}">
             <i class="bi bi-check2-circle me-1"></i>Save marks
           </button>

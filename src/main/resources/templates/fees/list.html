@@ -3,10 +3,11 @@
       th:with="modeTitle=${mode == 'outstanding' ? 'Outstanding fees' : (mode == 'overdue' ? 'Overdue fees' : 'Fee agreements')}">
 <head th:replace="~{layout/fragments :: head(${modeTitle})}"></head>
 <body class="app-body">
+<a class="visually-hidden-focusable skip-link" href="#main">Skip to content</a>
 <div th:replace="~{layout/fragments :: sidebar('fees')}"></div>
 <div class="app-main">
   <div th:replace="~{layout/fragments :: topbar(${modeTitle}, true)}"></div>
-  <main class="app-content">
+  <main class="app-content" id="main" tabindex="-1">
 
     <div th:replace="~{layout/fragments :: alerts()}"></div>
 
@@ -15,7 +16,9 @@
         <p class="page-eyebrow">
           <i class="bi bi-cash-coin" aria-hidden="true"></i><span>Finance</span>
         </p>
-        <h2 class="page-title" th:text="${modeTitle}">Fee agreements</h2>
+        <h2 class="page-title"
+            th:text="${mode == 'outstanding'} ? 'Outstanding balances'
+                   : (${mode == 'overdue'} ? 'Overdue balances' : 'All fee agreements')">Fee agreements</h2>
         <p class="page-subtitle">
           <span th:if="${mode == 'outstanding'}">Accounts whose outstanding balance (net fee minus received payments) is above zero.</span>
           <span th:if="${mode == 'overdue'}">Accounts whose due date has passed and whose balance is still outstanding.</span>
@@ -89,10 +92,10 @@
               </td>
               <td th:text="${row.courseName}">Course</td>
               <td th:text="${row.academicYear}">2026-27</td>
-              <td class="text-end" th:text="${row.grossFee}">12000</td>
-              <td class="text-end" th:text="${row.discountAmount}">0</td>
-              <td class="text-end" th:text="${row.grossFee - row.discountAmount}">12000</td>
-              <td class="text-end fw-semibold" th:text="${row.outstanding}">12000</td>
+              <td class="text-end" th:text="${@money.money(row.grossFee)}">12000</td>
+              <td class="text-end" th:text="${@money.money(row.discountAmount)}">0</td>
+              <td class="text-end" th:text="${@money.money(row.grossFee - row.discountAmount)}">12000</td>
+              <td class="text-end fw-semibold" th:text="${@money.money(row.outstanding)}">12000</td>
               <td>
                 <span th:if="${row.dueDate != null}" th:text="${#temporals.format(row.dueDate, 'dd MMM yyyy')}">01 Jan 2026</span>
                 <span th:if="${row.dueDate == null}" class="text-body-secondary">&ndash;</span>

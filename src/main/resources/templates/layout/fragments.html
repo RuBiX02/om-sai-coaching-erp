@@ -192,6 +192,22 @@
   </div>
 </header>
 
+<!--
+  The one page-heading composition used by every admin screen. The
+  surrounding <header class="page-header"> keeps the page-specific
+  actions on the right; this fragment owns the eyebrow, the page title
+  (which must not simply repeat the top-bar title) and the subtitle.
+-->
+<div th:fragment="pageHeading(icon, eyebrow, title, subtitle)">
+  <p class="page-eyebrow">
+    <i class="bi" th:classappend="${'bi-' + icon}" aria-hidden="true"></i>
+    <span th:text="${eyebrow}">Section</span>
+  </p>
+  <h2 class="page-title" th:text="${title}">Page</h2>
+  <p class="page-subtitle" th:if="${subtitle != null and !#strings.isEmpty(subtitle)}"
+     th:text="${subtitle}">Description</p>
+</div>
+
 <div th:fragment="alerts()" th:if="${successMessage != null or errorMessage != null}" class="app-alerts mb-3">
   <div th:if="${successMessage != null}" class="alert alert-success alert-dismissible fade show" role="alert">
     <i class="bi bi-check-circle me-1"></i><span th:text="${successMessage}">Success</span>

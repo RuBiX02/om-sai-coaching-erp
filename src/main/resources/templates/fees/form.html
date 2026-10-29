@@ -3,10 +3,11 @@
       th:with="pageTitle=${account != null ? 'Edit fee agreement' : 'New fee agreement'}">
 <head th:replace="~{layout/fragments :: head(${pageTitle})}"></head>
 <body class="app-body">
+<a class="visually-hidden-focusable skip-link" href="#main">Skip to content</a>
 <div th:replace="~{layout/fragments :: sidebar('fees')}"></div>
 <div class="app-main">
   <div th:replace="~{layout/fragments :: topbar(${pageTitle}, true)}"></div>
-  <main class="app-content">
+  <main class="app-content" id="main" tabindex="-1">
 
     <div th:replace="~{layout/fragments :: alerts()}"></div>
 

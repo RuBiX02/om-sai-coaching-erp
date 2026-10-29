@@ -2,29 +2,34 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head th:replace="~{layout/fragments :: head('Timetable')}"></head>
 <body class="app-body">
+<a class="visually-hidden-focusable skip-link" href="#main">Skip to content</a>
 <div th:replace="~{layout/fragments :: sidebar('timetable')}"></div>
 <div class="app-main">
   <div th:replace="~{layout/fragments :: topbar('Timetable', true)}"></div>
-  <main class="app-content">
+  <main class="app-content" id="main" tabindex="-1">
 
     <div th:replace="~{layout/fragments :: alerts()}"></div>
 
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-      <ul class="nav nav-pills">
-        <li class="nav-item">
-          <a class="nav-link active" th:href="@{/timetable}">Weekly timetable</a>
-        </li>
-        <li class="nav-item" th:if="${!isTeacher}">
-          <a class="nav-link" th:href="@{/timetable/exceptions}">Holidays &amp; exceptions</a>
-        </li>
-        <li class="nav-item" th:if="${!isTeacher}">
-          <a class="nav-link" th:href="@{/timetable/generate}">Generate classes</a>
-        </li>
-      </ul>
-      <a th:if="${!isTeacher}" th:href="@{/timetable/new}" class="btn btn-primary">
-        <i class="bi bi-plus-lg me-1"></i>New timetable entry
-      </a>
-    </div>
+    <header class="page-header">
+      <div th:replace="~{layout/fragments :: pageHeading('calendar-week', 'Operations', 'Weekly schedule', 'Recurring timetable entries and the classes generated for the selected week.')}"></div>
+      <div class="filter-actions" th:if="${!isTeacher}">
+        <a th:href="@{/timetable/new}" class="btn btn-primary">
+          <i class="bi bi-plus-lg" aria-hidden="true"></i>New timetable entry
+        </a>
+      </div>
+    </header>
+
+    <ul class="nav nav-pills mb-3">
+      <li class="nav-item">
+        <a class="nav-link active" th:href="@{/timetable}">Weekly timetable</a>
+      </li>
+      <li class="nav-item" th:if="${!isTeacher}">
+        <a class="nav-link" th:href="@{/timetable/exceptions}">Holidays &amp; exceptions</a>
+      </li>
+      <li class="nav-item" th:if="${!isTeacher}">
+        <a class="nav-link" th:href="@{/timetable/generate}">Generate classes</a>
+      </li>
+    </ul>
 
     <form th:action="@{/timetable}" method="get" class="d-flex gap-2 mb-3 flex-wrap align-items-end"
           aria-label="Timetable filters">
@@ -57,7 +62,7 @@
     </form>
 
     <div class="card">
-      <div class="card-header d-flex justify-content-between align-items-center">
+      <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
         <span><i class="bi bi-calendar-week me-2 table-thumb"></i>Classes of the selected week</span>
         <span class="small text-body-secondary"
               th:text="${#temporals.format(days[0], 'dd MMM yyyy')} + ' – ' + ${#temporals.format(days[6], 'dd MMM yyyy')}">week</span>

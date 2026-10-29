@@ -47,7 +47,7 @@
   <div class="row g-4 my-2">
     <div class="col-md-6">
       <dt>Amount received</dt>
-      <dd class="receipt-rupee fw-bold">₹ <span th:text="${payment.amount}">1000</span></dd>
+      <dd class="receipt-rupee fw-bold" th:text="${@money.money(payment.amount)}">₹ 1000.00</dd>
     </div>
     <div class="col-md-6">
       <dt>Payment method</dt>
@@ -67,7 +67,8 @@
     <div class="col-md-6">
       <dt>Balance note</dt>
       <dd>
-        <span class="badge text-bg-light border">Current outstanding: ₹ <span th:text="${outstandingNow}">0</span></span>
+        <span class="badge text-bg-light border">Current outstanding:
+          <span th:text="${@money.money(outstandingNow)}">₹ 0.00</span></span>
         <div class="text-body-secondary small mt-1">
           The balance is today's server-computed figure (net fee minus valid payments) and may change after this receipt.
         </div>
@@ -124,7 +125,7 @@
     </div>
     <div class="col-md-6">
       <dt>Original amount</dt>
-      <dd class="text-decoration-line-through" th:text="'₹ ' + ${payment.amount}">1000</dd>
+      <dd class="text-decoration-line-through" th:text="${@money.money(payment.amount)}">₹ 1000.00</dd>
     </div>
   </div>
 
@@ -145,7 +146,7 @@
     <i class="bi bi-slash-circle me-1"></i>
     This receipt represents a payment that was recorded and later voided. Voided payments do not count
     towards collections and are not part of the outstanding balance. Current outstanding:
-    ₹ <span th:text="${outstandingNow}">0</span> (current server-computed figure).
+    <span th:text="${@money.money(outstandingNow)}">₹ 0.00</span> (current server-computed figure).
   </div>
 
   <div class="d-flex gap-2 no-print mt-3">

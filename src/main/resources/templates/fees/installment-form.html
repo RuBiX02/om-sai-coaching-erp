@@ -2,10 +2,11 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head th:replace="~{layout/fragments :: head(${editing} ? 'Edit installment plan' : 'Installment plan')}"></head>
 <body class="app-body">
+<a class="visually-hidden-focusable skip-link" href="#main">Skip to content</a>
 <div th:replace="~{layout/fragments :: sidebar('fees')}"></div>
 <div class="app-main">
   <div th:replace="~{layout/fragments :: topbar(${editing} ? 'Edit installment plan' : 'Installment plan', true)}"></div>
-  <main class="app-content">
+  <main class="app-content" id="main" tabindex="-1">
 
     <div th:replace="~{layout/fragments :: alerts()}"></div>
 
@@ -27,22 +28,22 @@
             <span class="small text-body-secondary" th:text="' · ' + ${account.academicYear}">year</span>
           </dd>
           <dt class="col-sm-4">Gross fee</dt>
-          <dd class="col-sm-8" th:text="${account.grossFee}">12000</dd>
+          <dd class="col-sm-8" th:text="${@money.money(account.grossFee)}">12000</dd>
           <dt class="col-sm-4">Discount</dt>
-          <dd class="col-sm-8" th:text="${account.discountAmount}">0</dd>
+          <dd class="col-sm-8" th:text="${@money.money(account.discountAmount)}">0</dd>
           <dt class="col-sm-4">Net fee</dt>
-          <dd class="col-sm-8 fw-semibold" th:text="${account.netFee}">12000</dd>
+          <dd class="col-sm-8 fw-semibold" th:text="${@money.money(account.netFee)}">12000</dd>
           <dt class="col-sm-4" th:if="${editing}">Currently scheduled</dt>
-          <dd class="col-sm-8 fw-semibold" th:if="${editing}" th:text="${currentTotal}">12000</dd>
+          <dd class="col-sm-8 fw-semibold" th:if="${editing}" th:text="${@money.money(currentTotal)}">12000</dd>
           <dt class="col-sm-4">Already received</dt>
-          <dd class="col-sm-8" th:text="${received}">0</dd>
+          <dd class="col-sm-8" th:text="${@money.money(received)}">0</dd>
           <dt class="col-sm-4">Outstanding</dt>
-          <dd class="col-sm-8 fw-bold" th:text="${outstanding}">12000</dd>
+          <dd class="col-sm-8 fw-bold" th:text="${@money.money(outstanding)}">12000</dd>
         </dl>
         <p class="small text-body-secondary mb-0 mt-3">
           <i class="bi bi-info-circle me-1"></i>
           The installments must add up to exactly the net fee
-          (<span th:text="${account.netFee}">12000</span>). At least two installments are needed.
+          (<span th:text="${@money.money(account.netFee)}">12000</span>). At least two installments are needed.
           <span th:if="${!editing}">
             Payments that were already received are allocated to the new schedule automatically —
             the payment records and their receipts stay exactly as they are.

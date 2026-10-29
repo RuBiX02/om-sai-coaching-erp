@@ -2,12 +2,29 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="en" th:with="pageTitle=${student != null ? 'Edit student' : 'Register student'}">
 <head th:replace="~{layout/fragments :: head(${pageTitle})}"></head>
 <body class="app-body">
+<a class="visually-hidden-focusable skip-link" href="#main">Skip to content</a>
 <div th:replace="~{layout/fragments :: sidebar('students')}"></div>
 <div class="app-main">
   <div th:replace="~{layout/fragments :: topbar(${pageTitle}, true)}"></div>
-  <main class="app-content">
+  <main class="app-content" id="main" tabindex="-1">
 
     <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <header class="page-header">
+      <div>
+        <p class="page-eyebrow">
+          <i class="bi bi-people" aria-hidden="true"></i><span>People</span>
+        </p>
+        <h2 class="page-title" th:text="${student != null ? 'Edit student record' : 'New admission'}">New admission</h2>
+        <p class="page-subtitle">The admission record is independent of the optional student-portal login.</p>
+      </div>
+      <div class="filter-actions">
+        <a th:href="${student != null} ? @{/students/{id}(id=${student.id})} : @{/students}"
+           class="btn btn-outline-secondary">
+          <i class="bi bi-arrow-left" aria-hidden="true"></i>Back
+        </a>
+      </div>
+    </header>
 
     <div class="row">
       <div class="col-xl-6">
