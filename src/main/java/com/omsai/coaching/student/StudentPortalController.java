@@ -6,6 +6,8 @@ import com.omsai.coaching.examination.ExaminationResult;
 import com.omsai.coaching.fees.FeeAccount;
 import com.omsai.coaching.fees.InstallmentService;
 import com.omsai.coaching.fees.Payment;
+import com.omsai.coaching.fees.PaymentForm;
+import com.omsai.coaching.fees.PaymentService;
 import com.omsai.coaching.security.AppUserPrincipal;
 import com.omsai.coaching.security.UserAccount;
 import com.omsai.coaching.security.UserAccountRepository;
@@ -18,13 +20,17 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The student portal.
@@ -40,17 +46,23 @@ import java.util.List;
 public class StudentPortalController {
 
     private final StudentPortalService portalService;
+    private final StudentLearningService learningService;
+    private final PaymentService paymentService;
     private final UserAccountRepository userAccountRepository;
     private final UserService userService;
     private final PasswordEncoder passwordEncoder;
     private final BusinessClock businessClock;
 
     public StudentPortalController(StudentPortalService portalService,
+                                   StudentLearningService learningService,
+                                   PaymentService paymentService,
                                    UserAccountRepository userAccountRepository,
                                    UserService userService,
                                    PasswordEncoder passwordEncoder,
                                    BusinessClock businessClock) {
         this.portalService = portalService;
+        this.learningService = learningService;
+        this.paymentService = paymentService;
         this.userAccountRepository = userAccountRepository;
         this.userService = userService;
         this.passwordEncoder = passwordEncoder;
@@ -108,8 +120,13 @@ public class StudentPortalController {
     public String fees(Model model) {
         Student student = portalService.studentOf(currentUser());
         List<FeeAccount> accounts = portalService.feeAccountsOf(student);
+        Map<Long, java.math.BigDecimal> outstandings = new LinkedHashMap<>();
+        for (FeeAccount account : accounts) {
+            outstandings.put(account.getId(), portalService.outstandingOf(account));
+        }
         model.addAttribute("student", student);
         model.addAttribute("accounts", accounts);
+        model.addAttribute("outstandings", outstandings);
         model.addAttribute("installments", installmentsOf(accounts));
         model.addAttribute("payments", paymentsOf(accounts));
         model.addAttribute("outstanding", outstandingOf(accounts).total());
@@ -171,7 +188,183 @@ public class StudentPortalController {
         return "redirect:/student/profile";
     }
 
+    // ==================== study resources and quizzes ====================
+
+    /** Study resources for the subjects the student's classes cover. */
+    @GetMapping("/resources")
+    public String resources(Model model) {
+        Student student = portalService.studentOf(currentUser());
+        Map<String, List<StudyResource>> bySubject = new LinkedHashMap<>();
+        for (StudyResource resource : learningService.resourcesOf(student)) {
+            String subject = resource.getSubject() == null
+                    ? "General"
+                    : resource.getSubject().getName();
+            bySubject.computeIfAbsent(subject, k -> new java.util.ArrayList<>()).add(resource);
+        }
+        model.addAttribute("student", student);
+        model.addAttribute("bySubject", bySubject);
+        return "student/resources";
+    }
+
+    /** The quizzes open to the student's batches, with past attempts. */
+    @GetMapping("/quizzes")
+    public String quizzes(Model model) {
+        Student student = portalService.studentOf(currentUser());
+        model.addAttribute("student", student);
+        model.addAttribute("quizzes", learningService.quizzesOf(student));
+        Map<Long, QuizAttempt> attemptByQuiz = new LinkedHashMap<>();
+        for (QuizAttempt attempt : learningService.attemptsOf(student)) {
+            attemptByQuiz.putIfAbsent(attempt.getQuiz().getId(), attempt);
+        }
+        model.addAttribute("attemptByQuiz", attemptByQuiz);
+        return "student/quizzes";
+    }
+
+    /** Take one quiz (the page never carries the correct options). */
+    @GetMapping("/quizzes/{id}")
+    public String takeQuiz(@PathVariable Long id, Model model) {
+        Student student = portalService.studentOf(currentUser());
+        Quiz quiz;
+        try {
+            quiz = learningService.quizFor(learningService.quizOf(id), student);
+        } catch (BusinessRuleException e) {
+            return "redirect:/student/quizzes";
+        }
+        model.addAttribute("student", student);
+        model.addAttribute("quiz", quiz);
+        model.addAttribute("questions", learningService.questionsOf(quiz));
+        return "student/quiz";
+    }
+
+    /** Submit the answers; the server scores them. */
+    @PostMapping("/quizzes/{id}")
+    public String submitQuiz(@PathVariable Long id,
+                             @RequestParam(required = false) List<String> answers,
+                             RedirectAttributes redirect) {
+        Student student = portalService.studentOf(currentUser());
+        Quiz quiz;
+        try {
+            quiz = learningService.quizFor(learningService.quizOf(id), student);
+        } catch (BusinessRuleException e) {
+            redirect.addFlashAttribute("errorMessage",
+                    "That quiz does not belong to your batches.");
+            return "redirect:/student/quizzes";
+        }
+        QuizAttempt attempt;
+        try {
+            attempt = learningService.submitAttempt(
+                    quiz, student, currentUser(), answers == null ? List.of() : answers);
+        } catch (BusinessRuleException e) {
+            redirect.addFlashAttribute("errorMessage", e.getMessage());
+            return "redirect:/student/quizzes";
+        }
+        redirect.addFlashAttribute("successMessage",
+                "You scored " + attempt.getCorrectCount() + " of " + attempt.getTotalCount()
+                        + " (" + attempt.percentage() + "%).");
+        return "redirect:/student/quizzes";
+    }
+
+    // ==================== paying fees from the portal ====================
+
+    /**
+     * The payment form for one of the student's OWN fee agreements. The
+     * outstanding balance always comes from the server; the student
+     * cannot choose an account or an amount that exceeds it.
+     */
+    @GetMapping("/pay")
+    public String payForm(@RequestParam Long feeAccountId, Model model) {
+        Student student = portalService.studentOf(currentUser());
+        FeeAccount account = ownedAccount(student, feeAccountId);
+        BigDecimal outstanding = portalService.outstandingOf(account);
+        List<InstallmentService.InstallmentView> installments =
+                portalService.installmentsOf(account);
+        model.addAttribute("student", student);
+        model.addAttribute("account", account);
+        model.addAttribute("outstanding", outstanding);
+        model.addAttribute("nextInstallment", firstDue(installments));
+        model.addAttribute("methods", List.of(Payment.Method.CASH,
+                Payment.Method.UPI, Payment.Method.BANK_TRANSFER, Payment.Method.CARD));
+        model.addAttribute("today", businessClock.today());
+        return "student/pay";
+    }
+
+    /**
+     * Record a payment against the student's own agreement. The same
+     * validation, allocation and balance rules as the office screens
+     * apply (PaymentsService.record). The sign-in account is recorded
+     * as the recorder — the payment trail stays honest.
+     */
+    @PostMapping("/pay")
+    public String pay(@RequestParam Long feeAccountId,
+                      @RequestParam String amount,
+                      @RequestParam Payment.Method paymentMethod,
+                      @RequestParam(required = false) String referenceNumber,
+                      @RequestParam(required = false) String remarks,
+                      RedirectAttributes redirect) {
+        Student student = portalService.studentOf(currentUser());
+        FeeAccount owned = ownedAccount(student, feeAccountId);
+
+        BigDecimal parsed;
+        try {
+            parsed = new BigDecimal(amount.trim());
+        } catch (NumberFormatException e) {
+            redirect.addFlashAttribute("errorMessage", "Enter the amount in numbers, for example 12000.");
+            return "redirect:/student/pay?feeAccountId=" + owned.getId();
+        }
+        if (parsed.signum() <= 0) {
+            redirect.addFlashAttribute("errorMessage", "The amount must be greater than zero.");
+            return "redirect:/student/pay?feeAccountId=" + owned.getId();
+        }
+        if (paymentMethod != Payment.Method.CASH
+                && (referenceNumber == null || referenceNumber.isBlank())) {
+            redirect.addFlashAttribute("errorMessage",
+                    "For " + paymentMethod + " payments the reference number is required.");
+            return "redirect:/student/pay?feeAccountId=" + owned.getId();
+        }
+
+        PaymentForm form = new PaymentForm();
+        form.setFeeAccountId(owned.getId());
+        form.setAmount(parsed);
+        form.setPaymentDate(businessClock.today());
+        form.setPaymentMethod(paymentMethod);
+        form.setReferenceNumber(referenceNumber);
+        form.setRemarks(remarks == null || remarks.isBlank()
+                ? "Recorded by the student from the portal."
+                : remarks.strip());
+        try {
+            Payment payment = paymentService.record(form, currentUser());
+            redirect.addFlashAttribute("successMessage",
+                    "Thank you. Payment " + payment.getReceiptNumber() + " of ₹ "
+                            + parsed.toPlainString() + " is recorded and allocated to your "
+                            + "earliest dues. The office can void it with a reason if needed.");
+            return "redirect:/student/fees";
+        } catch (BusinessRuleException e) {
+            redirect.addFlashAttribute("errorMessage", e.getMessage());
+            return "redirect:/student/pay?feeAccountId=" + owned.getId();
+        }
+    }
+
+
     // ----- helpers ----------------------------------------------------------
+
+    /** The fee agreement of THIS student, or an access denied. */
+    private FeeAccount ownedAccount(Student student, Long feeAccountId) {
+        return portalService.feeAccountsOf(student).stream()
+                .filter(a -> a.getId().equals(feeAccountId))
+                .findFirst()
+                .orElseThrow(() -> new AccessDeniedException(
+                        "That fee agreement does not belong to you."));
+    }
+
+    /** The installment due soonest that still has a balance, or null. */
+    private InstallmentService.InstallmentView firstDue(
+            List<InstallmentService.InstallmentView> installments) {
+        return installments.stream()
+                .filter(v -> v.remaining().signum() > 0)
+                .min(java.util.Comparator.comparing(v -> v.installment().getDueDate()))
+                .orElse(null);
+    }
+
 
     /** The sum of the outstanding balances of the student's agreements. */
     private record BigDecimalSummary(java.math.BigDecimal total) {

@@ -17,6 +17,14 @@ import com.omsai.coaching.enrollment.EnrollForm;
 import com.omsai.coaching.enrollment.Enrollment;
 import com.omsai.coaching.enrollment.EnrollmentRepository;
 import com.omsai.coaching.enrollment.EnrollmentService;
+import com.omsai.coaching.fees.FeeAccountForm;
+import com.omsai.coaching.fees.FeeAccountService;
+import com.omsai.coaching.fees.InstallmentInput;
+import com.omsai.coaching.fees.InstallmentService;
+import com.omsai.coaching.security.UserAccount;
+import com.omsai.coaching.security.UserAccountRepository;
+import com.omsai.coaching.security.UserForm;
+import com.omsai.coaching.security.UserService;
 import com.omsai.coaching.student.Student;
 import com.omsai.coaching.student.StudentForm;
 import com.omsai.coaching.student.StudentRepository;
@@ -32,11 +40,14 @@ import com.omsai.coaching.teacher.TeacherService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -79,6 +90,7 @@ import java.util.Optional;
  * left exactly as they are.</p>
  */
 @Component
+@Order(100) // after the admin bootstrap so the pack can name a creator
 public class DemoDataSeeder implements CommandLineRunner {
 
     private static final Logger LOG = LoggerFactory.getLogger(DemoDataSeeder.class);
@@ -111,6 +123,10 @@ public class DemoDataSeeder implements CommandLineRunner {
     private final StudentRepository studentRepository;
     private final EnrollmentService enrollmentService;
     private final EnrollmentRepository enrollmentRepository;
+    private final FeeAccountService feeAccountService;
+    private final InstallmentService installmentService;
+    private final UserAccountRepository userAccountRepository;
+    private final UserService userService;
 
     public DemoDataSeeder(AppProperties properties,
                           Environment environment,
@@ -128,7 +144,11 @@ public class DemoDataSeeder implements CommandLineRunner {
                           StudentService studentService,
                           StudentRepository studentRepository,
                           EnrollmentService enrollmentService,
-                          EnrollmentRepository enrollmentRepository) {
+                          EnrollmentRepository enrollmentRepository,
+                          FeeAccountService feeAccountService,
+                          InstallmentService installmentService,
+                          UserAccountRepository userAccountRepository,
+                          UserService userService) {
         this.properties = properties;
         this.environment = environment;
         this.jdbc = jdbc;
@@ -146,6 +166,10 @@ public class DemoDataSeeder implements CommandLineRunner {
         this.studentRepository = studentRepository;
         this.enrollmentService = enrollmentService;
         this.enrollmentRepository = enrollmentRepository;
+        this.feeAccountService = feeAccountService;
+        this.installmentService = installmentService;
+        this.userAccountRepository = userAccountRepository;
+        this.userService = userService;
     }
 
     @Override
@@ -159,6 +183,14 @@ public class DemoDataSeeder implements CommandLineRunner {
 
         LOG.info("Demo dataset: seeding the curated catalogue into '{}'.", currentDatabase());
         SeedSummary summary = seed();
+        if (properties.getDemo().isLearningData()) {
+            seedLearningPack();
+        } else {
+            LOG.info("Demo dataset: the learning pack is off "
+                    + "(set DEMO_LEARNING_DATA=1 to seed timetable, attendance, "
+                    + "resources, quizzes and a sample fee agreement).");
+        }
+        seedPortalAccounts();
         LOG.info("Demo dataset: done. Created {} subject(s), {} course(s), {} teacher(s), {} student(s), "
                         + "{} batch(es) and {} enrollment(s). Already present: {} subject(s), {} course(s), "
                         + "{} teacher(s), {} student(s), {} batch(es) and {} enrollment(s).",
@@ -386,6 +418,406 @@ public class DemoDataSeeder implements CommandLineRunner {
 
     private String currentDatabase() {
         return jdbc.queryForObject("select current_database()", String.class);
+    }
+
+    // ======= demo portal accounts (re-created on every start) ========
+
+    private void seedPortalAccounts() {
+        String studentPassword = environment.getProperty("DEMO_STUDENT_PASSWORD");
+        String teacherPassword = environment.getProperty("DEMO_TEACHER_PASSWORD");
+        boolean createdStudent = false;
+        boolean createdTeacher = false;
+        if (studentPassword != null && !studentPassword.isBlank()
+                && demoAccountAbsent("ananya.portal@omsai.demo")) {
+            Student student = studentRepository.findByFullNameIgnoreCase("Ananya Patil")
+                    .orElse(null);
+            if (student != null && student.getUserAccount() == null) {
+                UserForm form = new UserForm();
+                form.setFullName(student.getFullName());
+                form.setEmail("ananya.portal@omsai.demo");
+                form.setRole("STUDENT");
+                form.setStudentId(student.getId());
+                form.setPassword(studentPassword);
+                userService.create(form);
+                createdStudent = true;
+            }
+        }
+        if (teacherPassword != null && !teacherPassword.isBlank()
+                && demoAccountAbsent("sandeep.portal@omsai.demo")) {
+            com.omsai.coaching.teacher.Teacher teacher =
+                    teacherRepository.findByFullNameIgnoreCase("Sandeep Patil").orElse(null);
+            if (teacher != null && teacher.getLinkedUser() == null) {
+                UserForm form = new UserForm();
+                form.setFullName(teacher.getFullName());
+                form.setEmail("sandeep.portal@omsai.demo");
+                form.setRole("TEACHER");
+                form.setPassword(teacherPassword);
+                com.omsai.coaching.security.UserAccount account = userService.create(form);
+                com.omsai.coaching.teacher.Teacher managed =
+                        teacherRepository.findById(teacher.getId()).orElseThrow();
+                managed.setLinkedUser(account);
+                teacherRepository.save(managed);
+                createdTeacher = true;
+            }
+        }
+        LOG.info("Demo dataset: portal accounts - student {} teacher {} "
+                        + "(passwords come from DEMO_STUDENT_PASSWORD/DEMO_TEACHER_PASSWORD).",
+                createdStudent ? "created" : "kept",
+                createdTeacher ? "created" : "kept");
+    }
+
+    /** True when no sign-in account with that demo email exists yet. */
+    private boolean demoAccountAbsent(String email) {
+        return !userAccountRepository.existsByEmailIgnoreCase(email);
+    }
+
+    // ============================================================
+    // The opt-in learning pack: weekly timetable, past sessions with
+    // attendance, study resources, quizzes and one sample fee agreement
+    // for the MHT-CET target batch. Everything here is DEMO content for
+    // presentations: it never runs without DEMO_LEARNING_DATA=1, and any
+    // part that is already present is left untouched.
+    // ============================================================
+
+    private static final String MHT_CET_COMBINED_COURSE =
+            "MHT-CET — Class 11 and 12 Combined Preparation";
+
+    /** One planned weekly class slot of a subject. */
+    private record Slot(List<DayOfWeek> days, java.time.LocalTime start,
+                        java.time.LocalTime end, String room) {
+    }
+
+    private void seedLearningPack() {
+        Course course = courseRepository.findByNameIgnoreCase(MHT_CET_COMBINED_COURSE)
+                .orElse(null);
+        if (course == null) {
+            LOG.warn("Demo learning pack: course '{}' not found - skipped.", MHT_CET_COMBINED_COURSE);
+            return;
+        }
+        Long batchId = jdbc.queryForObject(
+                "select min(id) from batches where course_id = ?", Long.class, course.getId());
+        if (batchId == null) {
+            LOG.warn("Demo learning pack: there is no batch for '{}' yet - skipped.", course.getName());
+            return;
+        }
+        Long adminId = jdbc.queryForObject(
+                "select min(id) from user_accounts where role = 'ADMIN'", Long.class);
+        if (adminId == null) {
+            LOG.warn("Demo learning pack: no administrator account exists yet - skipped "
+                    + "(enable the admin bootstrap for the demo profile).");
+            return;
+        }
+
+        long existingTimetable = jdbc.queryForObject(
+                "select count(*) from timetable_entries te "
+                        + "join batch_subjects bs on bs.id = te.batch_subject_id "
+                        + "where bs.batch_id = ?", Long.class, batchId);
+        if (existingTimetable > 0) {
+            LOG.info("Demo learning pack: already present for batch {} - nothing new written.", batchId);
+            return;
+        }
+
+        List<Map<String, Object>> assignments = jdbc.queryForList(
+                "select bs.id as bs_id, s.name as subject from batch_subjects bs "
+                        + "join course_subjects cs on cs.id = bs.course_subject_id "
+                        + "join subjects s on s.id = cs.subject_id "
+                        + "where bs.batch_id = ? and bs.active = true order by bs.id", batchId);
+        LocalDate effectiveFrom = LocalDate.of(2026, 6, 1);
+        LocalDate today = LocalDate.now();
+
+        int timetableRows = 0;
+        int sessionRows = 0;
+        int attendanceRows = 0;
+        int resourceRows = 0;
+        int quizRows = 0;
+
+        // --- 1. the weekly timetable of the batch ----------------------
+        for (Map<String, Object> assignment : assignments) {
+            long bsId = ((Number) assignment.get("bs_id")).longValue();
+            String subject = String.valueOf(assignment.get("subject"));
+            for (Slot slot : slotsFor(subject)) {
+                for (DayOfWeek day : slot.days()) {
+                    timetableRows += jdbc.update("""
+                            insert into timetable_entries (batch_subject_id, day_of_week,
+                                start_time, end_time, classroom, topic, effective_from,
+                                active, created_by)
+                            values (?, ?, ?, ?, ?, ?, ?, true, ?)
+                            """, bsId, day.name(), slot.start(), slot.end(), slot.room(),
+                            topicFor(subject, day), effectiveFrom, adminId);
+                }
+            }
+        }
+
+        // --- 2. past sessions with attendance --------------------------
+        List<Map<String, Object>> enrollments = jdbc.queryForList(
+                "select e.id as enr_id, e.student_id from enrollments e "
+                        + "where e.batch_id = ? and e.status = 'ACTIVE'", batchId);
+        Map<Long, Integer> historyCounter = new HashMap<>();
+        for (Map<String, Object> assignment : assignments) {
+            long bsId = ((Number) assignment.get("bs_id")).longValue();
+            String subject = String.valueOf(assignment.get("subject"));
+            for (Slot slot : slotsFor(subject)) {
+                for (int back = 21; back >= 1; back--) {
+                    LocalDate date = today.minusDays(back);
+                    if (!slot.days().contains(date.getDayOfWeek())) {
+                        continue;
+                    }
+                    jdbc.update("""
+                            insert into class_sessions (batch_subject_id, session_date,
+                                start_time, end_time, topic, status, created_by)
+                            values (?, ?, ?, ?, ?, 'COMPLETED', ?)
+                            """, bsId, date, slot.start(), slot.end(),
+                            topicFor(subject, date.getDayOfWeek()), adminId);
+                    sessionRows++;
+                    Long sessionId = jdbc.queryForObject(
+                            "select id from class_sessions where batch_subject_id = ? and session_date = ?",
+                            Long.class, bsId, date);
+                    for (Map<String, Object> enrollment : enrollments) {
+                        long enrollmentId = ((Number) enrollment.get("enr_id")).longValue();
+                        int attended = historyCounter.merge(enrollmentId, 1, Integer::sum);
+                        attendanceRows += jdbc.update("""
+                                insert into attendance (class_session_id, enrollment_id,
+                                    status, marked_by)
+                                values (?, ?, ?, ?)
+                                """, sessionId, enrollmentId, attendanceStatusFor(attended), adminId);
+                    }
+                }
+            }
+        }
+
+        // --- 3. study resources ----------------------------------------
+        String resourceIdColumn = "select id from subjects where lower(name) = lower(?)";
+        for (Map<String, Object> a : assignments) {
+            String subject = String.valueOf(a.get("subject"));
+            Long subjectId = jdbc.queryForObject(resourceIdColumn, Long.class, subject);
+            for (String[] row : resourcesFor(subject)) {
+                resourceRows += jdbc.update("""
+                        insert into study_resources (subject_id, batch_id, title, description,
+                            resource_type, url)
+                        values (?, ?, ?, ?, ?, ?)
+                        """, subjectId, batchId, row[0], row[1], row[2],
+                        row[3] == null ? null : row[3].isBlank() ? null : row[3]);
+            }
+        }
+        resourceRows += jdbc.update("""
+                insert into study_resources (subject_id, batch_id, title, description,
+                    resource_type, url)
+                values (null, ?, ?, ?, ?, null)
+                """, batchId, "MHT-CET 2027 — syllabus and paper pattern",
+                "Entrance examination structure, marking scheme and the subject-wise "
+                        + "weightage chart pinned by the office.", "NOTES");
+
+        // --- 4. two short quizzes ---------------------------------------
+        if (jdbc.queryForObject("select count(*) from quizzes where batch_id = ?",
+                Long.class, batchId) == 0) {
+            jdbc.update("""
+                    insert into quizzes (batch_id, title, subject_name, description, duration_minutes)
+                    values (?, ?, ?, ?, ?)
+                    """, batchId, "Kinematics quick check", "Physics",
+                    "Five multiple-choice questions on motion in one dimension — "
+                            + "the opening chapter of the MHT-CET physics cycle.", 10);
+            Long physicsQuizId = jdbc.queryForObject(
+                    "select id from quizzes where batch_id = ? and title = 'Kinematics quick check'",
+                    Long.class, batchId);
+            quizRows += insertQuizQuestions(physicsQuizId, new String[][] {
+                    {"A body starts from rest and moves with a uniform acceleration a. "
+                            + "The distance covered in time t is",
+                            "a t²", "½ a t²", "2 a t²", "½ a t³", "B"},
+                    {"The slope of a velocity–time graph gives the",
+                            "displacement", "distance", "acceleration", "jerk", "C"},
+                    {"The equation v² = u² + 2as applies to",
+                            "any motion in a circle", "motion with uniform acceleration",
+                            "simple harmonic motion", "motion with uniform velocity", "B"},
+                    {"A ball is thrown straight up. At the highest point, its acceleration is",
+                            "zero", "downward at g", "upward at g", "changing direction", "B"},
+                    {"A car drives around a circular track and returns to the start. "
+                            + "Its average velocity for the lap is",
+                            "equal to its average speed", "zero", "v²/r", "2πr/t", "B"},
+            });
+            jdbc.update("""
+                    insert into quizzes (batch_id, title, subject_name, description, duration_minutes)
+                    values (?, ?, ?, ?, ?)
+                    """, batchId, "Quadratic equations — 5 sums", "Mathematics",
+                    "Practice set on discriminants, roots and factorisation from the "
+                            + "MHT-CET mathematics cycle.", 12);
+            Long mathsQuizId = jdbc.queryForObject(
+                    "select id from quizzes where batch_id = ? and title = 'Quadratic equations — 5 sums'",
+                    Long.class, batchId);
+            quizRows += insertQuizQuestions(mathsQuizId, new String[][] {
+                    {"The discriminant of 2x² − 3x + 5 = 0 is",
+                            "31", "−31", "−29", "49", "B"},
+                    {"The sum of the roots of x² − 5x + 6 = 0 is",
+                            "5", "−5", "6", "1", "A"},
+                    {"The quadratic equation with roots 3 and −1 is",
+                            "x² + 2x + 3 = 0", "x² − 2x + 3 = 0", "x² − 2x − 3 = 0",
+                            "x² + 2x − 1 = 0", "C"},
+                    {"Both roots of a quadratic are real and distinct when the discriminant is",
+                            "zero", "greater than zero", "less than zero", "a perfect square", "B"},
+                    {"The product of the roots of x² − 7x + 12 = 0 is", "7", "−12", "−7", "12", "D"},
+            });
+        }
+
+        // --- 5. one sample fee agreement for the demo student -----------
+        Student demoStudent = studentRepository.findByFullNameIgnoreCase("Ananya Patil")
+                .orElse(null);
+        if (demoStudent != null) {
+            Long enrollmentId = jdbc.queryForObject(
+                    "select min(id) from enrollments where student_id = ? and batch_id = ? "
+                            + "and status = 'ACTIVE'", Long.class, demoStudent.getId(), batchId);
+            if (enrollmentId != null && jdbc.queryForObject(
+                    "select count(*) from fee_accounts where enrollment_id = ?",
+                    Long.class, enrollmentId) == 0) {
+                UserAccount admin = userAccountRepository.findById(adminId).orElseThrow();
+                FeeAccountForm feeForm = new FeeAccountForm();
+                feeForm.setEnrollmentId(enrollmentId);
+                feeForm.setGrossFee(new BigDecimal("48000"));
+                feeForm.setDiscountAmount(BigDecimal.ZERO);
+                feeForm.setNotes("Sample agreement of the demo learning pack "
+                        + "— settle it from the student portal to try payments.");
+                var account = feeAccountService.create(feeForm, admin);
+                List<InstallmentInput> plan = new java.util.ArrayList<>();
+                for (int i = 1; i <= 4; i++) {
+                    plan.add(new InstallmentInput("12000", "2026-%02d-01".formatted(6 + i),
+                            String.valueOf(i)));
+                }
+                installmentService.createPlan(account.getId(), plan, admin);
+                LOG.info("Demo learning pack: fee agreement {} with a 4-installment plan "
+                        + "created for {}.", account.getId(), demoStudent.getFullName());
+            }
+        }
+
+        LOG.info("Demo learning pack: {} timetable slot(s), {} past session(s) with "
+                        + "{} attendance row(s), {} resource(s) and {} quiz question group(s) "
+                        + "seeded for batch {}.",
+                timetableRows, sessionRows, attendanceRows, resourceRows, quizRows, batchId);
+    }
+
+    /** The weekly slots of a subject of the PCMB group. */
+    private List<Slot> slotsFor(String subject) {
+        return switch (subject) {
+            case "Physics" -> List.of(new Slot(
+                    List.of(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY),
+                    java.time.LocalTime.of(7, 0), java.time.LocalTime.of(8, 15), "Room A-1"));
+            case "Chemistry" -> List.of(new Slot(
+                    List.of(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY),
+                    java.time.LocalTime.of(8, 15), java.time.LocalTime.of(9, 30), "Room A-1"));
+            case "Mathematics" -> List.of(new Slot(
+                    List.of(DayOfWeek.TUESDAY, DayOfWeek.THURSDAY, DayOfWeek.SATURDAY),
+                    java.time.LocalTime.of(7, 0), java.time.LocalTime.of(8, 15), "Room A-2"));
+            case "Biology" -> List.of(new Slot(
+                    List.of(DayOfWeek.TUESDAY, DayOfWeek.THURSDAY, DayOfWeek.SATURDAY),
+                    java.time.LocalTime.of(8, 15), java.time.LocalTime.of(9, 30), "Room A-2"));
+            default -> List.of(new Slot(
+                    List.of(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY),
+                    java.time.LocalTime.of(9, 45), java.time.LocalTime.of(11, 0), "Room B-1"));
+        };
+    }
+
+    /** A small rotating topic list per subject. */
+    private String topicFor(String subject, DayOfWeek day) {
+        return switch (subject) {
+            case "Physics" -> switch (day) {
+                case MONDAY -> "MHT-CET Physics: kinematics and graphs";
+                case WEDNESDAY -> "MHT-CET Physics: laws of motion";
+                default -> "MHT-CET Physics: work, energy and power";
+            };
+            case "Chemistry" -> switch (day) {
+                case MONDAY -> "MHT-CET Chemistry: atomic structure";
+                case WEDNESDAY -> "MHT-CET Chemistry: periodicity";
+                default -> "MHT-CET Chemistry: chemical bonding";
+            };
+            case "Mathematics" -> switch (day) {
+                case TUESDAY -> "MHT-CET Maths: quadratic equations";
+                case THURSDAY -> "MHT-CET Maths: trigonometry";
+                default -> "MHT-CET Maths: straight line and pairs of lines";
+            };
+            case "Biology" -> switch (day) {
+                case TUESDAY -> "MHT-CET Biology: cell biology";
+                case THURSDAY -> "MHT-CET Biology: plant physiology";
+                default -> "MHT-CET Biology: human physiology basics";
+            };
+            default -> subject + " — class diary";
+        };
+    }
+
+    /**
+     * The resources of one subject: {title, description, type, url}
+     * rows. LINK/VIDEO rows must carry a url (the schema checks this);
+     * NOTES/WORKSHEET rows are shown as in-institute material with none.
+     */
+    private String[][] resourcesFor(String subject) {
+        return switch (subject) {
+            case "Physics" -> new String[][] {
+                    {"Physics — kinematics formula sheet",
+                            "Every MHT-CET kinematics relation collected on one page: "
+                                    + "the three equations of motion, graphs and shortcut rules.",
+                            "NOTES", null},
+                    {"Physics — numericals worksheet (motion)",
+                            "Twenty worked-and-unworked pairs of one-dimensional motion "
+                                    + "numericals in the MHT-CET marking style.", "WORKSHEET", null},
+                    {"NCERT Physics textbook — class 11 part 1 (external)",
+                            "The official NCERT e-book the institute references "
+                                    + "for the state-board syllabus overlap.", "LINK",
+                            "https://ncert.nic.in/textbook.php"},
+            };
+            case "Chemistry" -> new String[][] {
+                    {"Chemistry — atomic structure summary",
+                            "Orbitals, quantum numbers and configuration rules reduced "
+                                    + "to the questions MHT-CET actually asks.", "NOTES", null},
+                    {"Chemistry — periodic trends worksheet",
+                            "Radii, ionisation energy and electronegativity across a "
+                                    + "period and a group — fill-it-in practice.", "WORKSHEET", null},
+            };
+            case "Mathematics" -> new String[][] {
+                    {"Mathematics — quadratic practice set",
+                            "Forty sums with answers keyed to the MHT-CET shortcut "
+                                    + "methods: discriminant, factorisation and root relations.",
+                            "NOTES", null},
+                    {"NCERT Mathematics textbook — class 11 (external)",
+                            "The official NCERT e-book the institute references for "
+                                    + "the combined-preparation course.", "LINK",
+                            "https://ncert.nic.in/textbook.php"},
+            };
+            case "Biology" -> new String[][] {
+                    {"Biology — cell biology diagram pack",
+                            "Labelled diagrams of plant and animal cell structures with "
+                                    + "the one-line answers MHT-CET expects.", "NOTES", null},
+            };
+            default -> new String[][] {
+                    {subject + " — institute notes",
+                            "Class notes compiled from the batch lecture diary.",
+                            "NOTES", null},
+            };
+        };
+    }
+
+    /** The five questions of one quiz, from {question, a, b, c, d, key}. */
+    private int insertQuizQuestions(Long quizId, String[][] questions) {
+        int inserted = 0;
+        for (int i = 0; i < questions.length; i++) {
+            inserted += jdbc.update("""
+                    insert into quiz_questions (quiz_id, position, question_text,
+                        option_a, option_b, option_c, option_d, correct_option)
+                    values (?, ?, ?, ?, ?, ?, ?, ?)
+                    """, quizId, i + 1, questions[i][0], questions[i][1],
+                    questions[i][2], questions[i][3], questions[i][4], questions[i][5]);
+        }
+        return inserted;
+    }
+
+    /**
+     * A deterministic, mixed attendance history: mostly present, a few
+     * late marks and two absences — stable across restarts so demo
+     * screenshots stay reproducible.
+     */
+    private String attendanceStatusFor(int attended) {
+        if (attended == 2 || attended == 11) {
+            return "LATE";
+        }
+        if (attended == 6 || attended == 15) {
+            return "ABSENT";
+        }
+        return "PRESENT";
     }
 
     /**

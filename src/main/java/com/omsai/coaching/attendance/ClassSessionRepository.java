@@ -34,11 +34,11 @@ public interface ClassSessionRepository extends JpaRepository<ClassSession, Long
             join fetch bs.courseSubject csub
             join fetch csub.subject s
             left join fetch bs.teacher t
-            where (:batchId is null or b.id = :batchId)
-              and (:subjectId is null or s.id = :subjectId)
-              and (:from is null or cs.sessionDate >= :from)
-              and (:to is null or cs.sessionDate <= :to)
-              and (:status is null or cs.status = :status)
+            where b.id = coalesce(:batchId, b.id)
+              and s.id = coalesce(:subjectId, s.id)
+              and cs.sessionDate >= coalesce(:from, cs.sessionDate)
+              and cs.sessionDate <= coalesce(:to, cs.sessionDate)
+              and cs.status = coalesce(:status, cs.status)
             order by cs.sessionDate desc, cs.id desc
             """)
     Page<ClassSession> search(@Param("batchId") Long batchId,
@@ -58,9 +58,9 @@ public interface ClassSessionRepository extends JpaRepository<ClassSession, Long
             join fetch csub.subject s
             left join fetch bs.teacher t
             where bs.batch.id = :batchId
-              and (:from is null or cs.sessionDate >= :from)
-              and (:to is null or cs.sessionDate <= :to)
-              and (:status is null or cs.status = :status)
+              and cs.sessionDate >= coalesce(:from, cs.sessionDate)
+              and cs.sessionDate <= coalesce(:to, cs.sessionDate)
+              and cs.status = coalesce(:status, cs.status)
             order by cs.sessionDate desc, cs.id desc
             """)
     Page<ClassSession> searchForBatch(@Param("batchId") Long batchId,
@@ -98,9 +98,9 @@ public interface ClassSessionRepository extends JpaRepository<ClassSession, Long
             join fetch csub.subject s
             left join fetch bs.teacher t
             where bs.teacher.id = :teacherId
-              and (:from is null or cs.sessionDate >= :from)
-              and (:to is null or cs.sessionDate <= :to)
-              and (:status is null or cs.status = :status)
+              and cs.sessionDate >= coalesce(:from, cs.sessionDate)
+              and cs.sessionDate <= coalesce(:to, cs.sessionDate)
+              and cs.status = coalesce(:status, cs.status)
             order by cs.sessionDate desc, cs.id desc
             """)
     Page<ClassSession> searchForTeacher(@Param("teacherId") Long teacherId,

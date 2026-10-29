@@ -123,7 +123,7 @@ class DemoDataSeederTest {
                 subjectService, subjectRepository, courseService, courseRepository,
                 courseSubjectRepository, batchService, batchRepository, batchSubjectRepository,
                 teacherService, teacherRepository, studentService, studentRepository,
-                enrollmentService, enrollmentRepository);
+                enrollmentService, enrollmentRepository, null, null, null, null);
 
         properties.getDemo().setEnabled(true);
         properties.getDemo().setTargetDatabase("omsai_test");

@@ -45,6 +45,12 @@ app:
     # nothing and changes nothing.
     enabled: true
     target-database: omsai_demo
+    # Opt-in demonstration extras for the student portal: the weekly
+    # timetable of the MHT-CET batch, past sessions with attendance,
+    # study resources, two quizzes and one sample fee agreement that
+    # can be settled from the portal. Off by default — office records
+    # are never invented; presentation runs set DEMO_LEARNING_DATA=1.
+    learning-data: ${DEMO_LEARNING_DATA:false}
   bootstrap:
     admin:
       # Only used the very first time, when the demo database has no

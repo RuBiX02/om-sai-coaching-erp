@@ -122,6 +122,10 @@ public class AppProperties {
     public static class Demo {
         private boolean enabled;
         private String targetDatabase = "";
+        /** Opt-in: also seed the MHT-CET learning pack (timetable, past
+         * attendance for the target batch, resources, quizzes, one fee
+         * agreement). Default off — the office numbers stay un-invented. */
+        private boolean learningData;
 
         public boolean isEnabled() {
             return enabled;
@@ -129,6 +133,14 @@ public class AppProperties {
 
         public void setEnabled(boolean enabled) {
             this.enabled = enabled;
+        }
+
+        public boolean isLearningData() {
+            return learningData;
+        }
+
+        public void setLearningData(boolean learningData) {
+            this.learningData = learningData;
         }
 
         /** The name of the one database the seeder may write to. */

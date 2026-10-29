@@ -119,6 +119,16 @@ echo "writes the curated catalogue). Stop it with Ctrl-C."
 echo
 
 cd "$PROJECT_DIR"
+# The student-portal learning pack (timetable, past attendance,
+# resources, quizzes, a sample fee agreement) is presentation content:
+# on by default here, off unless asked for otherwise.
+#
+# The two DEMO portal accounts are re-created on every start. Their
+# passwords are demo-only: you can set DEMO_STUDENT_PASSWORD and
+# DEMO_TEACHER_PASSWORD, otherwise the published demo values are used.
+DEMO_LEARNING_DATA="${DEMO_LEARNING_DATA:-1}" \
+DEMO_STUDENT_PASSWORD="${DEMO_STUDENT_PASSWORD:-StudentDemo#2026}" \
+DEMO_TEACHER_PASSWORD="${DEMO_TEACHER_PASSWORD:-TeacherDemo#2026}" \
 SPRING_PROFILES_ACTIVE=demo \
 DEMO_DB_URL="$DB_URL" \
 DEMO_DB_USERNAME="$DB_USER" \

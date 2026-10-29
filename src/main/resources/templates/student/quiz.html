@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('Take quiz — ' + ${quiz.title})}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('quizzes')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('Take quiz — ' + ${quiz.title}, true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <header class="page-header">
+      <div>
+        <p class="page-eyebrow">
+          <i class="bi bi-ui-checks" aria-hidden="true"></i>
+          <span th:text="${quiz.subjectName}">Subject</span>
+        </p>
+        <h2 class="page-title" th:text="${quiz.title}">Quiz title</h2>
+        <p class="page-subtitle" th:if="${quiz.description != null}" th:text="${quiz.description}">What this covers.</p>
+      </div>
+      <div class="page-header-meta">
+        <i class="bi bi-clock" aria-hidden="true"></i>
+        <span th:text="${#lists.size(questions)} + ' question(s) · ' + ${quiz.durationMinutes} + ' minutes'">0 question(s)</span>
+      </div>
+    </header>
+
+    <form th:action="@{/student/quizzes/{id}(id=${quiz.id})}" method="post" class="card">
+      <input type="hidden" name="_csrf" th:value="${_csrf}">
+      <div class="card-body p-0">
+        <div class="list-group list-group-flush">
+          <div class="list-group-item py-3" th:each="question, stat : ${questions}">
+            <div class="fw-semibold">
+              <span th:text="${stat.count} + '. '">1. </span>
+              <span th:text="${question.questionText}">Question text.</span>
+            </div>
+            <div class="mt-2 d-grid gap-1">
+              <div class="form-check" th:each="option : ${ {'A','B','C','D'} }">
+                <input class="form-check-input" type="radio" name="answers"
+                       th:id="'q' + ${question.id} + ${option}"
+                       th:value="${option}">
+                <label class="form-check-label" th:for="'q' + ${question.id} + ${option}">
+                  <span class="fw-semibold" th:text="${option} + '.'">A.</span>
+                  <span th:if="${option == 'A'}" th:text="${question.optionA}">Option A</span>
+                  <span th:if="${option == 'B'}" th:text="${question.optionB}">Option B</span>
+                  <span th:if="${option == 'C'}" th:text="${question.optionC}">Option C</span>
+                  <span th:if="${option == 'D'}" th:text="${question.optionD}">Option D</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card-footer d-flex justify-content-between align-items-center">
+        <a th:href="@{/student/quizzes}" class="small text-body-secondary">
+          <i class="bi bi-arrow-left" aria-hidden="true"></i>Back to quizzes
+        </a>
+        <button type="submit" class="btn btn-primary">
+          <i class="bi bi-send" aria-hidden="true"></i>Submit quiz
+        </button>
+      </div>
+    </form>
+
+    <p class="small text-body-secondary mt-2">
+      Unanswered questions count as incorrect. You can retake a quiz — only your newest
+      score is kept.
+    </p>
+
+  </main>
+</div>
+</body>
+</html>

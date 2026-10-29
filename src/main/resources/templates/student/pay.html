@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('Pay fees — ' + ${student.fullName})}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('fees')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('Pay fees', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <header class="page-header">
+      <div>
+        <p class="page-eyebrow">
+          <i class="bi bi-wallet2" aria-hidden="true"></i>
+          <span th:text="${student.fullName}">Student</span>
+        </p>
+        <h2 class="page-title">Pay fees</h2>
+        <p class="page-subtitle">Record a payment against one of your fee agreements. The office sees it immediately and can issue the receipt.</p>
+      </div>
+      <div class="page-header-meta">
+        <i class="bi bi-receipt" aria-hidden="true"></i>
+        <span th:text="${'Agreement #' + account.id}">Agreement #0</span>
+      </div>
+    </header>
+
+    <div class="row g-3">
+      <div class="col-lg-5">
+        <div class="card h-100">
+          <div class="card-header">
+            <i class="bi bi-receipt" aria-hidden="true"></i>Your agreement
+          </div>
+          <div class="list-group list-group-flush">
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+              <span class="text-body-secondary">Course</span>
+              <span class="fw-semibold" th:text="${account.enrollment.course.name}">Course</span>
+            </div>
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+              <span class="text-body-secondary">Net fee</span>
+              <span th:text="${@money.money(account.netFee())}">₹ 0.00</span>
+            </div>
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+              <span class="text-body-secondary">Outstanding</span>
+              <span class="fw-semibold" th:text="${@money.money(outstanding)}">₹ 0.00</span>
+            </div>
+            <div class="list-group-item d-flex justify-content-between align-items-center"
+                 th:if="${nextInstallment != null}">
+              <span class="text-body-secondary">Next due</span>
+              <span>
+                <span th:text="${#temporals.format(nextInstallment.installment.dueDate, 'dd MMM yyyy')}">01 Jan 2026</span>
+                <span class="badge text-bg-warning"
+                      th:text="${'remaining ' + @money.money(nextInstallment.remaining)}">remaining</span>
+              </span>
+            </div>
+          </div>
+          <div class="card-footer small text-body-secondary">
+            <i class="bi bi-shield-check" aria-hidden="true"></i>
+            Payments are checked against the outstanding balance and allocated to your earliest dues automatically.
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-7">
+        <div class="card h-100">
+          <div class="card-header">
+            <i class="bi bi-cash-coin" aria-hidden="true"></i>Payment details
+          </div>
+          <form th:action="@{/student/pay}" method="post" class="card-body d-grid gap-3">
+            <input type="hidden" name="_csrf" th:value="${_csrf}">
+            <input type="hidden" name="feeAccountId" th:value="${account.id}">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label" for="amount">Amount</label>
+                <input class="form-control" type="text" id="amount" name="amount"
+                       inputmode="decimal"
+                       th:value="${outstanding.toPlainString()}">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="paymentMethod">Paid by</label>
+                <select class="form-select" id="paymentMethod" name="paymentMethod">
+                  <option th:each="method : ${methods}" th:value="${method}"
+                          th:text="${method}">UPI</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label class="form-label" for="referenceNumber">
+                Reference number <span class="text-body-secondary">(required for UPI, bank transfer and card)</span>
+              </label>
+              <input class="form-control" type="text" id="referenceNumber" name="referenceNumber"
+                     maxlength="60" placeholder="e.g. UPI reference from your payment app">
+            </div>
+            <div>
+              <label class="form-label" for="remarks">Note for the office <span class="text-body-secondary">(optional)</span></label>
+              <input class="form-control" type="text" id="remarks" name="remarks" maxlength="200">
+            </div>
+            <div class="d-flex justify-content-end gap-2">
+              <a th:href="@{/student/fees}" class="btn btn-outline-secondary">Cancel</a>
+              <button type="submit" class="btn btn-primary">
+                <i class="bi bi-cash-coin" aria-hidden="true"></i>Record payment
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+</body>
+</html>

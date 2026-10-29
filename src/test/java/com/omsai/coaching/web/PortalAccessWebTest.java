@@ -57,16 +57,30 @@ class PortalAccessWebTest {
     @Autowired
     private FeeAccountService feeAccountService;
 
+    @Autowired
+    private com.omsai.coaching.student.QuizRepository quizRepository;
+
+    @Autowired
+    private com.omsai.coaching.student.QuizQuestionRepository questionRepository;
+
+    @Autowired
+    private com.omsai.coaching.student.QuizAttemptRepository attemptRepository;
+
+    @Autowired
+    private com.omsai.coaching.fees.PaymentRepository paymentRepository;
+
     private UserAccount admin;
     private Student student;
     private Student otherStudent;
     private UserAccount studentAccount;
+    private Batch batch;
+    private FeeAccount feeAccount;
 
     @BeforeEach
     void buildFixture() {
         admin = fixtures.adminUser("portal.admin");
         Course course = fixtures.course("Portal Course");
-        Batch batch = fixtures.batch(course, "Morning");
+        batch = fixtures.batch(course, "Morning");
         student = fixtures.student("Portal Student");
         otherStudent = fixtures.student("Other Portal Student");
         Enrollment enrollment = fixtures.activeEnrollment(student, batch);
@@ -75,7 +89,7 @@ class PortalAccessWebTest {
         form.setEnrollmentId(enrollment.getId());
         form.setGrossFee(new BigDecimal("12000"));
         form.setAcademicYear("2026-27");
-        feeAccountService.create(form, admin);
+        feeAccount = feeAccountService.create(form, admin);
 
         studentAccount = createStudentAccount(student, "portal.student");
     }
@@ -93,6 +107,22 @@ class PortalAccessWebTest {
 
     private static RequestPostProcessor as(UserAccount account) {
         return user(AppUserPrincipal.from(account));
+    }
+
+    /** One MCQ question of a quiz. */
+    private void createQuestion(com.omsai.coaching.student.Quiz quiz, int position,
+                                String text, String a, String b, String c, String d,
+                                String correct) {
+        com.omsai.coaching.student.QuizQuestion question = new com.omsai.coaching.student.QuizQuestion();
+        question.setQuiz(quiz);
+        question.setPosition(position);
+        question.setQuestionText(text);
+        question.setOptionA(a);
+        question.setOptionB(b);
+        question.setOptionC(c);
+        question.setOptionD(d);
+        question.setCorrectOption(correct);
+        questionRepository.save(question);
     }
 
     // ----- the student account ---------------------------------------------
@@ -129,7 +159,8 @@ class PortalAccessWebTest {
     @Test
     void theStudentPortalShowsTheOwnRecords() throws Exception {
         for (String path : new String[]{"/student", "/student/timetable", "/student/attendance",
-                "/student/fees", "/student/results", "/student/profile"}) {
+                "/student/fees", "/student/results", "/student/profile",
+                "/student/resources", "/student/quizzes"}) {
             mockMvc.perform(get(path).with(as(studentAccount))).andExpect(status().isOk());
         }
 
@@ -178,7 +209,111 @@ class PortalAccessWebTest {
 
         mockMvc.perform(get("/student").with(as(teacher))).andExpect(status().isForbidden());
         mockMvc.perform(get("/student/fees").with(as(teacher))).andExpect(status().isForbidden());
+        mockMvc.perform(get("/student/resources").with(as(teacher)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/student/quizzes").with(as(teacher)))
+                .andExpect(status().isForbidden());
     }
+
+    // ----- the learning pack of the portal ---------------------------------
+
+    @Test
+    void aStudentSeesOnlyTheQuizzesOfTheirOwnBatchesAndIsScoredServerSide() throws Exception {
+        // A quiz of ANOTHER batch: the student must not see it, reach it or score it.
+        Course otherCourse = fixtures.course("Quiz Other Course");
+        Batch otherBatch = fixtures.batch(otherCourse, "Evening");
+        com.omsai.coaching.student.Quiz foreignQuiz = new com.omsai.coaching.student.Quiz();
+        foreignQuiz.setBatch(otherBatch);
+        foreignQuiz.setTitle("Foreign quiz");
+        foreignQuiz.setSubjectName("Physics");
+        foreignQuiz.setDurationMinutes(10);
+        foreignQuiz = quizRepository.save(foreignQuiz);
+
+        com.omsai.coaching.student.Quiz ownQuiz = new com.omsai.coaching.student.Quiz();
+        ownQuiz.setBatch(batch);
+        ownQuiz.setTitle("Own quiz");
+        ownQuiz.setSubjectName("Mathematics");
+        ownQuiz.setDurationMinutes(10);
+        ownQuiz = quizRepository.save(ownQuiz);
+        createQuestion(ownQuiz, 1, "1 + 1 = ?", "1", "2", "3", "4", "B");
+        createQuestion(ownQuiz, 2, "2 + 2 = ?", "3", "2", "4", "5", "C");
+
+        String list = mockMvc.perform(get("/student/quizzes").with(as(studentAccount)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertThat(list).contains("Own quiz");
+
+        mockMvc.perform(get("/student/quizzes/" + foreignQuiz.getId()).with(as(studentAccount)))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/student/quizzes"));
+
+        String form = mockMvc.perform(get("/student/quizzes/" + ownQuiz.getId())
+                        .with(as(studentAccount)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertThat(form).contains("1 + 1 = ?");
+        assertThat(form).doesNotContain("correctOption").doesNotContain("answer = B");
+
+        // Two correct answers out of two → 100%. The browser sends only
+        // the chosen options; the score is computed in the service.
+        mockMvc.perform(post("/student/quizzes/" + ownQuiz.getId()).with(as(studentAccount))
+                        .with(SecurityMockMvcRequestPostProcessors.csrf())
+                        .param("answers", "B").param("answers", "C"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/student/quizzes"));
+        assertThat(attemptRepository.count()).isEqualTo(1);
+        com.omsai.coaching.student.QuizAttempt attempt = attemptRepository.findAll().get(0);
+        assertThat(attempt.getCorrectCount()).isEqualTo(2);
+        assertThat(attempt.getTotalCount()).isEqualTo(2);
+
+        // A retake replaces the previous attempt (still exactly one row).
+        mockMvc.perform(post("/student/quizzes/" + ownQuiz.getId()).with(as(studentAccount))
+                        .with(SecurityMockMvcRequestPostProcessors.csrf())
+                        .param("answers", "A").param("answers", "A"))
+                .andExpect(status().is3xxRedirection());
+        assertThat(attemptRepository.count()).isEqualTo(1);
+        assertThat(attemptRepository.findAll().get(0).getCorrectCount()).isZero();
+    }
+
+    @Test
+    void aStudentCannotReachAnotherStudentsFeeAgreement() throws Exception {
+        mockMvc.perform(get("/student/pay").with(as(studentAccount))
+                        .param("feeAccountId", "999999"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/student/pay").with(as(studentAccount))
+                        .with(SecurityMockMvcRequestPostProcessors.csrf())
+                        .param("feeAccountId", "999999")
+                        .param("amount", "1000")
+                        .param("paymentMethod", "UPI"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void aStudentCanRecordAPaymentAgainstTheirOwnAgreement() throws Exception {
+        String form = mockMvc.perform(get("/student/pay").with(as(studentAccount))
+                        .param("feeAccountId", String.valueOf(feeAccount.getId())))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertThat(form).contains("Portal Course");
+
+        mockMvc.perform(post("/student/pay").with(as(studentAccount))
+                        .with(SecurityMockMvcRequestPostProcessors.csrf())
+                        .param("feeAccountId", String.valueOf(feeAccount.getId()))
+                        .param("amount", "3000")
+                        .param("paymentMethod", "UPI")
+                        .param("referenceNumber", "UPI123DEMO")
+                        .param("remarks", "Paid via the portal test."))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/student/fees"));
+
+        assertThat(paymentRepository.count()).isEqualTo(1);
+        com.omsai.coaching.fees.Payment payment = paymentRepository.findAll().get(0);
+        assertThat(payment.getAmount().compareTo(new BigDecimal("3000"))).isZero();
+        assertThat(payment.getReferenceNumber()).isEqualTo("UPI123DEMO");
+        assertThat(payment.getReceivedBy().getId()).isEqualTo(studentAccount.getId());
+        // The payment is allocated to the installment plan immediately.
+        assertThat(feeAccountService.outstandingOf(feeAccount))
+                .isEqualByComparingTo("9000");
+    }
+
+
 
     @Test
     void anAdministratorCannotReachTheStudentPortal() throws Exception {

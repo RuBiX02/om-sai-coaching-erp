@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{layout/fragments :: head('Quizzes')}"></head>
+<body class="app-body">
+<div th:replace="~{layout/fragments :: sidebar('quizzes')}"></div>
+<div class="app-main">
+  <div th:replace="~{layout/fragments :: topbar('Quizzes', true)}"></div>
+  <main class="app-content">
+
+    <div th:replace="~{layout/fragments :: alerts()}"></div>
+
+    <header class="page-header">
+      <div>
+        <p class="page-eyebrow">
+          <i class="bi bi-ui-checks" aria-hidden="true"></i>
+          <span th:text="${student.fullName}">Student</span>
+        </p>
+        <h2 class="page-title">Quizzes</h2>
+        <p class="page-subtitle">Short practice tests for your batches. Scores are computed by the institute, not by the browser.</p>
+      </div>
+      <div class="page-header-meta">
+        <i class="bi bi-lightning" aria-hidden="true"></i>
+        <span th:text="${#lists.size(quizzes)} + ' quiz(zes)'">0 quiz(zes)</span>
+      </div>
+    </header>
+
+    <div class="row g-3">
+      <div class="col-md-6 col-xl-4" th:each="quiz : ${quizzes}">
+        <div class="card h-100">
+          <div class="card-body">
+            <span class="badge text-bg-info" th:text="${quiz.subjectName}">Subject</span>
+            <div class="fw-semibold mt-1" th:text="${quiz.title}">Quiz title</div>
+            <p class="small text-body-secondary mb-0" th:if="${quiz.description != null}"
+               th:text="${quiz.description}">What this quiz covers.</p>
+            <div class="small text-body-secondary mt-2">
+              <i class="bi bi-clock" aria-hidden="true"></i>
+              <span th:text="${quiz.durationMinutes} + ' minutes'">10 minutes</span>
+            </div>
+          </div>
+          <div class="card-footer d-flex justify-content-between align-items-center">
+            <span th:if="${attemptByQuiz[quiz.id] != null}">
+              <span class="badge text-bg-light">Last score</span>
+              <span class="fw-semibold"
+                    th:text="${attemptByQuiz[quiz.id].correctCount} + ' / ' + ${attemptByQuiz[quiz.id].totalCount}
+                      + ' (' + ${attemptByQuiz[quiz.id].percentage()} + '%)'">0 / 0 (0%)</span>
+            </span>
+            <span th:if="${attemptByQuiz[quiz.id] == null}" class="badge text-bg-success">Not attempted</span>
+            <a th:href="@{/student/quizzes/{id}(id=${quiz.id})}" class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-play" aria-hidden="true"></i>Start quiz
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div th:if="${#lists.isEmpty(quizzes)}" class="card">
+      <div class="empty-state">
+        <i class="bi bi-ui-checks d-block" aria-hidden="true"></i>
+        <span class="empty-title">No quizzes yet</span>
+        <span class="empty-sub">Your teachers will publish practice quizzes here.</span>
+      </div>
+    </div>
+
+  </main>
+</div>
+</body>
+</html>

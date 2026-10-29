@@ -55,6 +55,11 @@
           <i class="bi bi-cash-coin" aria-hidden="true"></i><span th:text="${account.course.name}">Course</span>
           <span class="text-body-secondary small fw-normal" th:text="'· ' + ${account.academicYear}">year</span>
         </span>
+        <a th:if="${outstandings != null and outstandings[account.id] != null
+                    and outstandings[account.id].signum() > 0}"
+           th:href="@{/student/pay(feeAccountId=${account.id})}" class="btn btn-sm btn-primary">
+          <i class="bi bi-cash-coin" aria-hidden="true"></i>Pay now
+        </a>
       </div>
       <div class="card-body">
         <dl class="row mb-0">

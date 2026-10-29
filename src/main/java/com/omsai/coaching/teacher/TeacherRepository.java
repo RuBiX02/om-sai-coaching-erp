@@ -27,6 +27,7 @@ public interface TeacherRepository extends JpaRepository<Teacher, Long> {
 
     @Query("""
             select t from Teacher t
+            left join fetch t.linkedUser
             where (:q = ''
                or lower(t.fullName) like concat('%', :q, '%')
                or t.phone like concat('%', :q, '%')

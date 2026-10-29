@@ -215,7 +215,7 @@ Run them:
 
 ```bash
 ./mvnw test                     # unit/service tests only (browser excluded)
-./mvnw test -Pbrowser-tests     # unit + real-browser suite (423 tests total)
+./mvnw test -Pbrowser-tests     # unit + real-browser suite (426 tests total)
 ```
 
 Run a single browser class: `./mvnw test -Pbrowser-tests -Dtest=AttendanceBrowserTest`.
@@ -558,7 +558,7 @@ teaching assignments.
 |------|------|---------------|
 | ADMIN | `/dashboard` | the management portal: live figures, today's classes, the installment figures and a link to every module |
 | TEACHER | `/teacher` | today's classes, the attendance still to record, the examinations of their classes, the recent classes, their own schedule and their teaching assignments |
-| STUDENT | `/student` | their own dashboard, timetable, attendance, fees and installments, published results and their profile |
+| STUDENT | `/student` | their own dashboard, timetable, attendance, study resources, quizzes, fees and installments (with a pay flow), published results and their profile |
 
 A **student account** is created by an administrator and linked to
 exactly one student profile; the database keeps the link one-to-one (a
@@ -570,6 +570,36 @@ edit their contact details and change their own password; they can
 neither change their student code, nor attendance, fees, payments or
 marks.
 
+### Study resources and quizzes (migration `V9__student_learning.sql`)
+
+The student portal is also a place to *study*:
+
+* `/student/resources` lists study material — notes, worksheets and
+  curated external links — grouped by subject. A resource is tied to a
+  subject (visible to every batch that studies it) or to one batch.
+* `/student/quizzes` lists multiple-choice practice quizzes of the
+  student's own batches; `/student/quizzes/{id}` renders the questions
+  **without** the correct options. Submitting scores the attempt
+  **server-side** (the browser sends only the chosen options), stores
+  one latest attempt per student and quiz, and can be retaken.
+
+Everything is batch-scoped: a student only ever sees, and can only
+submit, material of the batches of their ACTIVE enrollments — another
+batch's quiz redirects with a message instead of rendering, and the
+score never leaves the service.
+
+### Paying fees from the student portal
+
+`/student/pay?feeAccountId=…` (linked from *My fees* as **Pay now**)
+lets a student record a payment against **their own** fee agreement:
+the agreement is looked up in the student's own list (a foreign id is a
+403), the outstanding balance is recomputed server-side, and the same
+`PaymentService` rules as the office screens apply — no over-payment,
+automatic earliest-due-date allocation, audit row recorded with the
+student's own account, voidable by the office. UPI, bank-transfer and
+card payments require a reference number; the office sees every
+portal payment on its regular screens.
+
 ### Tests for these modules
 
 ```bash
@@ -577,6 +607,18 @@ mvn test -Dtest='TimetableServiceTest,ExaminationServiceTest,PortalAccessWebTest
 mvn test -Pbrowser-tests -Dtest=InstituteWorkflowBrowserTest
 zsh scripts/e2e-smoke.sh      # includes the timetable, examination and portal checks
 ```
+
+### The demo learning pack (opt-in)
+
+`DEMO_LEARNING_DATA=1` (the demo launcher sets it by default) extends
+the curated demo catalogue for presentations: the weekly timetable of
+the MHT-CET combined-preparation batch, the last three weeks of
+completed class sessions with a mixed attendance history, study
+resources for its subjects, two short quizzes, and one sample fee
+agreement for the demo student that exists precisely so the portal pay
+flow can be tried. The seeder refuses to run without a named target
+database, runs only in the demo profile, and writes nothing that is
+already present. Office records are never invented in the default run.
 
 ## 11. The class lifecycle: subjects taught in a batch
 
@@ -1029,7 +1071,7 @@ src/main/java/com/omsai/coaching/…             feature packages:
     attendance/ (class sessions, attendance, reports)
     fees/       (fee agreements, payments, receipts)
 src/main/resources/templates/…                 40 Thymeleaf templates
-src/test/java/com/omsai/coaching/…             JUnit 5 test suite (380 tests)
+src/test/java/com/omsai/coaching/…             JUnit 5 test suite (383 tests)
 src/test/resources/application-test.yml        test profile → omsai_test
 scripts/e2e-smoke.sh                           end-to-end smoke checks (208)
 ```
